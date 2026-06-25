@@ -1,5 +1,6 @@
 .DS_Store
 .cursor/
+prototypes/kisoku-nintei/PRD-idp-workflow-kisoku.md
 node_modules/
 *.pdf
 *.pptx
