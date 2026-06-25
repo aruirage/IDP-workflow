@@ -1,0 +1,9 @@
+.DS_Store
+.cursor/debug*.log
+node_modules/
+*.pdf
+*.pptx
+*.xlsx
+*.mov
+*.mp4
+*.zip
