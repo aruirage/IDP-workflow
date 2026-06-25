@@ -1,5 +1,5 @@
 .DS_Store
-.cursor/debug*.log
+.cursor/
 node_modules/
 *.pdf
 *.pptx

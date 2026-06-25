@@ -14,4 +14,3 @@ python3 -m http.server 8888 --bind 0.0.0.0
 ## 目录
 
 - `prototypes/kisoku-nintei/` — 工作流画布、节点 Inspector、业务场景配置原型
-- `.cursor/skills/neosai-prototype-design/` — 原型设计规范 Skill
