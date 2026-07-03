@@ -6,12 +6,12 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>NeosAI プロトタイプ - 帳票設定</title>
+  <title>NeosAI プロトタイプ - 規則認定</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=332" />
+  <link rel="stylesheet" href="style.css?v=378" />
 </head>
 <body>
   <div id="app">
@@ -21,62 +21,12 @@
           <div class="logo-placeholder" title="logo-CWaP-1CB.png"></div>
         </div>
         <div class="user-area">
-          <el-select
-            v-model="mockUserRole"
-            class="wf-role-select"
-            size="small"
-            title="デモ用ロール"
-          >
-            <el-option
-              v-for="r in MOCK_USER_ROLES"
-              :key="r.value"
-              :label="r.label"
-              :value="r.value"
-            />
-          </el-select>
           <span class="user-avatar">Q</span>
           <span>qianjun</span>
         </div>
       </header>
 
       <div class="body-row idp-body">
-        <aside class="app-nav-col" :class="{ 'is-collapsed': appNavCollapsed }">
-          <div class="app-nav-tags-row">
-            <button type="button" class="app-nav-toggle" :title="appNavCollapsed ? '展開' : '折りたたむ'" @click="appNavCollapsed = !appNavCollapsed">≡</button>
-          </div>
-          <nav v-show="!appNavCollapsed" class="app-nav-body">
-            <template v-for="group in APP_NAV_GROUPS" :key="group.id">
-              <div v-if="group.menu" class="app-nav-group">
-                <button type="button" class="app-nav-item app-nav-item--parent" @click="toggleDocSettingsMenu">
-                  <span class="app-nav-icon">{{ group.icon }}</span>
-                  <span class="app-nav-label">{{ group.label }}</span>
-                  <span class="app-nav-chevron">{{ docSettingsMenuOpen ? '▾' : '▸' }}</span>
-                </button>
-                <div v-show="docSettingsMenuOpen" class="app-nav-sub">
-                  <button
-                    v-for="child in group.children"
-                    :key="child.id"
-                    type="button"
-                    class="app-nav-sub-item"
-                    :class="{ 'is-active': currentModule === child.id, 'is-disabled': child.placeholder }"
-                    @click="switchModule(child.id)"
-                  >{{ child.label }}</button>
-                </div>
-              </div>
-              <button
-                v-else
-                type="button"
-                class="app-nav-item"
-                :class="{ 'is-disabled': group.placeholder }"
-                @click="switchModule(group.id)"
-              >
-                <span class="app-nav-icon">{{ group.icon }}</span>
-                <span class="app-nav-label">{{ group.label }}</span>
-              </button>
-            </template>
-          </nav>
-        </aside>
-
         <div class="scene-list-col" :class="{ 'is-collapsed': sceneSidebarCollapsed }">
           <div class="scene-tags-row">
             <button type="button" class="scene-collapse-btn" :title="sceneSidebarCollapsed ? '展開' : '折りたたむ'" @click="toggleSceneSidebar">
@@ -282,6 +232,16 @@
               <span class="wf-setup-step-index">2</span>
               <span class="wf-setup-step-label">ワークフロー設定</span>
             </button>
+            <span class="wf-setup-step-line" aria-hidden="true"></span>
+            <button
+              type="button"
+              class="wf-setup-step"
+              :class="{ 'is-active': workflowSetupStep === 3, 'is-done': workflowSetupStep > 3 }"
+              @click="goToWorkflowSetupStep(3)"
+            >
+              <span class="wf-setup-step-index">3</span>
+              <span class="wf-setup-step-label">エクスポート設定</span>
+            </button>
           </div>
 
           <div v-if="workflowSetupStep === 1" class="wf-setup-page">
@@ -291,10 +251,13 @@
             <div class="wf-setup-page-body">
               <div class="wf-setup-top-grid">
                 <div class="wf-setup-scene-meta">
+                  <div class="wf-step-card-head">
+                    <span class="wf-step-card-index">1</span>
+                    <span class="wf-step-card-title">基本情報</span>
+                  </div>
                   <div class="inspector-field">
                     <label class="inspector-field-label">業務シーンID</label>
                     <div class="readonly-id-box">{{ sceneSetupSceneIdDisplay }}</div>
-                    <p class="inspector-field-hint">システムが自動採番します（編集不可）</p>
                   </div>
                   <div class="inspector-field">
                     <label class="inspector-field-label">業務シーン名<span class="field-required">（必須）</span></label>
@@ -314,12 +277,12 @@
                 </div>
 
                 <div class="wf-setup-docs-panel">
-                    <div class="inspector-section-head">
+                    <div class="wf-step-card-head">
+                      <span class="wf-step-card-index">2</span>
                       <inspector-title title="関連帳票" :hint="INSPECTOR_HINTS.caseLinkDocs"></inspector-title>
-                    <span class="inspector-section-meta">選択済み {{ sceneSetupDraft.documents.length }}/10</span>
-                      <el-button type="primary" link @click="openSceneSetupDocPicker">帳票追加</el-button>
+                      <span class="inspector-section-meta">選択済み {{ sceneSetupDraft.documents.length }}/10</span>
+                      <el-button class="wf-section-action-btn" @click="openSceneSetupDocPicker">+ 帳票追加</el-button>
                     </div>
-                  <p class="inspector-field-hint">主帳票を1件指定してください（案件集約の基準帳票）。タグで主帳票と関連帳票を区別します。</p>
                   <div class="wf-setup-docs-panel-body">
                     <div v-if="sceneSetupDraft.documents.length" class="case-link-doc-list scene-setup-doc-list">
                       <div
@@ -336,6 +299,19 @@
                           >{{ sceneSetupDraft.mainDocType === doc.type ? '主帳票' : '関連' }}</span>
                         </div>
                         <div class="case-link-doc-actions">
+                          <el-select
+                            v-if="sceneSetupDraft.mainDocType === doc.type"
+                            v-model="sceneSetupDraft.mainKey"
+                            class="case-link-main-key-select"
+                            placeholder="主キー"
+                          >
+                            <el-option
+                              v-for="field in sceneSetupMainKeyOptions"
+                              :key="'main-key-' + field"
+                              :label="field"
+                              :value="field"
+                            />
+                          </el-select>
                           <el-button
                             v-if="sceneSetupDraft.mainDocType !== doc.type"
                             type="primary"
@@ -354,40 +330,102 @@
               <div class="wf-setup-links-section">
                 <div class="wf-setup-links-grid">
                   <div class="wf-setup-left-panel">
-                    <div class="inspector-section-head">
-                      <inspector-title title="帳票間関連設定" :hint="INSPECTOR_HINTS.docFieldLinks"></inspector-title>
-                      <el-button type="primary" link @click="autoMatchDocFieldLinks">AI 自動関連付け</el-button>
+                    <div class="wf-step-card-head">
+                      <span class="wf-step-card-index">3</span>
+                      <inspector-title title="案件集約ルール" :hint="INSPECTOR_HINTS.docFieldLinks"></inspector-title>
+                      <span class="wf-step-card-spacer"></span>
+                      <el-button class="wf-section-action-btn" @click="autoMatchDocFieldLinks">AI 自動関連付け</el-button>
                     </div>
-                    <div v-if="sceneSetupDraft.docFieldLinks.length" class="wf-doc-link-list">
+                    <div class="case-aggregate-policy-panel">
+                      <div class="case-aggregate-policy-label">比較方式</div>
+                      <el-radio-group v-model="sceneSetupDraft.aggregateCompareStrategy" class="case-aggregate-policy-group" size="small">
+                        <el-radio-button
+                          v-for="opt in SCENE_AGGREGATE_COMPARE_STRATEGIES"
+                          :key="'global-compare-' + opt.value"
+                          :value="opt.value"
+                        >{{ opt.label }}</el-radio-button>
+                      </el-radio-group>
+                    </div>
+                    <div v-if="sceneSetupAggregateRuleGroups.length" class="case-aggregate-rule-list">
                       <div
-                        v-for="(link, i) in sceneSetupDraft.docFieldLinks"
-                        :key="link.id || 'link-' + i"
-                        class="wf-doc-link-row"
+                        v-for="group in sceneSetupAggregateRuleGroups"
+                        :key="'agg-' + group.docType"
+                        class="case-aggregate-rule-card"
+                        :class="{ 'is-missing': group.status === 'missing' }"
                       >
-                        <el-select v-model="link.sourceDocType" class="wf-doc-link-select" placeholder="帳票">
-                          <el-option v-for="opt in sceneSetupDocTypeOptions" :key="'src-' + opt.value" :label="opt.label" :value="opt.value" />
-                        </el-select>
-                        <el-select v-model="link.sourceField" class="wf-doc-link-select" placeholder="フィールド">
-                          <el-option v-for="f in getSceneSetupFieldOptions(link.sourceDocType)" :key="'sf-' + f" :label="f" :value="f" />
-                        </el-select>
-                        <span class="wf-doc-link-arrow" aria-hidden="true">↔</span>
-                        <el-select v-model="link.targetDocType" class="wf-doc-link-select" placeholder="帳票">
-                          <el-option v-for="opt in sceneSetupDocTypeOptions" :key="'tgt-' + opt.value" :label="opt.label" :value="opt.value" />
-                        </el-select>
-                        <el-select v-model="link.targetField" class="wf-doc-link-select" placeholder="フィールド">
-                          <el-option v-for="f in getSceneSetupFieldOptions(link.targetDocType)" :key="'tf-' + f" :label="f" :value="f" />
-                        </el-select>
-                        <button type="button" class="wf-doc-link-remove" title="削除" @click="removeDocFieldLink(i)">×</button>
+                        <div class="case-aggregate-rule-head">
+                          <div>
+                            <div class="case-aggregate-rule-title">{{ group.label }} → {{ getDocDisplayLabel(sceneSetupDraft.mainDocType) }}</div>
+                            <div class="case-aggregate-rule-meta">
+                              <span>{{ group.links.length }} 件の関連キー</span>
+                              <span v-if="group.status === 'missing'" class="case-aggregate-rule-warn">未設定</span>
+                            </div>
+                          </div>
+                          <div class="case-aggregate-rule-actions">
+                            <button
+                              type="button"
+                              class="case-aggregate-detail-toggle"
+                              @click="toggleSceneSetupAggregateDetail(group.docType)"
+                            >
+                              {{ isSceneSetupAggregateDetailOpen(group) ? '詳細を閉じる' : '詳細' }}
+                            </button>
+                          </div>
+                        </div>
+
+                        <template v-if="isSceneSetupAggregateDetailOpen(group)">
+                          <div v-if="group.links.length" class="case-aggregate-link-table">
+                            <div class="case-aggregate-link-row case-aggregate-link-row--head">
+                              <span>主帳票キー</span>
+                              <span></span>
+                              <span>関連帳票キー</span>
+                              <span></span>
+                            </div>
+                            <div
+                              v-for="(link, i) in group.links"
+                              :key="link.id || group.docType + '-' + i"
+                              class="case-aggregate-link-row"
+                            >
+                              <el-select
+                                :model-value="getSceneSetupLinkMainField(link)"
+                                class="case-aggregate-field-select"
+                                placeholder="主帳票フィールド"
+                                @change="updateSceneSetupAggregateLink(link, group.docType, 'main', $event)"
+                              >
+                                <el-option
+                                  v-for="f in getSceneSetupFieldOptions(sceneSetupDraft.mainDocType)"
+                                  :key="'main-' + group.docType + '-' + f"
+                                  :label="f"
+                                  :value="f"
+                                />
+                              </el-select>
+                              <span class="case-aggregate-link-arrow" aria-hidden="true">↔</span>
+                              <el-select
+                                :model-value="getSceneSetupLinkRelatedField(link, group.docType)"
+                                class="case-aggregate-field-select"
+                                placeholder="関連帳票フィールド"
+                                @change="updateSceneSetupAggregateLink(link, group.docType, 'related', $event)"
+                              >
+                                <el-option
+                                  v-for="f in getSceneSetupFieldOptions(group.docType)"
+                                  :key="'rel-' + group.docType + '-' + f"
+                                  :label="f"
+                                  :value="f"
+                                />
+                              </el-select>
+                              <button type="button" class="wf-doc-link-remove" title="削除" @click="removeSceneSetupAggregateLink(link)">×</button>
+                            </div>
+                          </div>
+                          <p v-else class="verify-empty">この関連帳票の主副キーを追加してください</p>
+                          <button type="button" class="wf-doc-link-add" @click="addSceneSetupAggregateLink(group.docType)">+ 関連キーを追加</button>
+                        </template>
                       </div>
                     </div>
-                    <p v-else class="verify-empty">帳票間の関連フィールドを追加するか、AI 自動関連付けを実行してください</p>
-                    <button type="button" class="wf-doc-link-add" @click="addDocFieldLink">+ 関連フィールドを追加</button>
+                    <p v-else class="verify-empty">主帳票と関連帳票を追加すると案件集約ルールを設定できます</p>
                   </div>
 
                   <div class="wf-setup-network-panel">
-                    <div class="inspector-section-head wf-network-head">
-                      <inspector-title title="帳票関連ネットワーク図" :hint="INSPECTOR_HINTS.docFieldNetwork"></inspector-title>
-                      <span class="wf-network-head-hint">主帳票から関連帳票へ矢印が向きます</span>
+                    <div class="wf-preview-panel-head wf-network-head">
+                      <inspector-title title="関連プレビュー" :hint="INSPECTOR_HINTS.docFieldNetwork"></inspector-title>
                     </div>
                     <div class="wf-network-canvas-wrap">
                       <template v-if="sceneSetupNetworkLayout.nodes.length">
@@ -476,109 +514,36 @@
             </div>
           </div>
 
-          <template v-else>
+          <template v-else-if="workflowSetupStep === 2">
           <div class="wf-toolbar">
             <div class="wf-toolbar-left">
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
-              <span class="wf-mode-badge" :class="{ 'is-edit': isWorkflowTopologyEditable }">{{ workflowModeLabel }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
-              <div v-if="canSwitchWorkflowTopologyMode" class="wf-topology-mode-switch" role="group" aria-label="表示モード">
-                <button
-                  type="button"
-                  class="wf-topology-mode-btn"
-                  :class="{ 'is-active': !isWorkflowTopologyEditable }"
-                  @click="setWorkflowTopologyMode('configure')"
-                >設定</button>
-                <button
-                  type="button"
-                  class="wf-topology-mode-btn"
-                  :class="{ 'is-active': isWorkflowTopologyEditable }"
-                  @click="setWorkflowTopologyMode('edit')"
-                >編集</button>
-              </div>
               <el-button @click="resetNode">リセット</el-button>
+              <el-button @click="goToWorkflowSetupStep(3)">エクスポート設定へ</el-button>
               <el-button type="primary" @click="handleSave">保存</el-button>
             </div>
           </div>
 
           <div
             class="idp-workspace"
-            :class="{ 'inspector-collapsed': inspectorPanelCollapsed, 'inspector-resizing': inspectorResizing }"
+            :class="{ 'inspector-collapsed': inspectorPanelCollapsed, 'inspector-resizing': inspectorResizing, 'canvas-maximized': wfCanvasMaximized }"
             :style="inspectorWorkspaceStyle"
           >
             <main class="idp-canvas-wrap">
               <div
                 ref="wfCanvasViewportRef"
                 class="idp-canvas-viewport"
-                :class="{ 'wf-topology-readonly': !isWorkflowTopologyEditable }"
+                :class="{ 'wf-topology-readonly': !isWorkflowTopologyEditable, 'wf-nodes-collapsed': wfCanvasNodesCollapsed }"
                 @wheel.prevent="onWfViewportWheel"
                 @mousedown="onWfViewportPointerDown"
                 @dragover.prevent="onWfCanvasDragOver"
                 @drop="onWfCanvasDrop"
               >
-                <div
-                  v-if="wfTemplateHintVisible"
-                  class="wf-canvas-template-hint wf-canvas-template-hint--flash"
-                >
-                  {{ modulePageMeta.templateNote }}
-                </div>
-                <div
-                  v-if="isWorkflowTopologyEditable"
-                  class="wf-canvas-toolbar wf-canvas-toolbar--compact"
-                  aria-label="キャンバス操作"
-                  @mousedown.stop
-                  @click.stop
-                >
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn"
-                    :disabled="!canUndoWorkflow"
-                    title="元に戻す (⌘Z)"
-                    @click="undoWorkflow"
-                  >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8H11a2.5 2.5 0 1 0 0-5H9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 5.5 3.5 8l2 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn"
-                    :disabled="!canRedoWorkflow"
-                    title="やり直し (⇧⌘Z)"
-                    @click="redoWorkflow"
-                  >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8H5a2.5 2.5 0 1 1 0-5H7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5.5 12.5 8l-2 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn"
-                    title="変更履歴"
-                    @click="wfChangeHistoryVisible = true"
-                  >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11.5 3.5 13 2v2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn"
-                    title="ノード追加 (N)"
-                    @click="openWfNodePickerFromShortcut"
-                  >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn wf-canvas-tool-btn--danger"
-                    :disabled="!selectedWorkflowNode"
-                    title="ノードを削除"
-                    @click="confirmRemoveSelectedWorkflowNode"
-                  >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.5 4.5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M6 7.5v4M10 7.5v4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 4.5 5 12.5a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                </div>
                 <div class="idp-canvas-stage" :style="wfCanvasStageStyle">
                 <svg
                   class="idp-edges"
@@ -659,7 +624,7 @@
                         :style="{ '--wf-node-accent': getWorkflowNodeMeta(node.type).accent }"
                       >
                         <div class="wf-node-terminal-inner">
-                          <span class="wf-node-terminal-icon">{{ getWorkflowNodeMeta(node.type).icon }}</span>
+                          <span class="wf-node-terminal-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                           <span class="wf-node-terminal-label">{{ getWorkflowNodeMeta(node.type).title }}</span>
                         </div>
                       </div>
@@ -686,17 +651,9 @@
                       :style="{ '--wf-node-accent': getWorkflowNodeMeta(node.type).accent }"
                     >
                       <div class="wf-node-header">
-                        <span
-                          class="wf-node-icon"
-                          :class="{
-                            'wf-node-icon--if': node.type === 'decision',
-                            'wf-node-icon--scene': ['scene_aggregate','scene_completeness'].includes(node.type),
-                            'wf-node-icon--fx': node.type === 'code',
-                          }"
-                        >{{ getWorkflowNodeMeta(node.type).icon }}</span>
+                        <span class="wf-node-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                         <div class="wf-node-titles">
-                          <span class="wf-node-name">{{ getWorkflowNodeMeta(node.type).title }}</span>
-                          <span v-if="!getWorkflowNodeActiveTasks(node).length" class="wf-node-type">{{ getWorkflowNodeMeta(node.type).desc }}</span>
+                          <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
                         </div>
                         <button
                           v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
@@ -706,17 +663,12 @@
                           @click.stop="confirmRemoveSelectedWorkflowNode"
                         >×</button>
                       </div>
-                      <div v-if="getWorkflowNodeActiveTasks(node).length" class="wf-node-body">
+                      <div v-if="getWorkflowNodeCanvasSummary(node).length" class="wf-node-body">
                         <span
-                          v-for="(task, ti) in getWorkflowNodeActiveTasks(node)"
+                          v-for="(task, ti) in getWorkflowNodeCanvasSummary(node)"
                           :key="node.id + '-tag-' + ti"
                           class="wf-node-tag"
                         >{{ task }}</span>
-                      </div>
-                      <div v-if="getWorkflowNodeIoFooter(node).input" class="wf-node-io">
-                        <span class="wf-node-io-label">{{ getWorkflowNodeIoFooter(node).input }}</span>
-                        <span class="wf-node-io-arrow">→</span>
-                        <span class="wf-node-io-label">{{ getWorkflowNodeIoFooter(node).output }}</span>
                       </div>
                     </div>
                     <template v-if="node.type === 'decision'">
@@ -751,11 +703,97 @@
                 </div>
               </div>
 
-              <div class="wf-canvas-zoom" aria-label="ズーム操作">
-                <button type="button" class="wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">−</button>
-                <button type="button" class="wf-zoom-percent" title="100%" @click="resetWorkflowZoom">{{ wfZoomPercent }}%</button>
-                <button type="button" class="wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">+</button>
-                <button type="button" class="wf-zoom-btn wf-zoom-btn--fit" title="全体表示" @click="fitWorkflowToView">⊡</button>
+              <div class="wf-canvas-floating-actions wf-canvas-history-actions" aria-label="履歴操作" @mousedown.stop @click.stop>
+                <div class="wf-canvas-toolbar wf-canvas-toolbar--bottom">
+                  <button
+                    type="button"
+                    class="wf-canvas-tool-btn"
+                    :disabled="!canUndoWorkflow"
+                    title="元に戻す (⌘Z)"
+                    @click="undoWorkflow"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8H11a2.5 2.5 0 1 0 0-5H9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 5.5 3.5 8l2 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="wf-canvas-tool-btn"
+                    :disabled="!canRedoWorkflow"
+                    title="やり直し (⇧⌘Z)"
+                    @click="redoWorkflow"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8H5a2.5 2.5 0 1 1 0-5H7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5.5 12.5 8l-2 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <el-popover
+                    v-model:visible="wfChangeHistoryVisible"
+                    trigger="click"
+                    placement="top-start"
+                    :width="300"
+                    popper-class="wf-history-popover"
+                  >
+                    <template #reference>
+                      <button
+                        type="button"
+                        class="wf-canvas-tool-btn"
+                        :class="{ 'is-active': wfChangeHistoryVisible }"
+                        title="変更履歴"
+                      >
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M8 5.1v3.2l2.1 1.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.2 4.1 3 4.1 3 2.9" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                    </template>
+                    <div class="wf-history-popover-head">
+                      <span>変更履歴</span>
+                      <button type="button" class="wf-history-popover-close" title="閉じる" @click="wfChangeHistoryVisible = false">×</button>
+                    </div>
+                    <div class="wf-history-list wf-history-list--popover">
+                      <button
+                        v-for="entry in workflowHistoryEntries"
+                        :key="entry.id"
+                        type="button"
+                        class="wf-history-item"
+                        :class="{ 'is-current': entry.index === wfHistoryIndex }"
+                        @click="restoreWorkflowHistoryEntry(entry.index); wfChangeHistoryVisible = false"
+                      >
+                        <span class="wf-history-item-label">{{ entry.label }}</span>
+                        <span class="wf-history-item-time">{{ entry.time }}</span>
+                      </button>
+                    </div>
+                    <p class="wf-history-hint wf-history-hint--popover">編集履歴はこの画面を開いている間だけ保持されます。</p>
+                  </el-popover>
+                </div>
+              </div>
+
+              <div class="wf-canvas-floating-actions wf-canvas-view-actions" aria-label="表示操作" @mousedown.stop @click.stop>
+                <div class="wf-canvas-toolbar wf-canvas-toolbar--bottom">
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn wf-zoom-btn--fit" title="画面に合わせる" @click="fitWorkflowToView">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 3H3v2.2M10.8 3H13v2.2M13 10.8V13h-2.2M5.2 13H3v-2.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.2 6.2h3.6v3.6H6.2z" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/></svg>
+                  </button>
+                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="wf-canvas-tool-btn"
+                    :class="{ 'is-active': wfCanvasNodesCollapsed }"
+                    :title="wfCanvasNodesCollapsed ? 'すべて展開' : 'すべて折りたたむ'"
+                    @click="toggleWorkflowNodesCollapsed"
+                  >
+                    <svg v-if="!wfCanvasNodesCollapsed" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 5h8M4 11h8M6 8h4" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M3 3.5h10v9H3z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                    <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4.5h8M4 8h8M4 11.5h5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M3 3h10v10H3z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                  </button>
+                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="wf-canvas-tool-btn"
+                    title="ノードを自動整列"
+                    @click="organizeWorkflowNodes"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.2h3M10 4.2h3M6 4.2c1.2 0 1.8.9 2 2.1.2 1.2.8 2.1 2 2.1M3 11.8h3M10 11.8h3M6 11.8c1.2 0 1.8-.9 2-2.1.2-1.2.8-2.1 2-2.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
               </div>
 
               <div
@@ -776,8 +814,11 @@
                       @click="pickWorkflowProcessNode(item)"
                       @mouseenter="wfNodePicker.hoveredLogic = item.type === 'decision' ? null : (item.defaultJudgmentContext || null)"
                     >
-                      <span class="wf-node-picker-icon" :class="{ 'wf-node-picker-icon--logic': item.type === 'decision' }">{{ item.type === 'decision' ? 'IF' : getWorkflowNodeMeta(item.type).icon }}</span>
-                      <span class="wf-node-picker-label">{{ item.label }}</span>
+                      <span class="wf-node-picker-icon" v-html="getWorkflowNodeIconSvg(item.type)"></span>
+                      <span class="wf-node-picker-text">
+                        <span class="wf-node-picker-label">{{ item.label }}</span>
+                        <span class="wf-node-picker-summary">{{ item.summary || getWorkflowNodeMeta(item.type).desc }}</span>
+                      </span>
                     </button>
                   </template>
                   <p v-if="!wfNodePickerAvailableProcessGroups.length" class="wf-node-picker-empty">追加できるノードがありません</p>
@@ -790,7 +831,7 @@
             </main>
 
             <button
-              v-if="inspectorPanelCollapsed"
+              v-if="inspectorPanelCollapsed && !wfCanvasMaximized"
               type="button"
               class="idp-panel-expand idp-panel-expand--right"
               title="設定パネルを展開"
@@ -799,7 +840,7 @@
               <span class="idp-panel-expand-icon">‹</span>
               <span class="idp-panel-expand-label">設定</span>
             </button>
-            <aside v-show="!inspectorPanelCollapsed" class="idp-inspector">
+            <aside v-show="!inspectorPanelCollapsed && !wfCanvasMaximized" class="idp-inspector">
               <div
                 class="idp-inspector-resizer"
                 :class="{ 'is-active': inspectorResizing }"
@@ -811,7 +852,8 @@
                   <span
                     class="idp-inspector-badge"
                     :style="getWorkflowNodeMeta(selectedWorkflowNode.type).accent ? { backgroundColor: getWorkflowNodeMeta(selectedWorkflowNode.type).accent + '18', color: getWorkflowNodeMeta(selectedWorkflowNode.type).accent } : null"
-                  >{{ getWorkflowNodeMeta(selectedWorkflowNode.type).icon }}</span>
+                    v-html="getWorkflowNodeIconSvg(selectedWorkflowNode.type)"
+                  ></span>
                   <div class="idp-inspector-head-text">
                     <div class="idp-inspector-title-row">
                     <h3 class="idp-inspector-title">{{ inspectorTitle }}</h3>
@@ -868,7 +910,7 @@
                   <div class="inspector-section">
                     <inspector-title
                       title="接続"
-                      :hint="isWorkflowTopologyEditable ? INSPECTOR_HINTS.edgeEdit : INSPECTOR_HINTS.edgeReadonly"
+                      :hint="INSPECTOR_HINTS.edgeEdit"
                     ></inspector-title>
                     <p class="inspector-edge-summary">{{ getWorkflowEdgeSummary(selectedWorkflowEdge) }}</p>
                     <p class="inspector-field-hint">接続線をクリックで選択（ハイライト）。Backspace / Delete で削除。出力ポートをドラッグして再接続できます。</p>
@@ -1027,29 +1069,28 @@
 
                 <!-- 前処理 -->
                 <div v-show="inspectorPanel === 'image'" class="inspector-panel-section">
-                  <div class="inspector-section inspector-section--flat">
+                  <div class="inspector-section inspector-section--flat preprocess-inspector">
                     <div
                       v-for="item in PREPROCESS_SETTING_ITEMS"
                       :key="item.key"
-                      class="inspector-setting-block"
+                      class="inspector-setting-block preprocess-setting-card"
                       :class="{ 'is-on': isPreprocessSettingOn(item), 'is-always-on': item.alwaysOn }"
                     >
                       <div class="inspector-setting-row">
                         <span class="inspector-setting-label">{{ item.label }}</span>
                         <div class="inspector-setting-actions">
                           <span v-if="item.alwaysOn" class="inspector-always-on-badge">常時有効</span>
-                            <el-switch
+                          <el-switch
                             v-else
-                              v-model="processingForm.image[item.switchKey]"
-                            />
+                            v-model="processingForm.image[item.switchKey]"
+                          />
                         </div>
                       </div>
                       <div
                         v-if="showPreprocessSettingDetail(item)"
                         class="inspector-setting-detail"
                       >
-                        <div v-if="item.docTypesKey" class="inspector-field">
-                          <label class="inspector-field-label">対象帳票</label>
+                        <div v-if="item.docTypesKey" class="inspector-field preprocess-target-field">
                           <el-select
                             v-model="processingForm.image[item.docTypesKey]"
                             multiple
@@ -1067,7 +1108,7 @@
                             />
                           </el-select>
                         </div>
-                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1078,6 +1119,18 @@
                     <p v-if="ocrExtractItems.length" class="inspector-field-hint inspector-field-hint--compact">
                       業務シーン設定の関連帳票 {{ ocrExtractStats.total }} 件を参照しています
                     </p>
+                    <div v-if="ocrExtractItems.length" class="ocr-extract-merge-setting">
+                      <div class="ocr-extract-merge-head">
+                        <span class="ocr-extract-merge-title">同タイプ複数ファイルの扱い</span>
+                        <el-radio-group v-model="processingForm.ocrExtract.mergeSameType" size="small">
+                          <el-radio-button :label="false">ファイル別に抽出</el-radio-button>
+                          <el-radio-button :label="true">同タイプをまとめて抽出</el-radio-button>
+                        </el-radio-group>
+                      </div>
+                      <p class="ocr-extract-merge-desc">
+                        同じ帳票タイプが同一案件に複数存在する場合の OCR 抽出結果のまとめ方を設定します。
+                      </p>
+                    </div>
                   <div v-if="ocrExtractItems.length" class="ocr-extract-list">
                     <div
                       v-for="item in ocrExtractItems"
@@ -1113,7 +1166,131 @@
                   <div class="panel-footer">
                     OCR抽出 有効 {{ ocrExtractStats.enabled }} / {{ ocrExtractStats.total }}
                     <template v-if="ocrExtractStats.disabled"> · 対象外 {{ ocrExtractStats.disabled }}</template>
+                    <template v-if="ocrExtractStats.total"> · {{ processingForm.ocrExtract.mergeSameType ? '同タイプ統合' : 'ファイル別' }}</template>
                   </div>
+                </div>
+
+                <!-- データマッピング -->
+                <div v-if="inspectorPanel === 'data_mapping' && selectedWorkflowNode" class="inspector-panel-section data-mapping-inspector">
+                  <div class="inspector-section">
+                    <inspector-title title="出力構造" :hint="INSPECTOR_HINTS.dataMapping"></inspector-title>
+                    <el-radio-group v-model="selectedWorkflowNode.outputMode" class="data-mapping-output-mode">
+                      <el-radio-button
+                        v-for="opt in DATA_MAPPING_OUTPUT_MODES"
+                        :key="opt.value"
+                        :label="opt.value"
+                      >{{ opt.label }}</el-radio-button>
+                    </el-radio-group>
+                  </div>
+
+                  <div class="inspector-section">
+                    <div class="mcp-field-head">
+                      <inspector-title title="標準フィールド別マッピング" :hint="INSPECTOR_HINTS.dataMappingRules"></inspector-title>
+                      <el-button type="primary" link @click="addDataMappingRule">+ 追加</el-button>
+                    </div>
+                    <div class="data-mapping-rule-list">
+                      <div
+                        v-for="rule in selectedWorkflowNode.mappingRules"
+                        :key="rule.id"
+                        class="data-mapping-rule-row"
+                      >
+                        <div class="data-mapping-rule-grid">
+                          <div class="inspector-field">
+                            <label class="inspector-field-label">OCR抽出フィールド</label>
+                            <el-select
+                              v-model="rule.sourceFieldIds"
+                              multiple
+                              collapse-tags
+                              collapse-tags-tooltip
+                              filterable
+                              placeholder="1件以上選択"
+                              class="inspector-field-control"
+                            >
+                              <el-option
+                                v-for="opt in dataMappingSourceFieldOptions"
+                                :key="'map-src-' + rule.id + '-' + opt.value"
+                                :label="opt.label"
+                                :value="opt.value"
+                              />
+                            </el-select>
+                          </div>
+                          <div class="inspector-field">
+                            <label class="inspector-field-label">標準フィールド</label>
+                            <el-select
+                              v-model="rule.standardFieldId"
+                              filterable
+                              placeholder="標準項目を選択"
+                              class="inspector-field-control"
+                            >
+                              <el-option
+                                v-for="opt in dataMappingStandardFieldOptions"
+                                :key="'map-std-' + rule.id + '-' + opt.value"
+                                :label="opt.label"
+                                :value="opt.value"
+                              />
+                            </el-select>
+                          </div>
+                          <div class="inspector-field">
+                            <label class="inspector-field-label">標準フィールド分類</label>
+                            <el-select v-model="rule.category" class="inspector-field-control">
+                              <el-option
+                                v-for="opt in DATA_MAPPING_FIELD_CATEGORIES"
+                                :key="'map-category-' + rule.id + '-' + opt.value"
+                                :label="opt.label"
+                                :value="opt.value"
+                              />
+                            </el-select>
+                          </div>
+                          <div class="inspector-field">
+                            <label class="inspector-field-label">標準化処理</label>
+                            <el-select v-model="rule.transformRule" class="inspector-field-control">
+                              <el-option
+                                v-for="opt in DATA_MAPPING_TRANSFORM_RULES"
+                                :key="'map-rule-' + rule.id + '-' + opt.value"
+                                :label="opt.label"
+                                :value="opt.value"
+                              />
+                            </el-select>
+                          </div>
+                        </div>
+                        <div class="data-mapping-rule-foot">
+                          <span class="data-mapping-standard-meta">
+                            型：{{ getDataMappingStandardFieldMeta(rule.standardFieldId)?.dataType || 'string' }}
+                          </span>
+                          <span class="data-mapping-source-count">入力 {{ rule.sourceFieldIds?.length || 0 }} 件</span>
+                          <span class="inspector-field-label">競合検出</span>
+                          <el-switch v-model="rule.conflictCheckEnabled" size="small" />
+                          <el-button type="primary" link @click="removeDataMappingRule(rule.id)">削除</el-button>
+                        </div>
+                      </div>
+                    </div>
+                    <p v-if="!selectedWorkflowNode.mappingRules?.length" class="verify-empty">標準フィールドへのマッピングルールを追加してください</p>
+                  </div>
+
+                  <div class="inspector-section inspector-section--muted">
+                    <inspector-title title="標準フィールド" :hint="INSPECTOR_HINTS.dataMappingStandard"></inspector-title>
+                    <div class="data-mapping-standard-list">
+                      <div
+                        v-for="category in DATA_MAPPING_FIELD_CATEGORIES"
+                        :key="'std-category-' + category.value"
+                        class="data-mapping-standard-group"
+                      >
+                        <div class="data-mapping-standard-group-title">{{ category.label }}</div>
+                        <div class="data-mapping-standard-chip-row">
+                          <span
+                            v-for="field in getDataMappingFieldsByCategory(category.value)"
+                            :key="'std-field-' + field.value"
+                            class="data-mapping-standard-chip"
+                          >{{ field.label }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="data-mapping-reset-row">
+                      <el-button @click="resetDataMappingRules">標準ルールに戻す</el-button>
+                    </div>
+                  </div>
+
+                  <div class="panel-footer">{{ dataMappingStatsText }}</div>
                 </div>
 
                 <!-- マスタ照合 -->
@@ -1122,7 +1299,7 @@
                     <inspector-title title="入力" :hint="INSPECTOR_HINTS.masterMatchInput"></inspector-title>
                     <div class="master-match-io-readonly">
                       <div class="inspector-field">
-                        <label class="inspector-field-label">ナレッジ源</label>
+                        <label class="inspector-field-label">標準フィールド</label>
                         <div
                           class="readonly-id-box"
                           :class="{ 'is-warn': masterMatchMcpInputSummary?.status === 'none' }"
@@ -1390,8 +1567,8 @@
                         </div>
                       </template>
                       <div class="verify-panel-body completeness-panel" :class="{ 'is-disabled': !form.verify.completenessEnabled }">
-                        <p class="scene-doc-stats">必須 {{ sceneStats.required }}　任意 {{ sceneStats.optional }}</p>
-                        <div v-for="(doc, i) in form.scene.documents" :key="'cmp-' + doc.type + i" class="doc-card" style="margin-top: 12px;">
+                        <p class="scene-doc-stats">必須帳票 {{ sceneStats.required }}　任意帳票 {{ sceneStats.optional }}　必須項目 {{ sceneStats.requiredFields }}</p>
+                        <div v-for="(doc, i) in form.scene.documents" :key="'cmp-' + doc.type + i" class="doc-card completeness-doc-card">
                           <div class="doc-card-top">
                             <div class="doc-card-head">
                               <span class="doc-card-title">{{ getDocDisplayLabel(doc.type) }}</span>
@@ -1399,7 +1576,29 @@
                                 <el-radio label="必須">必須</el-radio>
                                 <el-radio label="任意">任意</el-radio>
                               </el-radio-group>
+                              <span class="completeness-field-count">必須項目 {{ getDocRequiredFieldCount(doc) }}/{{ getDocCompletenessFieldOptions(doc).length }}</span>
                             </div>
+                          </div>
+                          <div class="completeness-field-config">
+                            <div class="completeness-field-config-head">
+                              <span class="completeness-field-config-title">必須項目</span>
+                              <div class="completeness-field-actions">
+                                <el-button type="primary" link @click="setDocRequiredFields(doc, true)">全選択</el-button>
+                                <el-button type="primary" link @click="setDocRequiredFields(doc, false)">全解除</el-button>
+                              </div>
+                            </div>
+                            <el-checkbox-group
+                              v-model="doc.requiredFields"
+                              class="completeness-field-checkboxes"
+                              @change="normalizeDocRequiredFields(doc)"
+                            >
+                              <el-checkbox
+                                v-for="field in getDocCompletenessFieldOptions(doc)"
+                                :key="doc.type + '-required-' + field"
+                                :label="field"
+                              >{{ field }}</el-checkbox>
+                            </el-checkbox-group>
+                            <p v-if="!getDocCompletenessFieldOptions(doc).length" class="verify-empty completeness-field-empty">この帳票タイプには項目定義がありません</p>
                           </div>
                         </div>
                         <p v-if="!form.scene.documents.length" class="verify-empty">業務シーン設定で関連帳票を追加すると完全性検査が有効になります</p>
@@ -1659,131 +1858,15 @@
                 <!-- 開始ノード -->
                 <div v-if="inspectorPanel === 'start' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector">
                   <div class="inspector-section inspector-section--flat">
-                    <inspector-title title="トリガー条件" :hint="INSPECTOR_HINTS.startTriggers"></inspector-title>
-
-                    <div
-                      class="inspector-setting-block"
-                      :class="{ 'is-on': isStartCaseEventEnabled(selectedWorkflowNode) }"
-                    >
-                      <div class="inspector-setting-row">
-                        <span class="inspector-setting-label">
-                          案件イベント
-                          <el-tooltip
-                            :content="INSPECTOR_HINTS.startTriggerCaseEvent"
-                            placement="top"
-                            :show-after="200"
-                            popper-class="idp-inspector-head-tooltip"
-                          >
-                            <button type="button" class="inspector-field-tip" aria-label="説明">?</button>
-                          </el-tooltip>
-                        </span>
-                        <div class="inspector-setting-actions">
-                          <el-switch
-                            :model-value="isStartCaseEventEnabled(selectedWorkflowNode)"
-                            @change="toggleStartCaseEvent"
-                          />
-                        </div>
+                    <inspector-title title="起動タイミング" :hint="INSPECTOR_HINTS.startTriggers"></inspector-title>
+                    <div class="wf-start-readonly-list">
+                      <div class="wf-start-readonly-item">
+                        <span class="wf-start-readonly-label">通常処理</span>
+                        <span class="wf-start-readonly-value">案件集約完了後</span>
                       </div>
-                      <div
-                        v-if="isStartCaseEventEnabled(selectedWorkflowNode)"
-                        class="inspector-setting-detail wf-start-trigger-detail"
-                      >
-                        <el-select
-                          v-model="selectedWorkflowNode.triggerConfig.caseEvents"
-                          multiple
-                          collapse-tags
-                          collapse-tags-tooltip
-                          class="inspector-field-control"
-                          placeholder="イベントを選択"
-                          @change="onStartTriggerChange"
-                        >
-                          <el-option
-                            v-for="opt in CASE_WORKFLOW_TRIGGER_EVENTS"
-                            :key="opt.value"
-                            :label="opt.label"
-                            :value="opt.value"
-                          />
-                        </el-select>
-                      </div>
-                    </div>
-
-                    <div
-                      class="inspector-setting-block"
-                      :class="{ 'is-on': !!selectedWorkflowNode.triggerConfig.schedule }"
-                    >
-                      <div class="inspector-setting-row">
-                        <span class="inspector-setting-label">
-                          スケジュール
-                          <el-tooltip
-                            :content="INSPECTOR_HINTS.startTriggerSchedule"
-                            placement="top"
-                            :show-after="200"
-                            popper-class="idp-inspector-head-tooltip"
-                          >
-                            <button type="button" class="inspector-field-tip" aria-label="説明">?</button>
-                          </el-tooltip>
-                        </span>
-                        <div class="inspector-setting-actions">
-                          <el-switch
-                            :model-value="!!selectedWorkflowNode.triggerConfig.schedule"
-                            @change="toggleStartSchedule"
-                          />
-                        </div>
-                      </div>
-                      <div
-                        v-if="selectedWorkflowNode.triggerConfig.schedule"
-                        class="inspector-setting-detail wf-start-trigger-detail"
-                      >
-                        <el-radio-group
-                          v-model="selectedWorkflowNode.triggerConfig.schedule.mode"
-                          size="small"
-                          class="wf-start-schedule-mode"
-                          @change="onStartTriggerChange"
-                        >
-                          <el-radio-button
-                            v-for="opt in WORKFLOW_SCHEDULE_MODES"
-                            :key="opt.value"
-                            :value="opt.value"
-                          >{{ opt.label }}</el-radio-button>
-                        </el-radio-group>
-                        <div
-                          v-if="selectedWorkflowNode.triggerConfig.schedule.mode === 'fixed'"
-                          class="wf-start-schedule-fields"
-                        >
-                          <el-input
-                            v-model="selectedWorkflowNode.triggerConfig.schedule.fixedTime"
-                            class="wf-start-time-input"
-                            placeholder="09:00"
-                            maxlength="5"
-                            @change="onStartTriggerChange"
-                          />
-                        </div>
-                        <div v-else class="wf-start-interval-row">
-                          <el-input-number
-                            v-model="selectedWorkflowNode.triggerConfig.schedule.intervalValue"
-                            :min="1"
-                            :max="9999"
-                            controls-position="right"
-                            @change="onStartTriggerChange"
-                          />
-                          <el-select
-                            v-model="selectedWorkflowNode.triggerConfig.schedule.intervalUnit"
-                            class="wf-start-interval-unit"
-                            @change="onStartTriggerChange"
-                          >
-                            <el-option
-                              v-for="opt in WORKFLOW_INTERVAL_UNITS"
-                              :key="opt.value"
-                              :label="opt.label"
-                              :value="opt.value"
-                            />
-                          </el-select>
-                        </div>
-                        <el-checkbox
-                          v-model="selectedWorkflowNode.triggerConfig.schedule.runOnWeekdays"
-                          class="wf-start-weekday-check"
-                          @change="onStartTriggerChange"
-                        >稼働日のみ（平日）</el-checkbox>
+                      <div class="wf-start-readonly-item">
+                        <span class="wf-start-readonly-label">補件処理</span>
+                        <span class="wf-start-readonly-value">補件集約完了後</span>
                       </div>
                     </div>
                   </div>
@@ -1816,7 +1899,6 @@
                 <!-- 通知 -->
                 <div v-if="inspectorPanel === 'notify' && selectedWorkflowNode" class="inspector-panel-section">
                   <div class="inspector-section">
-                    <inspector-title title="通知設定" :hint="INSPECTOR_HINTS.notify"></inspector-title>
                     <div class="inspector-field">
                       <label class="inspector-field-label">通知種別</label>
                       <el-select
@@ -1837,6 +1919,18 @@
                       <el-select v-model="selectedWorkflowNode.channel" class="inspector-field-control">
                         <el-option v-for="opt in NOTIFY_CHANNELS" :key="opt.value" :label="opt.label" :value="opt.value" />
                       </el-select>
+                    </div>
+                    <div class="inspector-field notify-event-field">
+                      <div class="inspector-switch-row">
+                        <inspector-field-label
+                          label="補件イベント"
+                          hint="ON の場合、この通知ノードで案件を補件待ちにし、追加書類の再取込まで Workflow を停止します。"
+                        ></inspector-field-label>
+                        <el-switch
+                          v-model="selectedWorkflowNode.supplementEventEnabled"
+                          :disabled="selectedWorkflowNode.template !== 'deficiency'"
+                        />
+                      </div>
                     </div>
                     <div class="inspector-field">
                       <inspector-field-label
@@ -1873,21 +1967,177 @@
                 <!-- 出力変数（処理ノード共通） -->
                 <div
                   v-if="showWorkflowNodeOutputSection"
-                  class="inspector-section inspector-section--muted workflow-node-output-section"
+                  class="workflow-node-output-section"
                 >
-                  <inspector-title title="出力変数" :hint="workflowNodeOutputHint"></inspector-title>
-                  <ul class="kr-output-var-list">
-                    <li v-for="item in workflowNodeOutputVars" :key="item.id" class="kr-output-var-item">
-                      <span class="kr-output-var-label">{{ item.label }}</span>
-                      <code class="kr-output-var-token">{{ item.token }}</code>
-                    </li>
-                  </ul>
-                              </div>
+                  <details class="workflow-output-dropdown">
+                    <summary class="workflow-output-trigger">
+                      <span>出力変数</span>
+                      <span class="workflow-output-trigger-count">{{ workflowOutputVariableRows.length }}</span>
+                      <span class="workflow-output-trigger-caret" aria-hidden="true">⌄</span>
+                    </summary>
+                    <div class="workflow-output-panel">
+                      <ul class="workflow-output-var-list">
+                        <li v-for="item in workflowOutputVariableRows" :key="item.id" class="workflow-output-var-item">
+                          <div class="workflow-output-var-main">
+                            <code class="workflow-output-var-name">{{ item.name }}</code>
+                            <span class="workflow-output-var-type">{{ item.dataType }}</span>
+                          </div>
+                          <div class="workflow-output-var-description">{{ item.description }}</div>
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </div>
 
               </div>
             </aside>
           </div>
           </template>
+
+          <div v-else-if="workflowSetupStep === 3" class="wf-export-step-page">
+            <div class="wf-export-context-bar">
+              <div class="wf-export-breadcrumb">
+                <button type="button" class="wf-export-back" @click="goToWorkflowSetupStep(2)">‹ ワークフロー設定</button>
+                <strong>エクスポート設定</strong>
+                <span>取込元フォルダ名</span>
+                <strong>{{ currentScene?.name || form.scene.name }}</strong>
+                <span>案件元</span>
+                <strong>REQ-2025-0018890</strong>
+              </div>
+            </div>
+
+            <div class="export-config export-config--step">
+              <div class="export-config-toolbar">
+                <div class="export-config-toolbar-left">
+                  <span class="export-config-label">出力形式</span>
+                  <div class="export-format-segment" role="group" aria-label="出力形式">
+                    <button
+                      v-for="format in exportStepFormatOptions"
+                      :key="format"
+                      type="button"
+                      class="export-format-btn"
+                      :class="{ 'is-active': form.output.format === format }"
+                      @click="setOutputFormat(format)"
+                    >{{ format === 'Excel' ? 'EXCEL' : format }}</button>
+                  </div>
+                  <el-checkbox v-model="form.output.includeVerifyReport">検証レポートを同梱</el-checkbox>
+                  <el-button type="primary" link @click="previewExportConfig">プレビュー</el-button>
+                </div>
+                <div class="export-config-toolbar-right">
+                  <el-button @click="resetNode">リセット</el-button>
+                  <el-button type="primary" @click="handleSave">保存</el-button>
+                </div>
+              </div>
+
+              <div class="export-config-body">
+                <aside class="export-config-sidebar">
+                  <div class="export-config-sidebar-head">
+                    <span>エクスポート対象</span>
+                    <label class="export-preview-select-all">
+                      <el-checkbox
+                        :model-value="exportPreviewSelectAllState.checked"
+                        :indeterminate="exportPreviewSelectAllState.indeterminate"
+                        @change="toggleExportPreviewSelectAll"
+                      />
+                      <span>すべて選択</span>
+                    </label>
+                  </div>
+                  <div class="export-preview-tree">
+                    <div
+                      v-for="row in exportPreviewRows"
+                      :key="row.node.id"
+                      class="export-preview-row"
+                      :class="[
+                        'export-preview-row--depth-' + row.depth,
+                        { 'is-active': isExportPreviewRowActive(row.node) }
+                      ]"
+                      @click="onExportPreviewRowClick(row.node)"
+                    >
+                      <div class="export-preview-row-main">
+                        <button
+                          v-if="row.node.children && row.node.children.length"
+                          type="button"
+                          class="export-preview-expand"
+                          @click="toggleExportPreviewExpand(row.node.id, $event)"
+                        >
+                          <span class="export-preview-expand-icon" :class="{ 'is-expanded': exportPreviewExpanded[row.node.id] !== false }"></span>
+                        </button>
+                        <span v-else class="export-preview-expand-spacer"></span>
+                        <span class="export-preview-icon" :class="'export-preview-icon--' + (row.node.kind || 'folder')"></span>
+                        <span class="export-preview-label">{{ row.node.label }}</span>
+                        <span v-if="row.node.kind === 'file'" class="export-preview-file-ext">.{{ form.output.format === 'Excel' ? 'xlsx' : form.output.format.toLowerCase() }}</span>
+                      </div>
+                      <el-checkbox
+                        :model-value="exportPreviewChecked[row.node.id]"
+                        @click.stop
+                        @change="(checked) => onExportPreviewCheckboxChange(row.node, checked)"
+                      />
+                    </div>
+                  </div>
+                </aside>
+
+                <main class="export-config-detail">
+                  <div v-if="activeOutputDocFields" class="export-config-detail-head">
+                    <div class="export-config-detail-title">
+                      <strong>{{ getDocExportLabel(activeOutputDocFields.docType) }}</strong>
+                      <div class="export-config-detail-pills">
+                        <span class="export-stat-pill export-stat-pill--total">全 {{ outputDocTotalCount(activeOutputDocFields) }} フィールド</span>
+                        <span class="export-stat-pill export-stat-pill--selected">選択 {{ outputDocCheckedCount(activeOutputDocFields) }} 件</span>
+                      </div>
+                    </div>
+                    <div class="export-config-detail-head-right">
+                      <div class="export-config-detail-actions">
+                        <el-button type="primary" link @click="setActiveOutputDocFieldsChecked(true)">全選択</el-button>
+                        <el-button type="primary" link @click="setActiveOutputDocFieldsChecked(false)">全解除</el-button>
+                        <el-button type="primary" link @click="applyOutputSelectionToSameType">同タイプへ反映</el-button>
+                      </div>
+                      <span class="export-config-order-hint">ドラッグで出力順序を変更できます</span>
+                    </div>
+                  </div>
+
+                  <div v-if="activeOutputDocFields" class="export-field-table-wrap">
+                    <table class="export-field-table">
+                      <thead>
+                        <tr>
+                          <th class="col-drag"></th>
+                          <th class="col-check"></th>
+                          <th class="col-name">フィールド名</th>
+                          <th class="col-value">抽出値</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="(row, index) in activeOutputExportRows"
+                          :key="row.key"
+                          class="export-field-row"
+                          :class="{
+                            'is-drag-over': isOutputExportRowDragOver(activeOutputDocFields.docType, index),
+                            'is-dragging': isOutputExportRowDragging(activeOutputDocFields.docType, index)
+                          }"
+                          draggable="true"
+                          @dragstart="onOutputExportRowDragStart(activeOutputDocFields.docType, index, $event)"
+                          @dragover="onOutputExportRowDragOver(activeOutputDocFields.docType, index, $event)"
+                          @drop="onOutputExportRowDrop(activeOutputDocFields.docType, index, $event)"
+                          @dragend="onOutputExportRowDragEnd"
+                        >
+                          <td class="col-drag"><span class="drag-handle">↕</span></td>
+                          <td class="col-check"><el-checkbox v-model="row.ref.checked" /></td>
+                          <td class="col-name">
+                            <span class="export-field-name">{{ row.label }}</span>
+                            <span v-if="row.kind === 'column'" class="export-column-path">{{ outputTableColumnPath(activeOutputDocFields.docType, row.tableRef.name, row.ref.name) }}</span>
+                          </td>
+                          <td class="col-value">
+                            <span class="export-sample-value">{{ getOutputSampleValue(activeOutputDocFields.docType, row.label) }}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div v-else class="export-config-empty">エクスポート対象の帳票がありません</div>
+                </main>
+              </div>
+            </div>
+          </div>
         </div>
           </div>
       </div>
@@ -2162,33 +2412,15 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="wfChangeHistoryVisible" title="変更履歴" width="520px" class="wf-history-dialog">
-      <p class="wf-history-hint">ワークフローの編集履歴です。項目をクリックするとその時点の状態に復元します。</p>
-      <div class="wf-history-list">
-        <button
-          v-for="entry in workflowHistoryEntries"
-          :key="entry.id"
-          type="button"
-          class="wf-history-item"
-          :class="{ 'is-current': entry.index === wfHistoryIndex }"
-          @click="restoreWorkflowHistoryEntry(entry.index)"
-        >
-          <span class="wf-history-item-label">{{ entry.label }}</span>
-          <span class="wf-history-item-time">{{ entry.time }}</span>
-        </button>
-      </div>
-    </el-dialog>
   </div>
 
   <script>
-    // #region agent log
-    window.__cdnLoadLog = function(label, ok) {
-      fetch('http://127.0.0.1:7876/ingest/60bfb8a0-da44-4072-992e-0772074959d2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6c1f19'},body:JSON.stringify({sessionId:'6c1f19',location:'index.html:cdn',message:'cdn-script',data:{label:label,ok:!!ok},timestamp:Date.now(),hypothesisId:'B',runId:'hang-debug'})}).catch(function(){});
-    };
-    // #endregion
   </script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" onload="window.__cdnLoadLog('vue',true)" onerror="window.__cdnLoadLog('vue',false)"></script>
-  <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js" onload="window.__cdnLoadLog('element-plus',true)" onerror="window.__cdnLoadLog('element-plus',false)"></script>
-  <script src="main.js?v=340"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="scripts/workflow-core.js?v=356"></script>
+  <script src="scripts/mock-data.js?v=349"></script>
+  <script src="scripts/scene-config.js?v=353"></script>
+  <script src="main.js?v=363"></script>
 </body>
 </html>
