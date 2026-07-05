@@ -73,6 +73,7 @@ const WORKFLOW_DEFAULTS = {
   },
   ocrExtract: {
     enabledTypes: [],
+    mergeByType: {},
     mergeSameType: false,
     confidenceThreshold: 85,
     llmOcrEnabled: true,
@@ -121,14 +122,47 @@ const INPUT_CHANNELS = [
 ];
 
 const OUTPUT_NAMING_DEFAULTS = {
-  caseFilePattern: '{案件番号}_{業務シーン}_{yyyyMMdd}_{HHmmss}',
-  docFilePattern: '{案件番号}_{帳票タイプ}_{yyyyMMdd}_{HHmmss}',
-  usePerDocFilePattern: false,
-  apiObjectKey: '{案件番号}/{帳票タイプ}/{タイムスタンプ}',
-  apiPayloadName: '{案件番号}_IDP_export',
-  excelSheetPattern: '{帳票タイプ}',
+  prefixMode: 'doc_type',
+  prefixCustom: '',
+  serialDigits: 6,
+  includeDate: true,
+  dateFormat: 'yyyyMMdd',
   separator: '_',
+  caseFilePattern: '{帳票タイプ}_{連番6桁}_{yyyyMMdd}',
+  docFilePattern: '{帳票タイプ}_{連番6桁}_{yyyyMMdd}',
+  usePerDocFilePattern: true,
+  apiObjectKey: '{案件番号}/{帳票タイプ}/{yyyyMMdd}',
+  apiPayloadName: '{帳票タイプ}_{連番6桁}_{yyyyMMdd}',
+  excelSheetPattern: '{帳票タイプ}',
 };
+
+const OUTPUT_NAMING_PREFIX_MODES = [
+  { value: 'doc_type', label: '帳票タイプ（固定）' },
+  { value: 'custom', label: '固定文字列' },
+];
+
+const OUTPUT_NAMING_SERIAL_DIGIT_OPTIONS = [4, 5, 6, 8];
+
+const OUTPUT_EXPORT_VALUE_SOURCES = [
+  { value: 'ocr', label: 'OCR原値' },
+  { value: 'standard', label: '標準フィールド' },
+  { value: 'master_return', label: 'マスタ返却列' },
+];
+
+const OUTPUT_TARGET_DEFAULT = '基幹システム';
+const OUTPUT_TIMING_LABEL = '案件 Workflow 完了後';
+const OUTPUT_DELIVERY_OPTIONS = [
+  { value: 'api', label: 'API', desc: '基幹システムが能動的に照会（ポーリング）' },
+  { value: 'shared_folder', label: '共有フォルダ', desc: 'リモート共有フォルダへ配置' },
+];
+const OUTPUT_VERIFY_REPORT_FIELDS = [
+  { id: 'verifyResult', label: '検証結果' },
+  { id: 'missingDocsList', label: '不足書類一覧' },
+  { id: 'missingFieldsList', label: '不足項目一覧' },
+  { id: 'textViolationCount', label: 'テキスト違反件数' },
+  { id: 'dataViolationCount', label: 'データ違反件数' },
+  { id: 'sealViolationCount', label: '署名押印違反件数' },
+];
 
 const OUTPUT_NAMING_TOKENS = [
   { token: '{案件ID}', label: '案件ID', example: 'CASE-2026-001234' },
@@ -136,6 +170,7 @@ const OUTPUT_NAMING_TOKENS = [
   { token: '{証券番号}', label: '証券番号', example: 'POL-88991234' },
   { token: '{業務シーン}', label: '業務シーン名', example: '医療保険通院給付' },
   { token: '{帳票タイプ}', label: '帳票タイプ', example: '診断書' },
+  { token: '{連番6桁}', label: '連番（6桁）', example: '000001' },
   { token: '{yyyyMMdd}', label: '処理日', example: '20260617' },
   { token: '{HHmmss}', label: '処理時刻', example: '143025' },
   { token: '{タイムスタンプ}', label: '日時連結', example: '20260617_143025' },
@@ -150,15 +185,22 @@ const END_NAMING_TOKENS = [
 
 const OUTPUT_DEFAULTS = {
   conflictResolution: '最新値を優先',
-  format: 'JSON',
+  format: 'API',
+  deliveryMethod: 'api',
+  outputTarget: OUTPUT_TARGET_DEFAULT,
   encoding: 'UTF-8',
   sheetExportMode: '帳票別Sheetで出力',
-  fileNamePattern: '{案件番号}_{業務シーン}_{yyyyMMdd}_{HHmmss}',
+  fileNamePattern: '{帳票タイプ}_{連番6桁}_{yyyyMMdd}',
   naming: cloneJson(OUTPUT_NAMING_DEFAULTS),
   maskingLevel: '部分マスキング',
-  apiExportEnabled: false,
-  apiExportEndpoint: '',
+  apiExportEnabled: true,
+  apiExportEndpoint: 'https://core.example.com/api/v1/idp/export',
+  sharedFolderPath: '\\\\fileserver\\idp\\export',
   includeVerifyReport: true,
+  templateLocked: true,
+  exportStandardFieldIds: [],
+  exportStandardFieldOrderByDoc: {},
+  masterMatchExports: [],
   masterFields: [],
 };
 
@@ -248,6 +290,7 @@ const DOC_FIELD_SCHEMA = {
       '退院日',
       '入院日数',
       '請求金額',
+      '医療機関名',
       '振込先金融機関名',
     ],
     tables: { 明細テーブル: ['項目名', '数量', '単価', '金額'] },
@@ -331,20 +374,162 @@ function replaceDocTypeIdsInText(text) {
   return result;
 }
 
-/** 出力設定：左プレビュー用（帳票単位・辞書照合は帳票内） */
-function buildExportPreviewTree(docFields) {
+/** 出力設定：左プレビュー用（P1: OCR / 前処理ファイル / 検証レポート / マスタ照合） */
+function buildExportPreviewTree(docFields, masterMatchRules = []) {
+  const docs = docFields || [];
+  const rules = masterMatchRules || [];
+  const fileNodes = docs.flatMap((doc) =>
+    buildExportPreviewFiles(doc.docType).map((file) => ({
+      ...file,
+      parentScope: 'files',
+    })));
+  const masterNodes = rules.map((rule) => ({
+    id: `export-mm:${rule.id}`,
+    kind: 'master_rule',
+    scope: 'master_match',
+    ruleId: rule.id,
+    label: rule.name || '照合ルール',
+  }));
   return {
     id: 'export-root',
     kind: 'group',
     label: 'エクスポート対象',
-    children: (docFields || []).map((doc) => ({
-      id: `export-doctype:${doc.docType}`,
-      kind: 'doctype',
-      docType: doc.docType,
-      label: getDocExportLabel(doc.docType),
-      children: buildExportPreviewFiles(doc.docType),
-    })),
+    children: [
+      {
+        id: 'export-scope-ocr',
+        kind: 'scope',
+        scope: 'ocr',
+        label: '検証済み OCR 抽出結果',
+        children: docs.map((doc) => ({
+          id: `export-ocr:${doc.docType}`,
+          kind: 'doctype',
+          scope: 'ocr',
+          docType: doc.docType,
+          label: getDocExportLabel(doc.docType),
+        })),
+      },
+      {
+        id: 'export-scope-master',
+        kind: 'scope',
+        scope: 'master_match',
+        label: 'マスタ照合結果',
+        children: masterNodes.length
+          ? masterNodes
+          : [{ id: 'export-master-empty', kind: 'placeholder', scope: 'master_match', label: '照合ルール未設定' }],
+      },
+      {
+        id: 'export-scope-files',
+        kind: 'scope',
+        scope: 'files',
+        label: '前処理後案件ファイル',
+        children: fileNodes.length
+          ? fileNodes
+          : [{ id: 'export-files-empty', kind: 'placeholder', scope: 'files', label: '対象ファイルなし' }],
+      },
+      {
+        id: 'export-scope-report',
+        kind: 'scope',
+        scope: 'report',
+        label: '検証結果レポート',
+        children: [{
+          id: 'export-report',
+          kind: 'report',
+          scope: 'report',
+          label: '検証結果レポート',
+        }],
+      },
+    ],
   };
+}
+
+function buildStructuredNamingPattern(naming) {
+  const cfg = { ...cloneJson(OUTPUT_NAMING_DEFAULTS), ...(naming || {}) };
+  const sep = cfg.separator || '_';
+  const parts = [];
+  if (cfg.prefixMode === 'custom' && cfg.prefixCustom) {
+    parts.push(cfg.prefixCustom);
+  } else {
+    parts.push('{帳票タイプ}');
+  }
+  const digits = Math.min(8, Math.max(4, Number(cfg.serialDigits) || 6));
+  parts.push(`{連番${digits}桁}`);
+  if (cfg.includeDate !== false) {
+    parts.push(`{${cfg.dateFormat || 'yyyyMMdd'}}`);
+  }
+  return parts.join(sep);
+}
+
+function syncOutputNamingPatterns(naming) {
+  const next = { ...cloneJson(OUTPUT_NAMING_DEFAULTS), ...(naming || {}) };
+  const pattern = buildStructuredNamingPattern(next);
+  next.docFilePattern = pattern;
+  next.caseFilePattern = pattern;
+  next.apiPayloadName = pattern;
+  next.serialDigits = Math.min(8, Math.max(4, Number(next.serialDigits) || 6));
+  next.prefixMode = next.prefixMode === 'custom' ? 'custom' : 'doc_type';
+  next.includeDate = next.includeDate !== false;
+  next.dateFormat = next.dateFormat || 'yyyyMMdd';
+  next.separator = next.separator || '_';
+  return next;
+}
+
+function formatMasterMatchOutputFieldsSummary(outputFields) {
+  const fields = Array.isArray(outputFields) ? outputFields.filter(Boolean) : [];
+  if (!fields.length) return '返却列未設定';
+  return fields.join(' / ');
+}
+
+function buildMasterMatchExportRows(rules, exportConfigs = []) {
+  const cfgMap = Object.fromEntries((exportConfigs || []).map((item) => [item.ruleId, item]));
+  return (rules || []).map((rule) => {
+    const cfg = cfgMap[rule.id] || {};
+    const ruleOutputFields = Array.isArray(rule.outputFields) ? [...rule.outputFields] : [];
+    return {
+      ruleId: rule.id,
+      name: rule.name || '照合ルール',
+      inputSummary: summarizeMasterMatchRuleInput(rule),
+      masterRefSummary: summarizeMasterMatchRuleMasterRef(rule),
+      enabled: cfg.enabled !== false,
+      valueSource: OUTPUT_EXPORT_VALUE_SOURCES.some((opt) => opt.value === cfg.valueSource)
+        ? cfg.valueSource
+        : 'master_return',
+      ruleOutputFields,
+      outputFieldsSummary: formatMasterMatchOutputFieldsSummary(ruleOutputFields),
+    };
+  });
+}
+
+function summarizeMasterMatchRuleInput(rule) {
+  if (!rule) return '—';
+  if (rule.inputKind === 'standard') {
+    const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === rule.standardFieldId);
+    return `標準: ${meta?.label || rule.standardFieldId || '—'}`;
+  }
+  const doc = rule.docType ? getDocDisplayLabel(rule.docType) : '—';
+  return `${doc} · ${rule.field || '—'}`;
+}
+
+function summarizeMasterMatchRuleMasterRef(rule) {
+  if (!rule) return '—';
+  const src = typeof getMasterSystemSource === 'function'
+    ? getMasterSystemSource(rule.masterSourceId)
+    : null;
+  const masterLabel = src?.label || rule.masterSourceId || '—';
+  return `${masterLabel} · ${rule.lookupField || '—'}`;
+}
+
+function syncMasterMatchExportConfig(exportConfigs, rules) {
+  const prevMap = Object.fromEntries((exportConfigs || []).map((item) => [item.ruleId, item]));
+  return (rules || []).map((rule) => {
+    const prev = prevMap[rule.id] || {};
+    return {
+      ruleId: rule.id,
+      enabled: prev.enabled !== false,
+      valueSource: OUTPUT_EXPORT_VALUE_SOURCES.some((opt) => opt.value === prev.valueSource)
+        ? prev.valueSource
+        : 'master_return',
+    };
+  });
 }
 
 function buildExportPreviewFiles(docType) {
@@ -436,14 +621,34 @@ const SCENE_ROUTE = {
 };
 
 function buildDataRule(id, description, tolerance, action, expression = '') {
+  const expr = (expression || '').trim();
+  if (expr) {
+    return buildDataExpressionRule(id, expr, tolerance, action);
+  }
   return {
     id,
     mode: 'natural',
     description,
     natural: description,
-    expression,
+    expression: '',
     tolerance: tolerance || '—',
     action: action || 'HITL審査',
+    invalid: false,
+  };
+}
+
+function buildDataExpressionRule(id, expression, tolerance = '—', action = DEFAULT_VERIFY_ACTION) {
+  const expr = (expression || '').trim();
+  return {
+    id,
+    mode: 'expression',
+    expression: expr,
+    text: expr,
+    description: expr,
+    natural: expr,
+    label: expr,
+    tolerance: tolerance || '—',
+    action: action || DEFAULT_VERIFY_ACTION,
     invalid: false,
   };
 }
@@ -451,19 +656,25 @@ function buildDataRule(id, description, tolerance, action, expression = '') {
 const DEFAULT_VERIFY_ACTION = 'HITL審査';
 
 const DEFAULT_SEAL = {
-  targetDocs: [],
-  detectionTarget: '両方',
-  threshold: 80,
-  signatureRequiredFields: [],
-  sealRequiredFields: [],
+  rules: [],
 };
 
-function sealFromDocs(docs, detectionTarget = '両方', extra = {}) {
+function buildSealRule(docTypes, detectionTarget = '両方', threshold = 80) {
+  const types = (Array.isArray(docTypes) ? docTypes : [docTypes]).filter(Boolean);
   return {
-    ...DEFAULT_SEAL,
-    targetDocs: [...docs],
+    id: `seal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    docTypes: types,
     detectionTarget,
-    ...extra,
+    threshold,
+  };
+}
+
+function sealFromDocs(docs, detectionTarget = '両方', extra = {}) {
+  const threshold = extra.threshold ?? 80;
+  const types = (docs || []).filter(Boolean);
+  if (!types.length) return { rules: [] };
+  return {
+    rules: [buildSealRule(types, detectionTarget, threshold)],
   };
 }
 
@@ -505,6 +716,78 @@ function getMasterDictionary(dictionaryId) {
 function getMasterDictionaryFieldValues(dict) {
   if (!dict) return [];
   return [...new Set([dict.lookupField, dict.codeField, dict.nameField].filter(Boolean))];
+}
+
+const MASTER_SYSTEM_SOURCES = [
+  ...MASTER_DICTIONARIES.map((d) => ({
+    id: `dict:${d.id}`,
+    label: d.label,
+    sourceType: 'dict',
+    dictionaryId: d.id,
+    sheets: [],
+    columns: getMasterDictionaryFieldValues(d),
+  })),
+  {
+    id: 'table:insurance_product',
+    label: '保険商品マスタ（表）',
+    sourceType: 'table',
+    sheets: ['商品一覧', '特約一覧'],
+    columns: ['商品コード', '商品名', '保険種類', '特約コード'],
+  },
+  {
+    id: 'table:provider_network',
+    label: '医療機関ネットワーク（表）',
+    sourceType: 'table',
+    sheets: ['医療機関一覧', 'ネットワーク契約'],
+    columns: ['機関コード', '医療機関名', '都道府県', '契約区分'],
+  },
+];
+
+function getMasterSourceSheetOptions(sourceId) {
+  const src = getMasterSystemSource(sourceId);
+  if (!src || src.sourceType === 'dict') return [];
+  return (src.sheets || []).map((sheet) => ({ label: sheet, value: sheet }));
+}
+
+function getMasterSourceColumnOptions(sourceId) {
+  const src = getMasterSystemSource(sourceId);
+  if (!src) return [];
+  if (src.sourceType === 'dict') {
+    return getMasterDictFieldOptions(src.dictionaryId);
+  }
+  return (src.columns || []).map((col) => ({ label: col, value: col }));
+}
+
+function getMasterSourceOutputColumnOptions(sourceId, selected = []) {
+  const picked = new Set(selected);
+  return getMasterSourceColumnOptions(sourceId).filter((opt) => !picked.has(opt.value));
+}
+
+function masterSourceRequiresSheet(sourceId) {
+  return getMasterSystemSource(sourceId)?.sourceType === 'table';
+}
+
+function getMasterSystemSource(sourceId) {
+  return MASTER_SYSTEM_SOURCES.find((s) => s.id === sourceId) || null;
+}
+
+function getMasterSystemSourceLabel(sourceId) {
+  return getMasterSystemSource(sourceId)?.label || sourceId || '';
+}
+
+function resolveMasterMatchKnowledgeSource(node) {
+  const opt = getMasterSystemSource(node?.masterSourceId);
+  if (opt?.sourceType === 'dict') {
+    return normalizeKnowledgeSource({ type: 'dict', dictionaryId: opt.dictionaryId });
+  }
+  if (opt?.sourceType === 'table') {
+    return normalizeKnowledgeSource({
+      type: 'external_api',
+      endpoint: opt.id,
+      label: opt.label,
+    });
+  }
+  return normalizeKnowledgeSource(node?.knowledgeSource);
 }
 
 function getMasterDictFieldOptions(dictionaryId) {
@@ -1011,11 +1294,12 @@ function attachDictFieldsToDocFields(docFields, masterMappings, knowledgeSource,
 
 function normalizeOutputNaming(output) {
   const legacy = output?.fileNamePattern || OUTPUT_DEFAULTS.fileNamePattern;
-  const naming = { ...cloneJson(OUTPUT_NAMING_DEFAULTS), ...(output?.naming || {}) };
-  if (!output?.naming?.caseFilePattern && legacy) {
+  const naming = syncOutputNamingPatterns({ ...cloneJson(OUTPUT_NAMING_DEFAULTS), ...(output?.naming || {}) });
+  if (!output?.naming?.caseFilePattern && legacy && !output?.naming?.prefixMode) {
     naming.caseFilePattern = legacy;
+    naming.docFilePattern = legacy;
   }
-  return naming;
+  return syncOutputNamingPatterns(naming);
 }
 
 function resolveNamingPattern(pattern, context = {}) {
@@ -1026,6 +1310,10 @@ function resolveNamingPattern(pattern, context = {}) {
     '{証券番号}': 'POL-88991234',
     '{業務シーン}': (context.sceneName || '医療保険通院給付').replace(/\s+/g, ''),
     '{帳票タイプ}': context.docType || '診断書',
+    '{連番4桁}': context.serialNo || '0001',
+    '{連番5桁}': context.serialNo || '00001',
+    '{連番6桁}': context.serialNo || '000001',
+    '{連番8桁}': context.serialNo || '00000001',
     '{yyyyMMdd}': '20260617',
     '{HHmmss}': '143025',
     '{タイムスタンプ}': '20260617_143025',
@@ -1051,15 +1339,34 @@ function buildTextRule(id, text, action = DEFAULT_VERIFY_ACTION, natural = '') {
   };
 }
 
+const DATA_RULE_EXPRESSION_MIGRATIONS = {
+  '保険金請求書と診断書の被保険者氏名は一致すること': '{{保険金請求書.被保険者氏名}} = {{診断書.被保険者氏名}}',
+  '保険金請求書の請求金額は診療明細書の金額合計と一致すること': '{{保険金請求書.請求金額}} = {{診療明細書.合計金額}}',
+  '保険金請求書の請求金額は領収書・診療明細書の金額合計と一致すること': '{{保険金請求書.請求金額}} = {{診療明細書.合計金額}}',
+  '保険金請求書、診断書、診療明細書の被保険者氏名は一致すること': '{{保険金請求書.被保険者氏名}} = {{診断書.被保険者氏名}} = {{診療明細書.被保険者氏名}}',
+  '保険金請求書、診断书、領収書・診療明細書の被保険者氏名は一致すること': '{{保険金請求書.被保険者氏名}} = {{診断書.被保険者氏名}} = {{診療明細書.被保険者氏名}}',
+  '保険金請求書、診断書、診療明細書の医療機関名は一致すること': '{{保険金請求書.医療機関名}} = {{診断書.医療機関名}} = {{診療明細書.医療機関名}}',
+  '保険金請求書、診断书、領収書・診療明細書の医療機関名は一致すること': '{{保険金請求書.医療機関名}} = {{診断書.医療機関名}} = {{診療明細書.医療機関名}}',
+};
+
 function normalizeDataRule(rule) {
   const natural = rule.description || rule.natural || rule.text || rule.label || '';
+  let expression = (rule.expression || '').trim();
+  if (!expression && /\{\{[^}]+\}\}/.test(rule.text || '')) {
+    expression = rule.text.trim();
+  }
+  if (!expression && DATA_RULE_EXPRESSION_MIGRATIONS[natural]) {
+    expression = DATA_RULE_EXPRESSION_MIGRATIONS[natural];
+  }
+  const mode = expression ? 'expression' : (rule.mode || 'natural');
   return {
     ...rule,
-    mode: rule.mode || 'natural',
-    description: natural,
-    natural,
-    expression: rule.expression || '',
-    label: rule.label || natural,
+    mode,
+    description: mode === 'expression' ? expression : natural,
+    natural: mode === 'expression' ? expression : natural,
+    expression,
+    text: expression || rule.text || '',
+    label: mode === 'expression' ? expression : (rule.label || natural),
     tolerance: rule.tolerance || '—',
     action: rule.action || 'HITL審査',
     invalid: rule.invalid || false,
@@ -1085,17 +1392,30 @@ function normalizeVerifyConfig(verify) {
     ...normalizeDataRule(rule),
     action: DEFAULT_VERIFY_ACTION,
   }));
-  v.seal = {
-    ...DEFAULT_SEAL,
-    ...(v.seal || {}),
-    targetDocs: (v.seal?.targetDocs || []).map(migrateDocTypeId),
-    signatureRequiredFields: Array.isArray(v.seal?.signatureRequiredFields)
-      ? v.seal.signatureRequiredFields
-      : [],
-    sealRequiredFields: Array.isArray(v.seal?.sealRequiredFields)
-      ? v.seal.sealRequiredFields
-      : [],
-  };
+  v.seal = (() => {
+    const legacy = v.seal || {};
+    if (Array.isArray(legacy.rules)) {
+      return {
+        rules: legacy.rules.map((rule) => {
+          const docTypes = Array.isArray(rule.docTypes)
+            ? rule.docTypes.map(migrateDocTypeId)
+            : rule.docType
+              ? [migrateDocTypeId(rule.docType)]
+              : [];
+          return {
+            id: rule.id || `seal_${Date.now().toString(36)}`,
+            docTypes,
+            detectionTarget: rule.detectionTarget || '両方',
+            threshold: Number.isFinite(rule.threshold) ? rule.threshold : 80,
+          };
+        }),
+      };
+    }
+    const docs = (legacy.targetDocs || []).map(migrateDocTypeId);
+    return sealFromDocs(docs, legacy.detectionTarget || '両方', {
+      threshold: legacy.threshold ?? 80,
+    });
+  })();
   delete v.master;
   delete v.masterEnabled;
   const migrateRuleText = (s) =>

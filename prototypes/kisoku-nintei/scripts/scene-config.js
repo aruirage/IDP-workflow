@@ -32,6 +32,9 @@ function syncOcrExtractTypesOnForm(formData) {
     formData.processing.ocrExtract = cloneJson(WORKFLOW_DEFAULTS.ocrExtract);
   }
   if (!Array.isArray(formData.processing.ocrExtract.enabledTypes)) formData.processing.ocrExtract.enabledTypes = [];
+  if (!formData.processing.ocrExtract.mergeByType || typeof formData.processing.ocrExtract.mergeByType !== 'object') {
+    formData.processing.ocrExtract.mergeByType = {};
+  }
   if (typeof formData.processing.ocrExtract.mergeSameType !== 'boolean') formData.processing.ocrExtract.mergeSameType = false;
   if (formData.processing.ocrExtract.confidenceThreshold == null) formData.processing.ocrExtract.confidenceThreshold = WORKFLOW_DEFAULTS.ocrExtract.confidenceThreshold;
   if (typeof formData.processing.ocrExtract.llmOcrEnabled !== 'boolean') formData.processing.ocrExtract.llmOcrEnabled = WORKFLOW_DEFAULTS.ocrExtract.llmOcrEnabled;
@@ -215,6 +218,38 @@ function buildOutputExportRows(doc) {
   }).filter(Boolean);
 }
 
+function buildExportStandardFieldRows(docType, mappingNode, selectedIds = []) {
+  const rules = (mappingNode?.mappingRules || []).filter((rule) => rule.standardFieldId);
+  const selectedSet = new Set(selectedIds || []);
+  const useAllWhenEmpty = !selectedSet.size;
+  return rules
+    .filter((rule) => {
+      if (!docType) return true;
+      return (rule.sourceFieldIds || []).some((sourceId) => {
+        const text = String(sourceId || '');
+        return text.startsWith(`${docType}.`) || text.includes(`${docType}・`) || text.includes(docType);
+      });
+    })
+    .map((rule) => {
+      const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === rule.standardFieldId);
+      return {
+        key: rule.id,
+        standardFieldId: rule.standardFieldId,
+        standardLabel: meta?.label || rule.standardLabel || rule.standardFieldId,
+        sourceSummary: formatDataMappingRuleSourceSummary(rule),
+        checked: useAllWhenEmpty ? true : selectedSet.has(rule.standardFieldId),
+        dataType: meta?.dataType || rule.dataType || 'string',
+      };
+    });
+}
+
+function formatDataMappingRuleSourceSummary(rule) {
+  const sources = (rule?.sourceFieldIds || []).filter(Boolean);
+  if (!sources.length) return '—';
+  if (sources.length <= 2) return sources.join(' · ');
+  return `${sources.slice(0, 2).join(' · ')} 他 ${sources.length - 2} 件`;
+}
+
 function getSharedFieldsAcrossDocs(docTypes) {
   const types = (docTypes || []).filter(Boolean);
   if (!types.length) return [];
@@ -265,7 +300,7 @@ function buildNetEdgePath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
 }
 
-function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFields) {
+function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFields, mainKey = '') {
   if (!docs.length) {
     return { width: 720, height: 320, nodes: [], edges: [] };
   }
@@ -297,6 +332,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
   }
 
   const mainMeta = buildNodeMeta(mainType, 'center');
+  mainMeta.mainKey = mainKey || '';
   const leftMetas = leftTypes.map((t) => buildNodeMeta(t, 'left'));
   const rightMetas = rightTypes.map((t) => buildNodeMeta(t, 'right'));
 
@@ -538,8 +574,18 @@ function normalizeOutputConfig(output, documents, masterMappings, knowledgeSourc
     output?.masterFields || []
   );
   delete base.masterFields;
-  base.apiExportEnabled = base.apiExportEnabled === true;
-  base.apiExportEndpoint = String(base.apiExportEndpoint || '');
+  base.apiExportEnabled = base.deliveryMethod === 'api' || base.apiExportEnabled === true;
+  base.apiExportEndpoint = String(base.apiExportEndpoint || OUTPUT_DEFAULTS.apiExportEndpoint);
+  base.sharedFolderPath = String(base.sharedFolderPath || OUTPUT_DEFAULTS.sharedFolderPath);
+  base.deliveryMethod = base.deliveryMethod === 'shared_folder' ? 'shared_folder' : 'api';
+  base.format = base.deliveryMethod === 'shared_folder' ? '共有フォルダ' : 'API';
+  base.outputTarget = base.outputTarget || OUTPUT_TARGET_DEFAULT;
+  base.exportStandardFieldIds = Array.isArray(base.exportStandardFieldIds) ? base.exportStandardFieldIds : [];
+  base.exportStandardFieldOrderByDoc = (base.exportStandardFieldOrderByDoc && typeof base.exportStandardFieldOrderByDoc === 'object')
+    ? base.exportStandardFieldOrderByDoc
+    : {};
+  base.masterMatchExports = Array.isArray(base.masterMatchExports) ? base.masterMatchExports : [];
+  base.templateLocked = base.templateLocked !== false;
   base.includeVerifyReport = base.includeVerifyReport !== false;
   base.sheetExportMode = normalizeSheetExportMode(base.sheetExportMode);
   if (!OUTPUT_SHEET_EXPORT_MODE_OPTIONS.some((o) => o.value === base.sheetExportMode)) {
@@ -591,10 +637,10 @@ const SCENE_TEMPLATES = {
         ),
       ],
       dataRules: [
-        buildDataRule('c1', '保険金請求書と診断書の被保険者氏名は一致すること', '—', 'HITL審査'),
-        buildDataRule('c2', '保険金請求書の請求金額は診療明細書の金額合計と一致すること', '¥100', 'HITL審査'),
-        buildDataRule('c3', '保険金請求書、診断書、診療明細書の被保険者氏名は一致すること', '—', 'HITL審査'),
-        buildDataRule('c4', '保険金請求書、診断書、診療明細書の医療機関名は一致すること', '—', 'HITL審査'),
+        buildDataExpressionRule('c1', '{{保険金請求書.被保険者氏名}} = {{診断書.被保険者氏名}}'),
+        buildDataExpressionRule('c2', '{{保険金請求書.請求金額}} = {{診療明細書.合計金額}}', '¥100'),
+        buildDataExpressionRule('c3', '{{保険金請求書.被保険者氏名}} = {{診断書.被保険者氏名}} = {{診療明細書.被保険者氏名}}'),
+        buildDataExpressionRule('c4', '{{保険金請求書.医療機関名}} = {{診断書.医療機関名}} = {{診療明細書.医療機関名}}'),
       ],
       seal: sealFromDocs(['保険金請求書'], '署名'),
     },
@@ -639,10 +685,7 @@ const SCENE_TEMPLATES = {
         buildDataRule('c7', '申込書の請求金額は契約給付上限以下であること', '—', DEFAULT_VERIFY_ACTION),
         buildDataRule('c8', '商品コード IN [M01, M02] → 退院証明必須', '—', DEFAULT_VERIFY_ACTION),
       ],
-      seal: sealFromDocs(['診断書', '申込書'], '両方', {
-        signatureRequiredFields: ['氏名', '日付'],
-        sealRequiredFields: ['医療機関名', '医師印'],
-      }),
+      seal: sealFromDocs(['診断書', '申込書'], '両方', { threshold: 85 }),
     },
     output: outputBlock([
       { name: '案件ID', checked: true },
@@ -904,14 +947,31 @@ function newRuleId(prefix) {
   return `${prefix}_${Date.now().toString(36)}`;
 }
 
-const DATA_NATURAL_PLACEHOLDER =
-  '例：診断書と申込書の氏名は一致すること / 申込書の請求金額は契約給付上限以下であること';
-const TEXT_NATURAL_PLACEHOLDER =
-  '例：保険金請求書の備考に「不備」が含まれないこと';
+const SEAL_DETECTION_TARGETS = [
+  { value: '印鑑', label: '印鑑' },
+  { value: '署名', label: '署名' },
+  { value: '両方', label: '両方' },
+];
+
+const DATA_EXPRESSION_PLACEHOLDER =
+  '検証ロジックを記述してください。例：{{保険金請求書.請求金額}} = {{診療明細書.合計金額}}';
+const TEXT_EXPRESSION_PLACEHOLDER =
+  '検証ロジックを記述してください。例：{{保険金請求書.備考}} に「xxxxxx」が含まれないこと';
+const DATA_NATURAL_PLACEHOLDER = DATA_EXPRESSION_PLACEHOLDER;
+const TEXT_NATURAL_PLACEHOLDER = TEXT_EXPRESSION_PLACEHOLDER;
 const TEXT_CONDITION_GUIDE =
-  '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。';
+  '実行式を直接入力します。AI補助は表現の最適化のみ行います。';
 const DATA_CONDITION_GUIDE =
-  '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。';
+  '実行式を直接入力します。AI補助は表現の最適化のみ行います。';
+
+function optimizeRuleExpression(expression) {
+  let s = (expression || '').trim();
+  if (!s) return s;
+  s = s.replace(/\s+/g, ' ');
+  s = s.replace(/\s*([=≤≥<>≠!]+)\s*/g, ' $1 ');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
 
 function resolveTextDraftExpression(draft, docTypes, picker = {}) {
   if (draft.compiled?.trim()) return draft.compiled.trim();
@@ -1417,7 +1477,7 @@ function validateExecutableRule(text) {
 
 function validateTextRule(expression) {
   const t = (expression || '').trim();
-  if (!t) return '正規表現（実行式）を入力するか、自然言語から AI補助 で生成してください';
+  if (!t) return '実行式を入力してください';
   if (!/\{\{[^}]+\}\}/.test(t)) {
     return '実行式に {{帳票.フィールド}} 参照を含めてください';
   }

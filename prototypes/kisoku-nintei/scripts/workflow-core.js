@@ -10,19 +10,18 @@ const NODE_ORDER = ['scene', 'input', 'image', 'ocr', 'master', 'verify', 'hitl'
 
 const WF_NODE_GAP = 72;
 
-/** 左侧菜单：帳票設定下区分两个 Workflow 模块（非顶栏 Tab） */
+/** 左侧菜单：配置設定（OCR 模板 + 案件 Workflow） */
 const APP_NAV_GROUPS = [
   { id: 'home', label: 'ホーム', icon: '⌂', placeholder: true },
   { id: 'read', label: '帳票読取', icon: '▣', placeholder: true },
   {
     id: 'doc-settings',
-    label: '帳票設定',
+    label: '配置設定',
     icon: '⚙',
     menu: true,
     children: [
-      { id: 'fixed-doc', label: '定型帳票設定' },
+      { id: 'fixed-doc', label: 'OCR抽出テンプレート' },
       { id: 'case-workflow', label: '案件Workflow設定' },
-      { id: 'mcp-servers', label: 'MCP サーバー管理' },
       { id: 'dict', label: '辞書設定', placeholder: true },
       { id: 'image-settings', label: '画像処理設定', placeholder: true },
     ],
@@ -33,7 +32,7 @@ const APP_NAV_GROUPS = [
 
 const MODULE_PAGE_META = {
   'fixed-doc': {
-    title: '定型帳票設定',
+    title: 'OCR抽出テンプレート',
     subtitle: '帳票タイプごとの OCR テンプレート・抽出フィールド',
   },
   'case-workflow': {
@@ -59,7 +58,7 @@ const INSPECTOR_HINTS = {
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
   preprocess: '案件内の指定帳票に対して OCR 前の画像処理を行います。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：1画像に複数帳票が含まれる場合に分割。対象帳票未指定時は全帳票タイプが対象。\n・画像並び替え：同一帳票タイプ内の画像を整列。対象帳票未指定時は全帳票タイプが対象。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
-  ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF と複数ファイル処理（分けて抽出 / まとめて抽出）を設定します。テンプレート詳細は帳票タイプ設定から編集します。',
+  ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF と複数ファイル処理（分けて抽出 / まとめて抽出）を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
   masterMatch: '案件フィールドでマスタを照合し、独立したマスタ照合結果を出力します。OCR 原値・標準フィールドは上書きしません。',
   dataMapping: 'OCR 抽出フィールドを多対一で標準フィールドへマッピングします。出力は統一フィールド構造です。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
@@ -67,7 +66,7 @@ const INSPECTOR_HINTS = {
   masterMatchInput: '標準フィールドは上流データマッピングから自動連携します。照合対象フィールドは標準フィールドまたは OCR 抽出フィールドから指定します。',
   masterMatchOutput: '正規化フィールド：案件データセットへ書き戻し。参照 JSON：照合結果を JSON 出力。分段列表：检索分段 + メタデータを配列出力。',
   masterMatchOutputFields: '照合・正規化結果を書き込む出力フィールドを指定します。',
-  masterMatchFields: '照合ルールごとに入力種別（標準フィールド / OCR 抽出フィールド）、マスタデータ、照合対象列、返却列、照合方式、返却方式を設定します。',
+  masterMatchFields: '帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。',
   masterMatchStrategy: '照合方式：キーワード検索 / ベクトル検索 / 混合検索 / コード検索。',
   mcpTool: 'Workflow では MCP サーバーと Tool を選択するだけです。接続情報・Tool 定義・入力パラメータ（定数 / 変数参照）は「MCP サーバー管理」で設定します。\n\nOCR抽出 → MCP → マスタ照合 → AI検証 の主処理チェーンの一段。REST / Web API・DB・RPA など任意の外部連携に利用できます。',
   mcpServer: '登録済み MCP サーバーを選択します。新規登録・Tool・パラメータの編集は「サーバー管理へ」から MCP サーバー管理画面を開いてください。',
@@ -101,7 +100,7 @@ const INSPECTOR_HINTS = {
   completeness: '必須・任意帳票の収集状態と、帳票ごとの必須項目を検証します。帳票タイプは業務シーン設定で登録し、ここで必須/任意と必須項目を指定します。',
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
-  seal: '署名・印鑑が存在するかを検出します。類似度閾値未満は不備として扱います。',
+  seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
   hitlGate: '案件レベルの人工確認タスクを生成します。いつ人が必要か・誰に割り当てるかのみ設定し、承認・差戻し・補件判断は設定しません。',
   hitlContext: '確認タイプ：前処理確認 / OCR 結果確認 / AI 検証確認。同一タイプは Workflow 内で最大 1 件。',
   hitlActions: '審査者が実行できる操作を選択します（最低 1 件）。',
@@ -233,7 +232,7 @@ const CASE_FLOW_NODE_GROUPS = [
       { type: 'ocr', label: 'OCR抽出', summary: 'OCR / LLM-OCR・フィールド抽出' },
       { type: 'data_mapping', label: 'データマッピング', summary: '異構造フィールド → 標準フィールド' },
       { type: 'ai_verify', label: 'AI検証', summary: '完全性・テキスト・データ検証' },
-      { type: 'master_match', label: 'マスタ照合', summary: '標準フィールド照合 · 出力フィールド設定' },
+      { type: 'master_match', label: 'マスタ照合', summary: '照合ルール · マスタ辞書参照' },
     ],
   },
   {
@@ -524,8 +523,8 @@ const WORKFLOW_NODE_META = {
   master_match: {
     icon: '照',
     title: 'マスタ照合',
-    desc: '標準フィールド照合 · 出力設定',
-    tasks: ['照合設定', '出力フィールド'],
+    desc: 'マスタ引用 · 照合方式 · 配列返却',
+    tasks: ['マスタ設定', '照合方式'],
     input: 'Standard Fields',
     output: 'Match Result',
     accent: '#0ea5e9',
@@ -572,6 +571,7 @@ const MASTER_MATCH_STRATEGIES = [
   { value: 'keyword', label: 'キーワード検索', desc: 'キーワード・トークンによる全文検索' },
   { value: 'vector', label: 'ベクトル検索', desc: 'ベクトル類似度による近似照合' },
   { value: 'hybrid', label: '混合検索', desc: 'キーワードとベクトルを組み合わせた段階的照合' },
+  { value: 'parent_category', label: '上位分類', desc: '命中レコードの上位分類・親カテゴリを返却' },
   { value: 'code', label: 'コード検索', desc: 'マスタコード・キー値の完全一致' },
 ];
 
@@ -584,8 +584,12 @@ const MASTER_MATCH_LEGACY_STRATEGIES = {
 
 function normalizeMasterMatchStrategy(value) {
   const v = MASTER_MATCH_LEGACY_STRATEGIES[value] || value;
-  return MASTER_MATCH_STRATEGIES.some((s) => s.value === v) ? v : 'code';
+  return MASTER_MATCH_STRATEGIES.some((s) => s.value === v) ? v : 'hybrid';
 }
+
+const MASTER_MATCH_RESULT_RETURNS = [
+  { value: 'array', label: '照合結果配列', desc: '候補・返却列・信頼度を配列で出力（全照合方式に対応）' },
+];
 
 const MASTER_MATCH_OUTPUT_FORMATS = [
   { value: 'normalized_fields', label: '正規化フィールド', desc: '照合成功値を案件データセットのフィールドへ書き戻し' },
@@ -625,6 +629,20 @@ const DATA_MAPPING_TRANSFORM_RULES = [
   { value: 'master_code', label: 'コード変換' },
 ];
 
+const DATA_MAPPING_DATA_TYPES = [
+  { value: 'string', label: 'String' },
+  { value: 'number', label: 'Number' },
+  { value: 'date', label: 'Date' },
+  { value: 'boolean', label: 'Boolean' },
+  { value: 'array', label: 'Array' },
+  { value: 'object', label: 'Object' },
+];
+
+const DATA_MAPPING_CONFLICT_COMPARE_MODES = [
+  { value: 'exact', label: '完全一致' },
+  { value: 'normalized', label: '正規化後一致' },
+];
+
 const DATA_MAPPING_OUTPUT_MODES = [
   { value: 'unified', label: '統一フィールド構造' },
   { value: 'per_document', label: '帳票別結果も保持' },
@@ -653,9 +671,11 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'status', label: 'ステータス' },
   ],
   data_mapping: [
-    { id: 'standardFields', label: '標準フィールド' },
-    { id: 'conflictCount', label: '競合件数' },
-    { id: 'unmappedCount', label: '未マッピング件数' },
+    { id: 'mappedFields', label: '標準変数' },
+    { id: 'sourceFields', label: 'OCRフィールド明細' },
+    { id: 'conflicts', label: '競合一覧' },
+    { id: 'unmappedFields', label: '未マッピングOCRフィールド' },
+    { id: 'conversionErrors', label: '標準値生成エラー' },
     { id: 'status', label: 'ステータス' },
   ],
   master_match: [
@@ -663,6 +683,9 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'unmatchedCount', label: '未照合件数' },
     { id: 'lowConfidenceCount', label: '低信頼件数' },
     { id: 'multiCandidateCount', label: '複数候補件数' },
+  ],
+  decision: [
+    { id: 'branch_name', label: '分岐名', description: '命中した IF / ELIF / ELSE 分岐名' },
   ],
   ai_verify: [
     { id: 'requiredDocsStatus', label: '必要書類ステータス' },
@@ -688,6 +711,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'sendStatus', label: '送信状態' },
     { id: 'notifyType', label: '通知タイプ' },
     { id: 'sentAt', label: '送信日時' },
+    { id: 'stateEvent', label: '状態イベント' },
   ],
   code: [
     { id: 'result', label: 'result', optional: true },
@@ -1054,41 +1078,128 @@ function guessDataMappingSourceForStandard(standardFieldId) {
   return guesses[standardFieldId] || '';
 }
 
+function defaultDataMappingSourcesForStandard(standardFieldId) {
+  const sources = {
+    claimNo: ['case.claimNo', '保険金請求書.請求番号'],
+    policyNo: ['保険金請求書.証券番号', '診断書.証券番号', '領収書・診療明細書.証券番号'],
+    contractorName: ['保険金請求書.ご契約者氏名'],
+    insuredName: ['保険金請求書.被保険者氏名', '診断書.患者氏名', '領収書・診療明細書.氏名'],
+    insuredBirthDate: ['保険金請求書.被保険者生年月日', '診断書.患者生年月日'],
+    claimType: ['保険金請求書.請求区分', '保険金請求書.給付金種類'],
+    admissionDate: ['診断書.入院日', '入院診断書.入院日'],
+    dischargeDate: ['診断書.退院日', '入院証明書.退院日'],
+    claimAmount: ['保険金請求書.請求金額', '領収書・診療明細書.金額', '領収書・診療明細書.合計金額'],
+    medicalInstitutionName: ['診断書.医療機関名', '領収書・診療明細書.医療機関名'],
+    diagnosisName: ['診断書.診断名', '診断書.傷病名'],
+  };
+  return sources[standardFieldId] || [guessDataMappingSourceForStandard(standardFieldId)].filter(Boolean);
+}
+
+function defaultDataMappingRuleText(standardFieldId) {
+  const rules = {
+    claimNo: '案件番号は {{case.claimNo}} を優先して保持する。{{保険金請求書.請求番号}} がある場合は同一の請求参照番号として扱い、正規表現: /\\s+/g -> "" で空白を除去して比較する。',
+    policyNo: '{{保険金請求書.証券番号}}、{{診断書.証券番号}}、{{領収書・診療明細書.証券番号}} を同一の証券番号として扱う。競合検出前に正規表現: /[\\s　-]/g -> "" で空白とハイフンを除去する。',
+    contractorName: '{{保険金請求書.ご契約者氏名}} を契約者氏名として保持する。全角・半角を正規化し、正規表現: /[\\s　]+/g -> "" で余分な空白を除去する。欠損時も他帳票の氏名では補完しない。',
+    insuredName: '{{保険金請求書.被保険者氏名}}、{{診断書.患者氏名}}、{{領収書・診療明細書.氏名}} を同一の被保険者氏名として扱う。競合検出前に正規表現: /[\\s　]+/g -> "" で空白を除去する。',
+    insuredBirthDate: '{{保険金請求書.被保険者生年月日}} と {{診断書.患者生年月日}} を同一の生年月日として扱う。正規表現: /(明治|大正|昭和|平成|令和)?\\s*([0-9０-９]{1,4})[年\\/.-]([0-9０-９]{1,2})[月\\/.-]([0-9０-９]{1,2})日?/ で年月日を抽出し、yyyy-MM-dd に正規化する。',
+    claimType: '{{保険金請求書.請求区分}} と {{保険金請求書.給付金種類}} を請求区分候補として扱う。正規表現: /(入院|通院|手術|死亡|診断|給付金)/g で区分を抽出し、複数値はカンマ区切りで保持する。',
+    admissionDate: '{{診断書.入院日}} と {{入院診断書.入院日}} を入院日として扱う。正規表現: /(入院日|入院開始日)?[:：]?\\s*(.+)/ でラベル後の日付を抽出し、ファイル別の値は sourceFields に保持する。',
+    dischargeDate: '{{診断書.退院日}} と {{入院証明書.退院日}} を退院日として扱う。正規表現: /(退院日|退院予定日)?[:：]?\\s*(.+)/ でラベル後の日付を抽出する。値がない場合は空値のまま保持する。',
+    claimAmount: '{{保険金請求書.請求金額}}、{{領収書・診療明細書.金額}}、{{領収書・診療明細書.合計金額}} を請求金額の候補として扱う。正規表現: /[^0-9０-９.-]/g -> "" で通貨表記を除去し、Number に変換して複数の領収書・明細は合計する。',
+    medicalInstitutionName: '{{診断書.医療機関名}} と {{領収書・診療明細書.医療機関名}} を医療機関名として扱う。正規表現: /[\\r\\n\\t]+/g -> " " で改行を空白に置換し、正規化後の値をマスタ照合へ渡す。',
+    diagnosisName: '{{診断書.診断名}} と {{診断書.傷病名}} を傷病名・診断名として扱う。正規表現: /[\\r\\n]+/g -> "、" で改行を読点に置換し、ファイル別に異なる値は単一値へ強制統合せず sourceFields に保持する。',
+  };
+  return rules[standardFieldId] || '選択した OCR フィールドを標準変数の入力元として使用する。正規化が必要な場合は、抽出条件または置換ルールを /pattern/flags -> "replacement" の形式で記述する。';
+}
+
 function defaultDataMappingRules() {
   return DATA_MAPPING_STANDARD_FIELDS.map((field) => ({
     id: newRuleId('map'),
-    sourceFieldIds: [guessDataMappingSourceForStandard(field.value)].filter(Boolean),
+    sourceFieldIds: defaultDataMappingSourcesForStandard(field.value),
     standardFieldId: field.value,
     standardLabel: field.label,
-    category: field.category,
-    transformRule: field.dataType === 'date'
-      ? 'date_normalize'
-      : field.dataType === 'number'
-        ? 'amount_normalize'
-        : 'trim',
+    dataType: field.dataType,
+    valueGenerationRule: defaultDataMappingRuleText(field.value),
+    structuredRulePreview: '',
     conflictCheckEnabled: ['policyNo', 'insuredName', 'insuredBirthDate', 'claimAmount'].includes(field.value),
+    conflictCompareMode: 'normalized',
   }));
 }
 
 function normalizeDataMappingRule(rule) {
-  const standard = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === rule?.standardFieldId)
-    || DATA_MAPPING_STANDARD_FIELDS[0];
+  const fallbackStandard = DATA_MAPPING_STANDARD_FIELDS[0];
+  const rawStandardFieldId = String(rule?.standardFieldId || '').trim();
+  const standard = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === rawStandardFieldId);
+  const standardFieldId = rawStandardFieldId || fallbackStandard?.value || '';
   const sourceFieldIds = Array.isArray(rule?.sourceFieldIds)
     ? rule.sourceFieldIds
     : [rule?.sourceFieldId].filter(Boolean);
-  const transform = DATA_MAPPING_TRANSFORM_RULES.some((r) => r.value === rule?.transformRule)
-    ? rule.transformRule
-    : (standard?.dataType === 'date' ? 'date_normalize' : standard?.dataType === 'number' ? 'amount_normalize' : 'trim');
+  const dataType = DATA_MAPPING_DATA_TYPES.some((t) => t.value === rule?.dataType)
+    ? rule.dataType
+    : (standard?.dataType || fallbackStandard?.dataType || 'string');
+  const legacyTransform = DATA_MAPPING_TRANSFORM_RULES.find((r) => r.value === rule?.transformRule);
+  const rawValueGenerationRule = rule?.valueGenerationRule
+    || rule?.normalizationRule
+    || (legacyTransform && legacyTransform.value !== 'as_is' ? legacyTransform.label : '');
+  const legacyShortRules = new Set([
+    'Use {{case.claimNo}} as the case reference. If {{保険金請求書.請求番号}} is present, treat it as the same claim reference after removing spaces with /\\s+/g -> "".',
+    'Treat {{保険金請求書.証券番号}}, {{診断書.証券番号}}, and {{領収書・診療明細書.証券番号}} as the same policy number. Remove spaces and hyphens with /[\\s　-]/g -> "" before conflict checking.',
+    'Use {{保険金請求書.ご契約者氏名}} as contractorName. Normalize full-width/half-width characters and remove extra spaces with /[\\s　]+/g -> ""; do not fill missing values from other document names.',
+    'Treat {{保険金請求書.被保険者氏名}}, {{診断書.患者氏名}}, and {{領収書・診療明細書.氏名}} as the same insured person name. Remove spaces with /[\\s　]+/g -> "" before conflict checking.',
+    'Treat {{保険金請求書.被保険者生年月日}} and {{診断書.患者生年月日}} as the same birth date. Extract date parts with /(明治|大正|昭和|平成|令和)?\\s*([0-9０-９]{1,4})[年\\/.-]([0-9０-９]{1,2})[月\\/.-]([0-9０-９]{1,2})日?/ and normalize to yyyy-MM-dd.',
+    'Use {{保険金請求書.請求区分}} and {{保険金請求書.給付金種類}} as claim type candidates. Extract categories with /(入院|通院|手術|死亡|診断|給付金)/g and keep multiple values as a comma-separated list.',
+    'Use {{診断書.入院日}} and {{入院診断書.入院日}} as admission date values. Extract the date after optional labels using /(入院日|入院開始日)?[:：]?\\s*(.+)/ and keep file-level values in sourceFields.',
+    'Use {{診断書.退院日}} and {{入院証明書.退院日}} as discharge date values. Extract the date after optional labels using /(退院日|退院予定日)?[:：]?\\s*(.+)/; keep blank if no value is present.',
+    'Use {{保険金請求書.請求金額}}, {{領収書・診療明細書.金額}}, and {{領収書・診療明細書.合計金額}} as claim amount sources. Remove currency text with /[^0-9０-９.-]/g -> "", convert to Number, and sum multiple receipt/detail files.',
+    'Use {{診断書.医療機関名}} and {{領収書・診療明細書.医療機関名}} as medical institution name sources. Replace line breaks with spaces using /[\\r\\n\\t]+/g -> " " and pass the normalized value to Master照合.',
+    'Use {{診断書.診断名}} and {{診断書.傷病名}} as diagnosis name sources. Replace line breaks with "、" using /[\\r\\n]+/g -> "、"; keep different file-level diagnoses as sourceFields rather than forcing one value.',
+    'Use the selected OCR fields as the source for this standard variable. Add extraction or replacement rules in the form /pattern/flags -> "replacement" when normalization is required.',
+    '空白除去',
+    '日付正規化',
+    '金額正規化',
+    'カナ正規化',
+    'コード変換',
+    '前後の空白を除去する。',
+    '西暦 yyyy-MM-dd 形式に正規化する。',
+    '通貨記号・カンマを除去し、数値に変換する。',
+    '案件番号または請求書の請求番号を標準変数 claimNo として保持する。複数値がある場合は同一番号か確認し、不一致は競合として出力する。',
+    '証券番号はハイフン・空白・全半角の差を除去して同一形式に正規化する。複数帳票で値が異なる場合は自動補正せず、競合として出力する。',
+    '契約者氏名は前後の空白、姓名間の余分なスペース、全半角差を除去して保持する。欠損していても他帳票の氏名では補完しない。',
+    '保険金請求書の被保険者氏名、診断書の患者氏名、領収書の氏名を同一人物の氏名候補として扱う。空白・全半角を正規化した上で比較し、不一致は競合として出力する。',
+    '生年月日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。請求書と診断書で日付が異なる場合は競合として出力する。',
+    '請求区分または給付金種類の表記を標準変数 claimType に保持する。複数区分が記載される場合はカンマ区切りのリストとして保持し、Master照合によるコード化は行わない。',
+    '入院日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。同一帳票種別が複数ファイルある場合は各ファイルの入院日を sourceFields に保持する。',
+    '退院日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。退院日が未記載の場合は空値のまま保持し、他帳票から自動補完しない。',
+    '複数の領収書・診療明細書の金額は「円」「税込」「,」などを除去して数値化する。明細金額が複数ある場合は合計値を claimAmount とし、各ファイル別の金額は sourceFields に保持する。',
+    '医療機関名は前後空白、改行、全半角差を除去して保持する。略称・別名の近似照合や正式名称への変換はここでは行わず、Master照合に渡す。',
+    '傷病名・診断名は複数行の場合、改行を「、」に置換して保持する。複数ファイルで異なる傷病名がある場合はリストとして保持し、競合ではなく確認対象として sourceFields に残す。',
+    '案件番号または請求書の請求番号を claimNo として保持する。\n正規表現: /^[A-Z]{2,5}-?\\d{4}-?\\d{4,8}$/ で番号形式を確認し、空白は /\\s+/g -> "" で除去する。複数値がある場合は同一番号か確認し、不一致は競合として出力する。',
+    '証券番号はハイフン・空白・全半角差を除去して同一形式に正規化する。\n正規表現: /[\\s　-]/g -> "" を適用し、複数帳票で値が異なる場合は自動補正せず競合として出力する。',
+    '契約者氏名は前後の空白、姓名間の余分なスペース、全半角差を除去して保持する。\n正規表現: /^[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}ー\\s　]+$/u で氏名候補を確認し、/[\\s　]+/g -> "" で比較用値を作成する。欠損していても他帳票の氏名では補完しない。',
+    '保険金請求書の被保険者氏名、診断書の患者氏名、領収書の氏名を同一人物の氏名候補として扱う。\n正規表現: /[\\s　]+/g -> "" で空白を除去し、全半角正規化後に比較する。不一致は競合として出力する。',
+    '生年月日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。\n正規表現: /(明治|大正|昭和|平成|令和)?\\s*([0-9０-９]{1,4})[年\\/.-]([0-9０-９]{1,2})[月\\/.-]([0-9０-９]{1,2})日?/ で年月日を抽出する。請求書と診断書で日付が異なる場合は競合として出力する。',
+    '請求区分または給付金種類の表記を claimType に保持する。\n正規表現: /(入院|通院|手術|死亡|診断|給付金)/g で区分候補を抽出し、複数区分はカンマ区切りリストとして保持する。Master照合によるコード化は行わない。',
+    '入院日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。\n正規表現: /(入院日|入院開始日)?[:：]?\\s*(.+)/ で日付候補を抽出し、同一帳票種別が複数ファイルある場合は各ファイルの入院日を sourceFields に保持する。',
+    '退院日は和暦・西暦・年月日表記を yyyy-MM-dd に統一する。\n正規表現: /(退院日|退院予定日)?[:：]?\\s*(.+)/ で日付候補を抽出する。退院日が未記載の場合は空値のまま保持し、他帳票から自動補完しない。',
+    '複数の領収書・診療明細書の金額は数値化して合計する。\n正規表現: /[^0-9０-９.-]/g -> "" で「円」「税込」「,」などを除去し、全角数字を半角化して Number に変換する。明細金額が複数ある場合は合計値を claimAmount とし、各ファイル別の金額は sourceFields に保持する。',
+    '医療機関名は前後空白、改行、全半角差を除去して保持する。\n正規表現: /[\\r\\n\\t]+/g -> " "、/^\\s+|\\s+$/g -> "" を適用する。略称・別名の近似照合や正式名称への変換はここでは行わず、Master照合に渡す。',
+    '傷病名・診断名は複数行の場合、改行を「、」に置換して保持する。\n正規表現: /[\\r\\n]+/g -> "、"、/\\s{2,}/g -> " " を適用する。複数ファイルで異なる傷病名がある場合はリストとして保持し、競合ではなく確認対象として sourceFields に残す。',
+  ]);
+  const valueGenerationRule = legacyShortRules.has(rawValueGenerationRule)
+    ? defaultDataMappingRuleText(standard?.value)
+    : rawValueGenerationRule;
   return {
     id: rule?.id || newRuleId('map'),
-    sourceFieldIds,
-    standardFieldId: standard?.value || '',
-    standardLabel: rule?.standardLabel || standard?.label || '',
-    category: DATA_MAPPING_FIELD_CATEGORIES.some((c) => c.value === rule?.category)
-      ? rule.category
-      : (standard?.category || 'case'),
-    transformRule: transform,
+    sourceFieldIds: sourceFieldIds.length ? sourceFieldIds : defaultDataMappingSourcesForStandard(standardFieldId),
+    standardFieldId,
+    standardLabel: rule?.standardLabel || standard?.label || standardFieldId,
+    dataType,
+    valueGenerationRule,
+    structuredRulePreview: rule?.structuredRulePreview || '',
     conflictCheckEnabled: rule?.conflictCheckEnabled === true,
+    conflictCompareMode: DATA_MAPPING_CONFLICT_COMPARE_MODES.some((m) => m.value === rule?.conflictCompareMode)
+      ? rule.conflictCompareMode
+      : 'normalized',
   };
 }
 
@@ -1104,7 +1215,6 @@ function normalizeDataMappingNode(node, workflow = null) {
   return {
     ...base,
     mappingMode: base.mappingMode || 'field_to_standard',
-    outputMode: DATA_MAPPING_OUTPUT_MODES.some((m) => m.value === base.outputMode) ? base.outputMode : 'unified',
     mappingRules: rules.map(normalizeDataMappingRule),
   };
 }
@@ -1118,14 +1228,97 @@ function getMasterMatchUpstreamDataMapping(workflow, nodeId) {
   return mappingNodes[mappingNodes.length - 1] || null;
 }
 
+const MASTER_MATCH_RETURN_MODES = [
+  { value: 'top1', label: '最上位候補のみ' },
+  { value: 'candidates', label: '候補一覧' },
+  { value: 'parent_category', label: '上位分類' },
+];
+
+const MASTER_MATCH_INPUT_KINDS = [
+  { value: 'standard', label: '標準フィールド' },
+  { value: 'ocr', label: 'OCR抽出フィールド' },
+];
+
+const MASTER_MATCH_SCOPES = [
+  { value: 'instance', label: 'インスタンス別' },
+  { value: 'doc_type', label: '帳票タイプ集約' },
+  { value: 'case', label: '案件集約' },
+];
+
+function normalizeMasterMatchRule(rule, nodeDefaults = {}) {
+  const r = rule || {};
+  const defaults = nodeDefaults || {};
+  let masterSourceId = r.masterSourceId || '';
+  if (!masterSourceId && r.dictionaryId) masterSourceId = `dict:${r.dictionaryId}`;
+  if (!masterSourceId) masterSourceId = defaults.masterSourceId || 'dict:icd10';
+  const src = typeof getMasterSystemSource === 'function' ? getMasterSystemSource(masterSourceId) : null;
+  const defaultLookup = src?.sourceType === 'dict'
+    ? (getMasterDictionary(src.dictionaryId)?.lookupField || '')
+    : (src?.columns?.[0] || '');
+  return {
+    id: r.id || `mr_${Date.now().toString(36)}`,
+    name: (r.name || r.field || '照合ルール').trim(),
+    inputKind: r.inputKind === 'standard' ? 'standard' : 'ocr',
+    standardFieldId: r.standardFieldId || '',
+    docType: r.docType || '',
+    field: r.field || '',
+    scope: ['instance', 'doc_type', 'case'].includes(r.scope) ? r.scope : 'instance',
+    masterSourceId,
+    masterSheet: r.masterSheet || '',
+    lookupField: r.lookupField || r.dictLookupField || defaultLookup,
+    outputFields: Array.isArray(r.outputFields) ? [...r.outputFields] : [],
+    matchMethod: normalizeMasterMatchStrategy(r.matchMethod || r.matchStrategy || defaults.matchMethod || 'hybrid'),
+    returnMode: ['top1', 'candidates', 'parent_category'].includes(r.returnMode) ? r.returnMode : 'top1',
+  };
+}
+
 function normalizeMasterMatchNode(node, workflow = null) {
   const base = ensureWorkflowNodeVarName(node, workflow);
+  const nodeDefaults = {
+    matchMethod: normalizeMasterMatchStrategy(base.matchMethod || base.matchStrategy || 'hybrid'),
+    resultReturn: base.resultReturn === 'array' ? 'array' : 'array',
+    masterSourceId: base.masterSourceId || 'dict:icd10',
+  };
+  let matchRules = Array.isArray(base.matchRules)
+    ? base.matchRules.map((rule) => normalizeMasterMatchRule(rule, nodeDefaults))
+    : [];
+  if (!matchRules.length && Array.isArray(base.matchFieldIds) && base.matchFieldIds.length) {
+    matchRules = base.matchFieldIds.map((token, index) => {
+      const raw = String(token);
+      if (raw.startsWith('standard.')) {
+        const standardFieldId = raw.slice('standard.'.length);
+        const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === standardFieldId);
+        return normalizeMasterMatchRule({
+          id: `mr_legacy_${index}`,
+          name: meta?.label || standardFieldId,
+          inputKind: 'standard',
+          standardFieldId,
+          field: meta?.label || standardFieldId,
+        }, nodeDefaults);
+      }
+      const dot = raw.indexOf('.');
+      const docType = dot >= 0 ? raw.slice(0, dot) : raw;
+      const field = dot >= 0 ? raw.slice(dot + 1) : '';
+      return normalizeMasterMatchRule({
+        id: `mr_legacy_${index}`,
+        name: field || docType,
+        inputKind: 'ocr',
+        docType,
+        field,
+      }, nodeDefaults);
+    });
+  }
+  const primarySourceId = matchRules[0]?.masterSourceId || nodeDefaults.masterSourceId;
+  const knowledgeSource = typeof resolveMasterMatchKnowledgeSource === 'function'
+    ? resolveMasterMatchKnowledgeSource({ masterSourceId: primarySourceId })
+    : (base.knowledgeSource || { type: 'dict', dictionaryId: 'icd10' });
   return {
     ...base,
-    matchFieldIds: Array.isArray(base.matchFieldIds) ? [...base.matchFieldIds] : [],
-    outputFieldIds: Array.isArray(base.outputFieldIds) ? [...base.outputFieldIds] : [],
-    matchStrategy: normalizeMasterMatchStrategy(base.matchStrategy),
-    outputFormat: base.outputFormat || 'normalized_fields',
+    matchMethod: nodeDefaults.matchMethod,
+    resultReturn: nodeDefaults.resultReturn,
+    masterSourceId: primarySourceId,
+    matchRules,
+    knowledgeSource,
   };
 }
 
@@ -1814,14 +2007,18 @@ const DECISION_RESULT_VALUES = [
 ];
 
 const DECISION_OPERATORS = [
-  { value: 'is', label: 'is' },
-  { value: 'is_not', label: 'is not' },
-  { value: 'contains', label: 'contains' },
-  { value: 'not_contains', label: 'not contains' },
-  { value: 'starts_with', label: 'start with' },
-  { value: 'ends_with', label: 'end with' },
-  { value: 'is_empty', label: 'is empty' },
-  { value: 'is_not_empty', label: 'is not empty' },
+  { value: 'is', label: '=' },
+  { value: 'is_not', label: '≠' },
+  { value: 'greater_than', label: '>' },
+  { value: 'greater_than_or_equal', label: '≥' },
+  { value: 'less_than', label: '<' },
+  { value: 'less_than_or_equal', label: '≤' },
+  { value: 'contains', label: '含む' },
+  { value: 'not_contains', label: '含まない' },
+  { value: 'starts_with', label: 'で始まる' },
+  { value: 'ends_with', label: 'で終わる' },
+  { value: 'is_empty', label: '空である' },
+  { value: 'is_not_empty', label: '空でない' },
 ];
 
 const DECISION_VALUELESS_OPERATORS = new Set(['is_empty', 'is_not_empty']);
@@ -1855,84 +2052,21 @@ function appendDecisionVarOption(options, spec) {
   });
 }
 
-function expandVerifyVarCatalog(varName, title, verifyConfig, options) {
-  const groupBase = title || 'AI検証';
-  appendDecisionVarOption(options, {
-    value: `${varName}.result`,
-    label: `汇总 · {${varName}.result}`,
-    group: `${groupBase} · 汇总`,
-    nodeType: 'ai_verify',
-    varName,
-  });
-  appendDecisionVarOption(options, {
-    value: `${varName}.status`,
-    label: `ステータス · {${varName}.status}`,
-    group: `${groupBase} · 汇总`,
-    nodeType: 'ai_verify',
-    varName,
-  });
-  const v = verifyConfig || {};
-  if (v.completenessEnabled !== false) {
-    appendDecisionVarOption(options, {
-      value: `${varName}.categories.completeness.result`,
-      label: '完全性検証',
-      group: `${groupBase} · カテゴリ`,
-      nodeType: 'ai_verify',
-      varName,
-    });
-  }
-  if (v.textEnabled !== false) {
-    appendDecisionVarOption(options, {
-      value: `${varName}.categories.text.result`,
-      label: 'テキスト検証',
-      group: `${groupBase} · カテゴリ`,
-      nodeType: 'ai_verify',
-      varName,
-    });
-    (v.text || []).forEach((rule) => {
-      const rid = rule.id || `r_${(rule.label || '').slice(0, 8)}`;
-      appendDecisionVarOption(options, {
-        value: `${varName}.rules.${rid}.result`,
-        label: rule.label || rid,
-        group: `${groupBase} · ルール`,
-        nodeType: 'ai_verify',
-        varName,
-      });
-    });
-  }
-  if (v.dataEnabled !== false) {
-    appendDecisionVarOption(options, {
-      value: `${varName}.categories.data.result`,
-      label: 'データ検証',
-      group: `${groupBase} · カテゴリ`,
-      nodeType: 'ai_verify',
-      varName,
-    });
-    (v.dataRules || []).forEach((rule) => {
-      const rid = rule.id || `r_${(rule.label || '').slice(0, 8)}`;
-      appendDecisionVarOption(options, {
-        value: `${varName}.rules.${rid}.result`,
-        label: rule.label || rid,
-        group: `${groupBase} · ルール`,
-        nodeType: 'ai_verify',
-        varName,
-      });
-    });
-  }
-  if (v.sealEnabled !== false) {
-    appendDecisionVarOption(options, {
-      value: `${varName}.categories.seal.result`,
-      label: '印鑑・署名検証',
-      group: `${groupBase} · カテゴリ`,
-      nodeType: 'ai_verify',
-      varName,
-    });
-  }
-}
-
 function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null) {
   const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
   const options = [];
+  const currentNode = nodeMap[nodeId];
+  if (currentNode?.type === 'decision') {
+    const currentVarName = getWorkflowNodeVarName(currentNode, workflow);
+    appendDecisionVarOption(options, {
+      value: `${currentVarName}.branch_name`,
+      label: '分岐名',
+      group: currentNode.label || '判断器',
+      nodeType: 'decision',
+      nodeId: currentNode.id,
+      varName: currentVarName,
+    });
+  }
   appendDecisionVarOption(options, {
     value: 'case.reupload_required',
     label: '再アップロード要 · {case.reupload_required}',
@@ -1945,50 +2079,15 @@ function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null) {
     const varName = getWorkflowNodeVarName(n, workflow);
     const meta = getWorkflowNodeMeta(n.type);
     const title = n.label || meta.title;
-    if (n.type === 'ai_verify') {
-      expandVerifyVarCatalog(varName, title, verifyConfig, options);
-      return;
-    }
     if (n.type === 'hitl_gate') {
-      appendDecisionVarOption(options, {
-        value: `${varName}.result`,
-        label: `${title} · {${varName}.result}`,
-        group: title,
-        nodeType: 'hitl_gate',
-        nodeId: n.id,
-        varName,
-      });
+      appendNodeOutputVarCatalog(n, workflow, options);
       return;
     }
     if (n.type === 'master_match') {
-      appendDecisionVarOption(options, {
-        value: `${varName}.result`,
-        label: `${title} · 照合結果`,
-        group: title,
-        nodeType: 'master_match',
-        nodeId: n.id,
-        varName,
-      });
-      (n.matchFieldIds || []).forEach((fid) => {
-        appendDecisionVarOption(options, {
-          value: `${varName}.rules.${fid}.result`,
-          label: `照合 ${fid}`,
-          group: `${title} · ルール`,
-          nodeType: 'master_match',
-          nodeId: n.id,
-          varName,
-        });
-      });
+      appendNodeOutputVarCatalog(n, workflow, options);
       return;
     }
-    appendDecisionVarOption(options, {
-      value: `${varName}.result`,
-      label: `${title} · {${varName}.result}`,
-      group: title,
-      nodeType: n.type,
-      nodeId: n.id,
-      varName,
-    });
+    appendNodeOutputVarCatalog(n, workflow, options);
   });
   if (options.length > 1) return options;
   return [
@@ -2103,6 +2202,7 @@ function createDecisionCase(kind = 'if', overrides = {}) {
   return {
     id: kind === 'if' ? 'if' : newRuleId('elif'),
     kind,
+    logic: 'and',
     conditions: [createDecisionCondition()],
     ...overrides,
   };
@@ -2114,7 +2214,7 @@ function normalizeDecisionCondition(condition) {
     id: c.id || newRuleId('dc'),
     variable: c.variable || '',
     operator: c.operator || 'is',
-    value: c.value ?? '1',
+    value: c.value ?? '',
     preset: c.preset || '',
   };
 }
@@ -2128,6 +2228,7 @@ function normalizeDecisionCase(decisionCase, index) {
     id: decisionCase?.id || (kind === 'if' ? 'if' : newRuleId('elif')),
     kind,
     label: decisionCase?.label || '',
+    logic: decisionCase?.logic === 'or' ? 'or' : 'and',
     conditions,
   };
 }
@@ -2272,9 +2373,10 @@ function decisionConditionPreview(decisionCase, variableOptions = []) {
     const variable = formatDecisionConditionToken(c.variable);
     const operator = DECISION_OPERATORS.find((o) => o.value === c.operator)?.label || c.operator;
     if (!decisionUsesValueField(c.operator)) return `${variable} ${operator}`;
-    return `${variable} ${operator} ${c.value ?? '1'}`;
+    const value = c.value ? c.value : '値未入力';
+    return `${variable} ${operator} ${value}`;
   });
-  return parts.join(' AND ');
+  return parts.join(` ${decisionCase?.logic === 'or' ? 'OR' : 'AND'} `);
 }
 
 function getDecisionCaseCanvasPreview(node, decisionCase) {
@@ -2524,9 +2626,7 @@ function buildDefaultCaseWorkflow() {
         label: label || 'マスタ照合',
         x: 0,
         y: 0,
-        matchFieldIds: [],
-        outputFieldIds: [],
-        matchStrategy: 'code',
+        matchRules: [],
       }, wf);
     } else if (type === 'start' || type === 'end') {
       node = type === 'start'
@@ -3007,6 +3107,7 @@ function formatWorkflowHistoryTime(date = new Date()) {
 
 function measureWorkflowNodeBodyHeight(tasks, contentWidth) {
   if (!tasks?.length) return 0;
+  if (tasks.length === 1) return 22;
   const GAP = 6;
   const MIN_TAG_W = 72;
   const CHAR_W = 15;
