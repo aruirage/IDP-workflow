@@ -10,33 +10,48 @@ const NODE_ORDER = ['scene', 'input', 'image', 'ocr', 'master', 'verify', 'hitl'
 
 const WF_NODE_GAP = 72;
 
-/** 左侧菜单：配置設定（OCR 模板 + 案件 Workflow） */
+/** 左侧菜单：与 IDP 业务规则模块保持一致的一级/二级导航 */
 const APP_NAV_GROUPS = [
-  { id: 'home', label: 'ホーム', icon: '⌂', placeholder: true },
-  { id: 'read', label: '帳票読取', icon: '▣', placeholder: true },
+  { id: 'upload', label: '新規アップロード', icon: '⇧', placeholder: true },
+  { id: 'cases', label: '案件一覧', icon: '□', placeholder: true },
+  { id: 'tasks', label: 'マイタスク', icon: '☰', placeholder: true },
   {
     id: 'doc-settings',
-    label: '配置設定',
+    label: '業務ルール設定',
     icon: '⚙',
     menu: true,
     children: [
-      { id: 'fixed-doc', label: 'OCR抽出テンプレート' },
-      { id: 'case-workflow', label: '案件Workflow設定' },
-      { id: 'dict', label: '辞書設定', placeholder: true },
-      { id: 'image-settings', label: '画像処理設定', placeholder: true },
+      { id: 'fixed-doc', label: '帳票タイプ設定', icon: '▣' },
+      { id: 'case-workflow', label: '案件シーン設定', icon: '⌁' },
+      { id: 'master-match-config', label: 'マスタデータ設定', icon: '▦' },
+      { id: 'data-mapping-config', label: 'データマッピング設定', icon: '↔' },
+      { id: 'ai-verify-config', label: 'AI検証設定', icon: '✓' },
+      { id: 'model-settings', label: 'モデル設定', icon: 'CPU', placeholder: true },
+      { id: 'api-settings', label: 'API設定', icon: '↗', placeholder: true },
     ],
   },
-  { id: 'system', label: 'システム設定', icon: '☰', placeholder: true },
-  { id: 'ai-agent', label: 'AI入力エージェント', icon: '◎', placeholder: true },
+  { id: 'processing-records', label: '処理記録', icon: '▤', placeholder: true },
 ];
 
 const MODULE_PAGE_META = {
   'fixed-doc': {
-    title: 'OCR抽出テンプレート',
+    title: '帳票タイプ設定',
     subtitle: '帳票タイプごとの OCR テンプレート・抽出フィールド',
   },
+  'data-mapping-config': {
+    title: 'データマッピング設定',
+    subtitle: '全案件共通の標準フィールド・OCR フィールド対応・競合処理を管理',
+  },
+  'master-match-config': {
+    title: 'マスタデータ設定',
+    subtitle: 'マスタデータ・列・インポート・ベクトル化状態を管理',
+  },
+  'ai-verify-config': {
+    title: 'AI検証設定',
+    subtitle: '必須フィールド・必要書類・テキスト・データ・署名押印を業務シーン単位で管理',
+  },
   'case-workflow': {
-    title: '案件Workflow設定',
+    title: '案件シーン設定',
     subtitleConfigure: '設定モード：Workflow 固定・ノード内パラメータのみ変更',
     subtitleEdit: '編集モード：ノード追加・削除・接続を自由に変更',
     templateNote: '起始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。',
@@ -54,19 +69,21 @@ const INSPECTOR_HINTS = {
   edgeEdit: '接続線をクリックで選択（ハイライト）。Backspace / Delete で削除できます。出力ポートをドラッグして再接続できます。',
   connect: '出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。',
   scene: '業務シーン作成時、またはステップ1で関連帳票・案件集約・帳票間関連を設定します。',
+  sceneFileSplit: '案件集約前にアップロード単位のファイルをどの粒度で分けるかを設定します。前処理の画像分割とは別で、ページ連続性や帳票タイトルなどを分割依据として利用できます。',
   inputSetting: '画面上アップロードまたは APIアップロードでファイルを受け付けます。APIアップロードを有効にした場合はエンドポイント URL を指定します。',
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
-  preprocess: '案件内の指定帳票に対して OCR 前の画像処理を行います。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：1画像に複数帳票が含まれる場合に分割。対象帳票未指定時は全帳票タイプが対象。\n・画像並び替え：同一帳票タイプ内の画像を整列。対象帳票未指定時は全帳票タイプが対象。',
+  preprocess: 'OCR 前に画像補正、画像回転、画像分割を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像並び替え：同一帳票タイプ内の画像を整列。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
-  ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF と複数ファイル処理（分けて抽出 / まとめて抽出）を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
-  masterMatch: '案件フィールドでマスタを照合し、独立したマスタ照合結果を出力します。OCR 原値・標準フィールドは上書きしません。',
-  dataMapping: 'OCR 抽出フィールドを多対一で標準フィールドへマッピングします。出力は統一フィールド構造です。',
+  ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
+  masterMatch: 'マスタデータ本体は設定ページで管理します。このノードでは現在の Workflow で使う入力フィールド、照合列、返却列、照合方式を設定します。',
+  dataMapping: 'データマッピング設定で定義した全局ルールをこの Workflow で呼び出します。ノード内ではルール摘要、適用性チェック、設定ページへの導線のみ扱います。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
   masterMatchInput: '標準フィールドは上流データマッピングから自動連携します。照合対象フィールドは標準フィールドまたは OCR 抽出フィールドから指定します。',
   masterMatchOutput: '正規化フィールド：案件データセットへ書き戻し。参照 JSON：照合結果を JSON 出力。分段列表：检索分段 + メタデータを配列出力。',
   masterMatchOutputFields: '照合・正規化結果を書き込む出力フィールドを指定します。',
   masterMatchFields: '帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。',
+  masterMatchScope: '同一帳票タイプに複数ファイルがある場合の照合単位です。インスタンス別＝ファイルごと、帳票タイプ集約＝タイプ単位、案件集約＝案件全体で1回照合します。',
   masterMatchStrategy: '照合方式：キーワード検索 / ベクトル検索 / 混合検索 / コード検索。',
   mcpTool: 'Workflow では MCP サーバーと Tool を選択するだけです。接続情報・Tool 定義・入力パラメータ（定数 / 変数参照）は「MCP サーバー管理」で設定します。\n\nOCR抽出 → MCP → マスタ照合 → AI検証 の主処理チェーンの一段。REST / Web API・DB・RPA など任意の外部連携に利用できます。',
   mcpServer: '登録済み MCP サーバーを選択します。新規登録・Tool・パラメータの編集は「サーバー管理へ」から MCP サーバー管理画面を開いてください。',
@@ -78,10 +95,10 @@ const INSPECTOR_HINTS = {
   nodeOutput: '後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
   nodeOutputPreprocess: '処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。',
   nodeOutputOcr: 'OCR 結果・帳票別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。',
-  nodeOutputVerify: '完全性・テキスト・データ・署名押印・マスタ照合結果チェックの集約出力。通知ノードの固定変数にも利用されます。',
+  nodeOutputVerify: '必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。',
   nodeOutputStart: 'Workflow 入口の案件番号・起動イベント・案件データバージョン。',
   nodeOutputEnd: 'この分岐の完了状態。案件ライフサイクルの終了は表しません。',
-  nodeOutputHitl: '生成された人工確認タスク ID・確認タイプ・担当ロール・生成ステータス。',
+  nodeOutputHitl: '生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。',
   nodeOutputNotify: '通知送信状態・通知タイプ・送信日時。',
   mcpOutput: 'Tool 実行後に後続ノードへ渡される出力変数です。IF/ELSE やマスタ照合の入力として参照できます。',
   dataMappingOutput: '標準フィールド・競合件数・未マッピング件数・ステータス。後続の照合・検証で参照できます。',
@@ -96,7 +113,7 @@ const INSPECTOR_HINTS = {
   masterApi: 'リトライ回数・キャッシュ TTL・例外時の動作を指定します。',
   masterRules: '登録済み照合ルールの一覧です。下のフォームから追加・編集できます。',
   masterRuleAdd: '帳票タイプ・照合元 OCR 項目・照合先・出力フィールドを指定してルールを追加します。',
-  aiVerify: '完全性・テキスト・データ・印鑑の検証ルールを設定します。不備検出時は HITL キューへ送ります。',
+  aiVerify: 'AI検証設定で定義した検証ルールをこの Workflow で呼び出します。検証結果は変数として出力し、補件・人工確認・異常分岐は後続ノードで判断します。',
   completeness: '必須・任意帳票の収集状態と、帳票ごとの必須項目を検証します。帳票タイプは業務シーン設定で登録し、ここで必須/任意と必須項目を指定します。',
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
@@ -109,11 +126,12 @@ const INSPECTOR_HINTS = {
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
   decisionOutputVar: '分岐名は後続ノードの条件式で参照できます。',
   fraudDetect: '画像の PS 痕跡・改ざんの有無を判定します。画像リスクスコアが閾値以上の場合、条件分岐または人工確認へ送ります。',
-  notify: '不備通知または処理完了通知を送信します。案件状態は更新しません。固定変数のみ挿入可能です。',
-  startTriggers: 'Workflow 入口。起動イベントは案件集約完了・補件集約完了に固定されます。',
+  notify: '不備通知・処理完了通知・異常通知を送信します。通知ノードは案件状態を更新せず、停止も制御しません。',
+  startTriggers: 'Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。',
   startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件集約完了後に開始します。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
-  notifyRecipients: '通知先：案件担当者 / その他ロール。メールの場合は宛先アドレスを指定します。',
+  notifyRecipients: 'システム通知の場合は通知先ロールを選択します。メールの場合は宛先アドレスを指定します。',
+  notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
   code: 'Python スクリプトで上流変数を加工し、後続ノードへ結果を渡します。入力パラメータ・戻り値の定義は本パネルで設定します。',
   codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」からパラメータを登録できます。',
   codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は {ノード変数名.result} へ格納されます。',
@@ -139,12 +157,12 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 5;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 6;
 const WF_LAYOUT_PAD = { x: 48, y: 48 };
 const WF_BRANCH_LANE_GAP = 56;
 
 const DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
-  'wf-pp', 'wf-hu-pre', 'wf-oc', 'wf-hu-ocr', 'wf-map', 'wf-ms', 'wf-ai', 'wf-d-final',
+  'wf-pp', 'wf-hu-pre', 'wf-oc', 'wf-hu-ocr', 'wf-map', 'wf-ai', 'wf-d-final',
   'wf-n-ok', 'wf-hu-final', 'wf-n-ng',
 ];
 
@@ -164,8 +182,7 @@ const WORKFLOW_MAIN_CHAIN_ORDER = [
   { type: 'preprocess', label: '前処理', step: 1 },
   { type: 'ocr', label: 'OCR抽出', step: 2 },
   { type: 'data_mapping', label: 'データマッピング', step: 3 },
-  { type: 'master_match', label: 'マスタ照合', step: 4 },
-  { type: 'ai_verify', label: 'AI検証', step: 5 },
+  { type: 'ai_verify', label: 'AI検証', step: 4 },
 ];
 
 const WORKFLOW_MAIN_CHAIN_TYPE_ORDER = Object.fromEntries(
@@ -174,7 +191,7 @@ const WORKFLOW_MAIN_CHAIN_TYPE_ORDER = Object.fromEntries(
 
 /** 処理ノード（制御・ナレッジ以外） */
 const WORKFLOW_PROCESSING_NODE_TYPES = new Set([
-  'preprocess', 'ocr', 'ai_verify', 'data_mapping', 'master_match', 'code',
+  'preprocess', 'ocr', 'ai_verify', 'data_mapping', 'code',
 ]);
 
 /** ノード出力変数の既定名（IF/ELSE で {varName}.result として参照） */
@@ -182,7 +199,6 @@ const WORKFLOW_NODE_DEFAULT_VAR = {
   preprocess: 'preprocess',
   ocr: 'ocr',
   data_mapping: 'data_mapping',
-  master_match: 'master_match',
   ai_verify: 'verify',
   code: 'code',
 };
@@ -228,25 +244,31 @@ const CASE_FLOW_NODE_GROUPS = [
   {
     category: '業務 Agent',
     nodes: [
-      { type: 'preprocess', label: '前処理', summary: '画像処理・文書集合生成' },
-      { type: 'ocr', label: 'OCR抽出', summary: 'OCR / LLM-OCR・フィールド抽出' },
-      { type: 'data_mapping', label: 'データマッピング', summary: '異構造フィールド → 標準フィールド' },
-      { type: 'ai_verify', label: 'AI検証', summary: '完全性・テキスト・データ検証' },
-      { type: 'master_match', label: 'マスタ照合', summary: '照合ルール · マスタ辞書参照' },
+      { type: 'preprocess', label: '前処理' },
+      { type: 'ocr', label: 'OCR抽出' },
+      { type: 'data_mapping', label: 'データマッピング' },
+      { type: 'ai_verify', label: 'AI検証' },
     ],
   },
   {
     category: '制御 Node',
     nodes: [
-      { type: 'decision', label: '条件判断', summary: 'IF / ELIF / ELSE · 変数で自由設定' },
-      { type: 'hitl_gate', label: '人工確認', summary: '確認・修正・承認', defaultHitlContext: 'ocr' },
-      { type: 'notify', label: '通知', summary: '補件依頼・案件処理完了', defaultNotifyTemplate: 'supplement' },
+      { type: 'decision', label: '条件判断' },
+      { type: 'hitl_gate', label: '人工確認', defaultHitlContext: 'ocr' },
+      { type: 'notify', label: '通知', defaultNotifyTemplate: 'deficiency' },
     ],
   },
   {
     category: '拡張 Node',
     nodes: [
-      { type: 'code', label: 'カスタム関数', summary: 'Python スクリプト · データ加工・API 呼び出し' },
+      { type: 'code', label: 'カスタム関数' },
+    ],
+  },
+  {
+    category: '端点',
+    nodes: [
+      { type: 'start', label: '開始' },
+      { type: 'end', label: '終了' },
     ],
   },
 ];
@@ -279,8 +301,8 @@ const WORKFLOW_INSPECTOR_MAP = {
 };
 
 const CASE_WORKFLOW_TRIGGER_EVENTS = [
-  { value: 'CASE_AGGREGATED', label: '案件集約完了', desc: '主帳票・関連帳票の集約が完了した' },
-  { value: 'SUPPLEMENT_AGGREGATED', label: '補件集約完了', desc: '追加提出された補件の集約が完了した' },
+  { value: 'CASE_AGGREGATED', label: '案件集約完了', desc: '新規アップロードから案件が生成された' },
+  { value: 'SUPPLEMENT_LINKED', label: '補件紐付け完了', desc: '案件入口アップロード、または待ちファイルから既存案件へ紐付いた' },
   { value: 'REPROCESS', label: '再処理', desc: '手動またはシステムからの再実行要求' },
 ];
 
@@ -296,9 +318,9 @@ const START_DUPLICATE_POLICIES = [
 
 /** @deprecated migrated to CASE_WORKFLOW_TRIGGER_EVENTS */
 const CASE_WORKFLOW_LEGACY_STATUS_TO_EVENT = {
-  AWAITING_SUPPLEMENT: 'SUPPLEMENT_AGGREGATED',
-  SUPPLEMENT_RECEIVED: 'SUPPLEMENT_AGGREGATED',
-  SUPPLEMENT: 'SUPPLEMENT_AGGREGATED',
+  AWAITING_SUPPLEMENT: 'SUPPLEMENT_LINKED',
+  SUPPLEMENT_RECEIVED: 'SUPPLEMENT_LINKED',
+  SUPPLEMENT: 'SUPPLEMENT_LINKED',
   NEW: 'CASE_AGGREGATED',
   NEW_CASE: 'CASE_AGGREGATED',
   DEFICIENCY_REVIEW: 'REPROCESS',
@@ -319,7 +341,7 @@ const WORKFLOW_INTERVAL_UNITS = [
 
 function getDefaultStartTriggerConfig() {
   return {
-    caseEvents: ['CASE_AGGREGATED', 'SUPPLEMENT_AGGREGATED'],
+    caseEvents: ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'],
     supplementReplayMode: 'restart_to_verify',
     duplicatePolicy: 'ignore_running',
     schedule: null,
@@ -360,7 +382,7 @@ function normalizeStartTriggerConfig(raw) {
     ? raw.duplicatePolicy
     : 'ignore_running';
   if (!cfg.caseEvents.length && !cfg.schedule) {
-    cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_AGGREGATED'];
+    cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'];
   }
   return cfg;
 }
@@ -392,7 +414,7 @@ function migrateLegacyStartTriggers(triggers) {
       };
     }
   });
-  if (!cfg.caseEvents.length && !cfg.schedule) cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_AGGREGATED'];
+  if (!cfg.caseEvents.length && !cfg.schedule) cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'];
   return normalizeStartTriggerConfig(cfg);
 }
 
@@ -430,33 +452,12 @@ function isStartCaseEventEnabled(node) {
   return normalizeStartTriggerConfig(node?.triggerConfig).caseEvents.length > 0;
 }
 
-const END_NAMING_DEFAULT_PATTERN = '{案件番号}_{証券番号}_{業務シーン}_{処理結果}_{yyyyMMdd}';
-
-function getDefaultEndNamingConfig() {
-  return { pattern: END_NAMING_DEFAULT_PATTERN };
-}
-
-function normalizeEndNamingConfig(raw) {
-  if (!raw || typeof raw !== 'object') return getDefaultEndNamingConfig();
-  if (typeof raw.pattern === 'string') {
-    return { pattern: raw.pattern || END_NAMING_DEFAULT_PATTERN };
-  }
-  if (raw.rules && typeof raw.rules === 'object') {
-    const legacyKey = ['case_dataset', 'doc_files', 'verify_report', 'api_payload']
-      .find((key) => raw.rules[key]?.enabled !== false && raw.rules[key]?.pattern);
-    if (legacyKey) {
-      return { pattern: String(raw.rules[legacyKey].pattern || END_NAMING_DEFAULT_PATTERN) };
-    }
-  }
-  return getDefaultEndNamingConfig();
-}
-
 function normalizeEndNode(node) {
   if (!node || node.type !== 'end') return node;
+  const { caseStatus, namingConfig, ...rest } = node;
   return {
-    ...node,
+    ...rest,
     isEnd: true,
-    namingConfig: normalizeEndNamingConfig(node.namingConfig),
   };
 }
 
@@ -464,7 +465,7 @@ const WORKFLOW_NODE_META = {
   start: {
     icon: '▶',
     title: '開始',
-    desc: '案件集約完了 / 補件集約完了で起動',
+    desc: '案件集約完了 / 補件紐付け完了で起動',
     tasks: [],
     accent: '#067647',
   },
@@ -478,7 +479,7 @@ const WORKFLOW_NODE_META = {
   preprocess: {
     icon: 'PP',
     title: '前処理',
-    desc: '画像補正・回転・分割・並び替え',
+    desc: '画像補正・回転・画像分割・並び替え',
     tasks: ['画像補正', '画像回転', '画像分割', '画像並び替え'],
     input: 'Physical Files',
     output: 'Logical Document Set',
@@ -497,7 +498,7 @@ const WORKFLOW_NODE_META = {
     icon: 'MAP',
     title: 'データマッピング',
     desc: '異構造フィールドを標準項目へ変換',
-    tasks: ['標準項目', '変換ルール', '案件データセット'],
+    tasks: ['標準フィールド', '競合検出', '適用性チェック'],
     input: 'Case · OCR Fields',
     output: 'Standard Fields',
     accent: '#175cd3',
@@ -505,8 +506,8 @@ const WORKFLOW_NODE_META = {
   ai_verify: {
     icon: 'AI',
     title: 'AI検証',
-    desc: '完全性・テキスト・データ検証',
-    tasks: ['完全性検査', 'テキスト検証', 'データ検証', '印鑑検証'],
+    desc: '必須フィールド・必要書類・各種検証',
+    tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', '署名・印鑑検証'],
     input: 'Case Data Pool',
     output: 'Validation Result',
     accent: '#7c3aed',
@@ -523,7 +524,7 @@ const WORKFLOW_NODE_META = {
   master_match: {
     icon: '照',
     title: 'マスタ照合',
-    desc: 'マスタ引用 · 照合方式 · 配列返却',
+    desc: '照合ルール・マスタ辞書参照',
     tasks: ['マスタ設定', '照合方式'],
     input: 'Standard Fields',
     output: 'Match Result',
@@ -532,16 +533,16 @@ const WORKFLOW_NODE_META = {
   decision: {
     icon: 'IF',
     title: '条件判断',
-    desc: '変数で IF / ELSE 分岐',
+    desc: 'IF / ELIF / ELSE・変数で分岐',
     tasks: [],
     input: 'Node Result',
     output: 'Branch',
-    accent: '#175cd3',
+    accent: '#9333ea',
   },
   hitl_gate: {
     icon: '人',
     title: '人工確認',
-    desc: '確認タイプ・担当ロールを設定',
+    desc: '確認・修正・承認',
     tasks: [],
     input: 'Process Result',
     output: 'Confirmed',
@@ -550,7 +551,7 @@ const WORKFLOW_NODE_META = {
   notify: {
     icon: 'NT',
     title: '通知',
-    desc: '不備通知 / 処理完了通知',
+    desc: '補件依頼・処理完了・異常通知',
     tasks: [],
     input: 'Case Event',
     output: 'Notified',
@@ -559,13 +560,28 @@ const WORKFLOW_NODE_META = {
   code: {
     icon: 'fx',
     title: 'カスタム関数',
-    desc: 'Python · データ加工',
+    desc: 'Python・データ加工・API 呼び出し',
     tasks: [],
     input: 'Upstream Variables',
     output: 'Result',
     accent: '#079455',
   },
 };
+
+function getWorkflowNodeAccent(type) {
+  return WORKFLOW_NODE_META[type]?.accent || '#175cd3';
+}
+
+function getWorkflowNodeAccentStyle(type) {
+  return { '--wf-node-accent': getWorkflowNodeAccent(type) };
+}
+
+const WORKFLOW_FLOW_PREVIEW_ACCENT_TYPES = new Set(['decision', 'hitl_gate', 'notify']);
+
+function getWorkflowFlowPreviewNodeStyle(type) {
+  if (!WORKFLOW_FLOW_PREVIEW_ACCENT_TYPES.has(type)) return null;
+  return getWorkflowNodeAccentStyle(type);
+}
 
 const MASTER_MATCH_STRATEGIES = [
   { value: 'keyword', label: 'キーワード検索', desc: 'キーワード・トークンによる全文検索' },
@@ -648,80 +664,117 @@ const DATA_MAPPING_OUTPUT_MODES = [
   { value: 'per_document', label: '帳票別結果も保持' },
 ];
 
+const DATA_MAPPING_EXECUTION_SCOPES = [
+  { value: 'case', label: '案件単位' },
+  { value: 'doc_type', label: '帳票タイプ単位' },
+];
+
+const MASTER_MATCH_INPUT_SOURCES = [
+  { value: 'standard_fields', label: '標準フィールド' },
+  { value: 'ocr_fields', label: 'OCR抽出フィールド' },
+];
+
+const MASTER_MATCH_EXECUTION_SCOPES = [
+  { value: 'changed_fields', label: '変更フィールドのみ' },
+  { value: 'case', label: '案件単位' },
+];
+
+const AI_VERIFY_MODULE_OPTIONS = [
+  { key: 'required_fields', label: '必須フィールド' },
+  { key: 'required_documents', label: '必要書類' },
+  { key: 'text', label: 'テキスト検証' },
+  { key: 'data', label: 'データ検証' },
+  { key: 'signature_seal', label: '署名・印鑑検証' },
+];
+
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   start: [
-    { id: 'caseNo', label: '案件番号' },
-    { id: 'triggerEvent', label: '起動イベント' },
-    { id: 'caseDataVersion', label: '案件データバージョン' },
+    { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', description: 'Workflow 対象の案件番号' },
+    { id: 'case.triggerEvent', label: '起動イベント', scope: '案件', type: 'Enum', description: '案件集約完了 / 補件紐付け完了' },
+    { id: 'case.caseDataVersion', label: '案件データバージョン', scope: '案件', type: 'String', description: '現在処理している案件データ版' },
   ],
   end: [
-    { id: 'branchStatus', label: '分岐ステータス' },
-    { id: 'status', label: 'ステータス' },
+    { id: 'case.branchStatus', label: '分岐ステータス', scope: '案件', type: 'Enum', description: 'この Workflow 分岐の終了結果' },
+    { id: 'case.endedAt', label: '終了時刻', scope: '案件', type: 'DateTime', description: '分岐が終了した時刻' },
+    { id: 'case.executionSummary', label: '実行サマリー', scope: '案件', type: 'Object', description: '到達経路と主要結果の概要' },
   ],
   preprocess: [
-    { id: 'processedFiles', label: '処理済みファイル' },
-    { id: 'lowConfidenceCount', label: '低信頼件数' },
-    { id: 'status', label: 'ステータス' },
+    { id: 'case.preprocessStatus', label: '前処理ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
+    { id: 'documents[].documentCandidates', label: '帳票インスタンス候補', scope: '帳票', type: 'Array', description: '帳票分類により生成された帳票インスタンス候補' },
+    { id: 'documents[].classificationWarnings', label: '帳票分類警告', scope: '帳票', type: 'Array', description: '帳票分類の曖昧、分類低信頼などの明細' },
+    { id: 'documents[].classificationConfidence', label: '帳票分類信頼度', scope: '帳票', type: 'Number', description: '帳票インスタンス候補の分類信頼度' },
+    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', description: '補正・回転・帳票分類後のファイル' },
+    { id: 'files[].preprocessWarnings', label: '前処理警告', scope: 'ファイル', type: 'Array', description: '傾き補正不可、分類曖昧などの明細' },
   ],
   ocr: [
-    { id: 'ocrResult', label: 'OCR結果' },
-    { id: 'ocrResultByDocType', label: '帳票別OCR結果' },
-    { id: 'lowConfidenceFieldCount', label: '低信頼フィールド件数' },
-    { id: 'modelMismatchCount', label: 'モデル不一致件数' },
-    { id: 'status', label: 'ステータス' },
+    { id: 'case.ocrStatus', label: 'OCRステータス', scope: '案件', type: 'Enum', description: 'OCR 全体の処理状態' },
+    { id: 'case.lowConfidenceFieldCount', label: '低信頼フィールド件数', scope: '案件', type: 'Number', description: '低信頼 OCR フィールドの合計' },
+    { id: 'documents[].ocrFields', label: '帳票別OCRフィールド', scope: '帳票', type: 'Object', description: '帳票インスタンス単位の抽出結果' },
+    { id: 'files[].ocrFields', label: 'ファイル別OCRフィールド', scope: 'ファイル', type: 'Object', description: '同一帳票タイプ複数ファイル時の抽出結果' },
   ],
   data_mapping: [
-    { id: 'mappedFields', label: '標準変数' },
-    { id: 'sourceFields', label: 'OCRフィールド明細' },
-    { id: 'conflicts', label: '競合一覧' },
-    { id: 'unmappedFields', label: '未マッピングOCRフィールド' },
-    { id: 'conversionErrors', label: '標準値生成エラー' },
-    { id: 'status', label: 'ステータス' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', description: '案件級の標準フィールドビュー' },
+    { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
+    { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', description: '案件級に集約したフィールド競合' },
+    { id: 'documents[].standardFields', label: '帳票別標準フィールド', scope: '帳票', type: 'Object', description: '帳票インスタンス単位の標準化結果' },
+    { id: 'files[].standardFields', label: 'ファイル別標準フィールド', scope: 'ファイル', type: 'Object', description: '同一帳票タイプ複数ファイル時の標準化結果' },
+    { id: 'files[].mappingConflicts', label: 'ファイル別競合', scope: 'ファイル', type: 'Array', description: 'ファイル単位の競合明細' },
+    { id: 'fields[].sourceOcrFields', label: 'OCR来源フィールド', scope: 'フィールド', type: 'Array', description: '標準フィールドの入力元 OCR フィールド' },
+    { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', description: 'ルール不適用、字段缺失、変換失敗の明細' },
   ],
   master_match: [
-    { id: 'matchResult', label: '照合結果' },
-    { id: 'unmatchedCount', label: '未照合件数' },
-    { id: 'lowConfidenceCount', label: '低信頼件数' },
-    { id: 'multiCandidateCount', label: '複数候補件数' },
+    { id: 'case.masterStatus', label: 'マスタ照合ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
+    { id: 'case.masterMatchResults', label: '照合結果', scope: '案件', type: 'Array', description: '案件級の照合結果汇总' },
+    { id: 'case.masterReviewRequired', label: '人工確認推奨', scope: '案件', type: 'Boolean', description: '未命中・低信頼・多候補により確認が必要' },
+    { id: 'case.masterNoHitCount', label: '未命中件数', scope: '案件', type: 'Number', description: 'マスタ未命中数' },
+    { id: 'case.masterLowScoreCount', label: '低信頼件数', scope: '案件', type: 'Number', description: '低スコア照合数' },
+    { id: 'case.masterMultiCandidateCount', label: '複数候補件数', scope: '案件', type: 'Number', description: '複数候補返却数' },
+    { id: 'documents[].masterMatchResults', label: '帳票別照合結果', scope: '帳票', type: 'Array', description: '帳票インスタンス級の照合結果' },
+    { id: 'files[].masterMatchResults', label: 'ファイル別照合結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の照合明細' },
+    { id: 'fields[].masterCandidates', label: '候補一覧', scope: 'フィールド', type: 'Array', description: '字段級の候補、返却列、信頼度' },
   ],
   decision: [
-    { id: 'branch_name', label: '分岐名', description: '命中した IF / ELIF / ELSE 分岐名' },
+    { id: 'case.branchName', label: '分岐名', scope: '案件', type: 'String', description: '命中した IF / ELIF / ELSE 分岐名' },
   ],
   ai_verify: [
-    { id: 'requiredDocsStatus', label: '必要書類ステータス' },
-    { id: 'missingDocsCount', label: '不足書類件数' },
-    { id: 'missingDocsList', label: '不足書類一覧' },
-    { id: 'requiredFieldsStatus', label: '必須項目ステータス' },
-    { id: 'missingFieldsCount', label: '不足項目件数' },
-    { id: 'missingFieldsList', label: '不足項目一覧' },
-    { id: 'textViolationCount', label: 'テキスト違反件数' },
-    { id: 'dataViolationCount', label: 'データ違反件数' },
-    { id: 'sealViolationCount', label: '署名押印違反件数' },
-    { id: 'masterMatchViolationCount', label: 'マスタ照合違反件数' },
-    { id: 'verifyResult', label: '検証結果' },
-    { id: 'status', label: 'ステータス' },
+    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
+    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', description: '補件分岐に使う案件級判定' },
+    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', description: '人工確認分岐に使う案件級判定' },
+    { id: 'case.requiredFieldStatus', label: '必須フィールド状態', scope: '案件', type: 'Enum', description: '必須フィールド検証の聚合状態' },
+    { id: 'case.requiredDocumentStatus', label: '必要書類状態', scope: '案件', type: 'Enum', description: '必要書類検証の聚合状態' },
+    { id: 'case.textValidationStatus', label: 'テキスト検証状態', scope: '案件', type: 'Enum', description: 'テキスト検証の聚合状態' },
+    { id: 'case.dataValidationStatus', label: 'データ検証状態', scope: '案件', type: 'Enum', description: 'データ検証の聚合状態' },
+    { id: 'case.signatureSealStatus', label: '署名・印鑑検証状態', scope: '案件', type: 'Enum', description: '署名・印鑑検証の聚合状態' },
+    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', description: 'AI検証の詳細結果' },
+    { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', description: '必要書類の不足明細' },
+    { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', description: '必須フィールドの不足明細' },
+    { id: 'documents[].validationResults', label: '帳票別検証結果', scope: '帳票', type: 'Array', description: '帳票インスタンス単位の検証結果' },
+    { id: 'files[].validationResults', label: 'ファイル別検証結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の検証結果' },
+    { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', description: 'ファイル単位で違反したルール' },
+    { id: 'rules[].validationResults', label: 'ルール別検証結果', scope: 'フィールド', type: 'Array', description: 'ルール単位の命中、違反、スキップ明細' },
   ],
   hitl_gate: [
-    { id: 'taskId', label: '確認タスクID' },
-    { id: 'confirmType', label: '確認タイプ' },
-    { id: 'assigneeRole', label: '担当ロール' },
-    { id: 'createStatus', label: '生成ステータス' },
+    { id: 'case.confirmTaskId', label: '確認タスクID', scope: '案件', type: 'String', description: '生成した人工確認タスク ID' },
+    { id: 'case.confirmStatus', label: '確認状態', scope: '案件', type: 'Enum', description: 'created / completed / failed / timeout' },
+    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', description: 'approve / edit / reject / request_supplement' },
+    { id: 'case.assigneeRole', label: '担当ロール', scope: '案件', type: 'String', description: 'タスク分派ロール' },
+    { id: 'documents[].manualEdits', label: '帳票別修正摘要', scope: '帳票', type: 'Array', description: '帳票インスタンス単位の人工修正摘要' },
+    { id: 'files[].manualEdits', label: 'ファイル別修正摘要', scope: 'ファイル', type: 'Array', description: 'ファイル単位の人工修正摘要' },
   ],
   notify: [
-    { id: 'sendStatus', label: '送信状態' },
-    { id: 'notifyType', label: '通知タイプ' },
-    { id: 'sentAt', label: '送信日時' },
-    { id: 'stateEvent', label: '状態イベント' },
+    { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', description: '通知送信の結果' },
+    { id: 'case.notifyType', label: '通知タイプ', scope: '案件', type: 'String', description: '不備通知 / 処理完了通知 / 異常通知' },
+    { id: 'case.notifiedAt', label: '送信日時', scope: '案件', type: 'DateTime', description: '通知送信時刻' },
   ],
   code: [
-    { id: 'result', label: 'result', optional: true },
-    { id: 'status', label: 'ステータス' },
-    { id: 'errorMessage', label: 'エラーメッセージ' },
+    { id: 'case.result', label: 'result', scope: '案件', type: 'Object', optional: true, description: 'Python 関数の戻り値' },
+    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', description: '成功 / 失敗' },
+    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', description: '実行失敗時の詳細' },
   ],
   mcp: [
-    { id: 'result', label: 'Tool 実行結果' },
-    { id: 'status', label: 'HTTP / 実行ステータス' },
-    { id: 'latencyMs', label: 'レイテンシ (ms)' },
+    { id: 'case.result', label: 'Tool 実行結果', scope: '案件', type: 'Object', description: 'MCP Tool の返却値' },
+    { id: 'case.status', label: 'HTTP / 実行ステータス', scope: '案件', type: 'Enum', description: '実行ステータス' },
+    { id: 'case.latencyMs', label: 'レイテンシ (ms)', scope: '案件', type: 'Number', description: 'Tool 実行時間' },
   ],
 };
 
@@ -744,6 +797,29 @@ const WORKFLOW_NODE_OUTPUT_HINT_KEYS = {
   code: 'codeOutput',
 };
 
+function getCodeNodeOutputVarDefs(node) {
+  const systemDefs = [
+    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', description: '成功 / 失敗' },
+    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', description: '実行失敗時の詳細' },
+  ];
+  if (!node?.returnContent) return systemDefs;
+  const params = Array.isArray(node.outputParams) && node.outputParams.length
+    ? node.outputParams
+    : [{ name: 'result', dataType: 'dict' }];
+  const userDefs = params.map((row) => {
+    const name = (row?.name || 'result').trim() || 'result';
+    const typeMap = { string: 'String', int: 'Number', float: 'Number', dict: 'Object', array: 'Array' };
+    return {
+      id: `case.${name}`,
+      label: name,
+      scope: '案件',
+      type: typeMap[row?.dataType] || 'Object',
+      description: 'Python 関数の戻り値',
+    };
+  });
+  return [...userDefs, ...systemDefs];
+}
+
 function formatWorkflowOutputVarToken(node, workflow, varId) {
   return `{${getWorkflowNodeVarName(node, workflow)}.${varId}}`;
 }
@@ -754,13 +830,15 @@ function formatMcpOutputVarToken(node, workflow, varId) {
 
 function getWorkflowNodeOutputVarItems(node, workflow = null) {
   if (!node?.type) return [];
-  const defs = WORKFLOW_NODE_OUTPUT_VAR_DEFS[node.type];
+  const defs = node.type === 'code'
+    ? getCodeNodeOutputVarDefs(node)
+    : WORKFLOW_NODE_OUTPUT_VAR_DEFS[node.type];
   if (!defs?.length) return [];
-  const visibleDefs = node.type === 'code'
-    ? defs.filter((item) => item.id !== 'result' || node.returnContent)
-    : defs.filter((item) => !item.optional);
+  const visibleDefs = defs.filter((item) => !item.optional);
   return visibleDefs.map((item) => ({
     ...item,
+    localId: item.id,
+    path: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
     token: formatWorkflowOutputVarToken(node, workflow, item.id),
   }));
 }
@@ -774,8 +852,11 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
   items.forEach((item) => {
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
-      label: `${title} · ${item.label}`,
+      label: item.label,
       group: title,
+      scope: item.scope || '案件',
+      dataType: item.type || '',
+      description: item.description || item.label,
       nodeType: node.type,
       nodeId: node.id,
       varName: getWorkflowNodeVarName(node, workflow),
@@ -1214,8 +1295,42 @@ function normalizeDataMappingNode(node, workflow = null) {
     : defaultDataMappingRules();
   return {
     ...base,
+    configRef: base.configRef || 'current_scene',
+    targetDocTypes: Array.isArray(base.targetDocTypes) ? base.targetDocTypes.filter(Boolean) : [],
+    executionScope: DATA_MAPPING_EXECUTION_SCOPES.some((opt) => opt.value === base.executionScope)
+      ? base.executionScope
+      : 'case',
+    outputMode: DATA_MAPPING_OUTPUT_MODES.some((opt) => opt.value === base.outputMode)
+      ? base.outputMode
+      : 'unified',
     mappingMode: base.mappingMode || 'field_to_standard',
     mappingRules: rules.map(normalizeDataMappingRule),
+  };
+}
+
+function normalizeAiVerifyNode(node, workflow = null) {
+  const base = ensureWorkflowNodeVarName({
+    ...node,
+    type: 'ai_verify',
+    label: node?.label || 'AI検証',
+  }, workflow);
+  const moduleEnabled = {};
+  const legacyModuleEnabled = base.moduleEnabled || {};
+  AI_VERIFY_MODULE_OPTIONS.forEach((opt) => {
+    let enabled = legacyModuleEnabled[opt.key];
+    if (enabled == null && (opt.key === 'required_fields' || opt.key === 'required_documents')) {
+      enabled = legacyModuleEnabled.completeness;
+    }
+    if (enabled == null && opt.key === 'signature_seal') {
+      enabled = legacyModuleEnabled.seal;
+    }
+    moduleEnabled[opt.key] = enabled !== false;
+  });
+  return {
+    ...base,
+    configRef: base.configRef || 'current_scene',
+    targetDocTypes: Array.isArray(base.targetDocTypes) ? base.targetDocTypes.filter(Boolean) : [],
+    moduleEnabled,
   };
 }
 
@@ -1312,8 +1427,18 @@ function normalizeMasterMatchNode(node, workflow = null) {
   const knowledgeSource = typeof resolveMasterMatchKnowledgeSource === 'function'
     ? resolveMasterMatchKnowledgeSource({ masterSourceId: primarySourceId })
     : (base.knowledgeSource || { type: 'dict', dictionaryId: 'icd10' });
+  const inputSource = MASTER_MATCH_INPUT_SOURCES.some((opt) => opt.value === base.inputSource)
+    ? base.inputSource
+    : 'standard_fields';
+  const executionScope = MASTER_MATCH_EXECUTION_SCOPES.some((opt) => opt.value === base.executionScope)
+    ? base.executionScope
+    : 'changed_fields';
   return {
     ...base,
+    configRef: base.configRef || 'current_scene',
+    targetDocTypes: Array.isArray(base.targetDocTypes) ? base.targetDocTypes.filter(Boolean) : [],
+    inputSource,
+    executionScope,
     matchMethod: nodeDefaults.matchMethod,
     resultReturn: nodeDefaults.resultReturn,
     masterSourceId: primarySourceId,
@@ -1406,7 +1531,7 @@ const PREPROCESS_SETTING_ITEMS = [
   },
   {
     key: 'split',
-    label: '帳票分割',
+    label: '画像分割',
     switchKey: 'split',
     detailType: 'split',
     docTypesKey: 'splitDocTypes',
@@ -1466,6 +1591,10 @@ function getWorkflowNodeMeta(type) {
   return WORKFLOW_NODE_META[type] || WORKFLOW_NODE_META.preprocess;
 }
 
+function getWorkflowNodePickerSummary(type) {
+  return getWorkflowNodeMeta(type).desc || '';
+}
+
 const WORKFLOW_NODE_ICON_SVG = {
   start: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5.5 14 10l-7 4.5v-9Z" fill="currentColor"/></svg>',
   end: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="6" width="8" height="8" rx="1.8" fill="currentColor"/></svg>',
@@ -1478,6 +1607,7 @@ const WORKFLOW_NODE_ICON_SVG = {
   hitl_gate: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4.8 16c.7-2.4 2.5-3.7 5.2-3.7 1 0 1.8.2 2.5.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="m13 15 1.5 1.5 3-3.4" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   notify: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8.5a4 4 0 1 1 8 0c0 4 1.6 4.4 1.6 5.6H4.4C4.4 12.9 6 12.5 6 8.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M8.4 16a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
   code: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.2 6-3.5 4 3.5 4M12.8 6l3.5 4-3.5 4M11 4.8 9 15.2" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  mcp: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5.5h10v9H5v-9Z" fill="none" stroke="currentColor" stroke-width="1.45"/><path d="M8 8.5h4M8 11.5h2.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="M10 3.5v2M10 14.5v2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
 };
 
 function getWorkflowNodeIconSvg(type) {
@@ -1503,7 +1633,7 @@ const DECISION_CONDITION_TYPES = [
     value: 'preprocess_hitl',
     label: '前処理結果の要確認',
     defaultLabel: '前処理確認必要？',
-    yesRule: '分割/補正の要確認',
+    yesRule: '分類/補正の要確認',
     noRule: '前処理 PASS（自動確定）',
   },
   {
@@ -1597,20 +1727,41 @@ const NOTIFY_RECIPIENT_OPTIONS = [
   { value: 'other_role', label: 'その他ロール' },
 ];
 
+const NOTIFY_TEMPLATE_VAR_REFS = {
+  caseNo: { nodeType: 'start', varId: 'case.caseNo', legacyLabel: '案件番号' },
+  missingDocuments: { nodeType: 'ai_verify', varId: 'case.missingDocuments', legacyLabel: '不足書類一覧' },
+  missingFields: { nodeType: 'ai_verify', varId: 'case.missingFields', legacyLabel: '不足項目一覧' },
+  endedAt: { nodeType: 'end', varId: 'case.endedAt', legacyLabel: '処理完了日時', workflowScope: true },
+  errorMessage: {
+    nodeType: 'code',
+    varId: 'case.errorMessage',
+    legacyLabel: '異常内容',
+    fallbackNodeTypes: ['ai_verify'],
+    fallbackVarId: 'case.aiVerifyResultJson',
+  },
+};
+
 const NOTIFY_TEMPLATES = [
   {
     value: 'deficiency',
     label: '不備通知',
-    defaultSubject: '【不備通知】案件番号：[案件番号]',
-    defaultBody: '案件番号：[案件番号]\n不足書類または不足項目があります。追加資料をアップロードしてください。\n不足書類：[不足書類一覧]\n不足項目：[不足項目一覧]',
-    allowedVars: ['案件番号', '不足書類一覧', '不足項目一覧'],
+    defaultSubject: '【不備通知】案件番号：{{caseNo}}',
+    defaultBody: '案件番号：{{caseNo}}\n不足書類または不足項目があります。追加資料をアップロードしてください。\n不足書類：{{missingDocuments}}\n不足項目：{{missingFields}}',
+    varRefs: ['caseNo', 'missingDocuments', 'missingFields'],
   },
   {
     value: 'completed',
     label: '処理完了通知',
-    defaultSubject: '【処理完了】案件番号：[案件番号]',
-    defaultBody: '案件番号：[案件番号]\n処理が完了しました。\n完了日時：[処理完了日時]',
-    allowedVars: ['案件番号', '処理完了日時'],
+    defaultSubject: '【処理完了】案件番号：{{caseNo}}',
+    defaultBody: '案件番号：{{caseNo}}\n処理が完了しました。\n完了日時：{{endedAt}}',
+    varRefs: ['caseNo', 'endedAt'],
+  },
+  {
+    value: 'exception',
+    label: '異常通知',
+    defaultSubject: '【異常通知】案件番号：{{caseNo}}',
+    defaultBody: '案件番号：{{caseNo}}\n処理中に異常が発生しました。確認してください。\n異常内容：{{errorMessage}}',
+    varRefs: ['caseNo', 'errorMessage'],
   },
 ];
 
@@ -1620,17 +1771,129 @@ const NOTIFY_TEMPLATE_LEGACY_MAP = {
   custom: 'completed',
   approval: 'completed',
   completed: 'completed',
+  exception: 'exception',
 };
 
 function migrateNotifyTemplate(value) {
   const raw = String(value || '').trim();
   if (NOTIFY_TEMPLATES.some((t) => t.value === raw)) return raw;
-  return NOTIFY_TEMPLATE_LEGACY_MAP[raw] || 'supplement';
+  return NOTIFY_TEMPLATE_LEGACY_MAP[raw] || 'deficiency';
 }
 
-function getNotifyTemplateDefaults(templateValue) {
-  const tpl = NOTIFY_TEMPLATES.find((t) => t.value === templateValue) || NOTIFY_TEMPLATES[0];
-  return { subject: tpl.defaultSubject || '', body: tpl.defaultBody || '' };
+function getNotifyTemplateVarRefKeys(templateValue) {
+  const tpl = NOTIFY_TEMPLATES.find((t) => t.value === migrateNotifyTemplate(templateValue));
+  return tpl?.varRefs ? [...tpl.varRefs] : [];
+}
+
+function getNotifyVarFallbackPath(ref) {
+  if (!ref) return '';
+  const typeName = ref.nodeType === 'ai_verify' ? 'verify' : ref.nodeType;
+  return `${typeName}.${ref.varId}`;
+}
+
+function resolveNotifyTemplateNode(workflow, notifyNodeId, ref) {
+  if (!ref || !workflow?.nodes?.length) return null;
+  if (ref.workflowScope) {
+    const scoped = workflow.nodes.filter((n) => n.type === ref.nodeType);
+    return scoped.length ? scoped[scoped.length - 1] : null;
+  }
+  const upstream = resolveUpstreamNodesByType(workflow, notifyNodeId, ref.nodeType);
+  if (upstream.length) return upstream[0];
+  if (ref.nodeType === 'start') return workflow.nodes.find((n) => n.type === 'start') || null;
+  if (Array.isArray(ref.fallbackNodeTypes)) {
+    for (const nodeType of ref.fallbackNodeTypes) {
+      const fallbackUpstream = resolveUpstreamNodesByType(workflow, notifyNodeId, nodeType);
+      if (fallbackUpstream.length) return fallbackUpstream[0];
+    }
+  }
+  return null;
+}
+
+function resolveNotifyTemplateVarToken(workflow, notifyNodeId, refKey) {
+  const ref = NOTIFY_TEMPLATE_VAR_REFS[refKey];
+  if (!ref) return '';
+  const node = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
+  if (node) return formatWorkflowOutputVarToken(node, workflow, ref.varId);
+  if (ref.fallbackNodeTypes?.length && ref.fallbackVarId) {
+    for (const nodeType of ref.fallbackNodeTypes) {
+      const fallbackNode = resolveNotifyTemplateNode(workflow, notifyNodeId, { ...ref, nodeType, fallbackNodeTypes: [] });
+      if (fallbackNode) return formatWorkflowOutputVarToken(fallbackNode, workflow, ref.fallbackVarId);
+    }
+  }
+  const fallbackPath = getNotifyVarFallbackPath(ref);
+  return fallbackPath ? `{${fallbackPath}}` : '';
+}
+
+function buildNotifyTemplateFieldText(templateValue, field, workflow = null, notifyNodeId = '') {
+  const tpl = NOTIFY_TEMPLATES.find((t) => t.value === migrateNotifyTemplate(templateValue));
+  if (!tpl) return '';
+  const raw = field === 'subject' ? tpl.defaultSubject : tpl.defaultBody;
+  return String(raw || '').replace(/\{\{(\w+)\}\}/g, (_, key) => (
+    resolveNotifyTemplateVarToken(workflow, notifyNodeId, key) || `{{${key}}}`
+  ));
+}
+
+function getNotifyTemplateDefaults(templateValue, workflow = null, notifyNodeId = '') {
+  return {
+    subject: buildNotifyTemplateFieldText(templateValue, 'subject', workflow, notifyNodeId),
+    body: buildNotifyTemplateFieldText(templateValue, 'body', workflow, notifyNodeId),
+  };
+}
+
+function migrateNotifyLegacyTokens(text, templateValue, workflow = null, notifyNodeId = '') {
+  let result = String(text || '');
+  getNotifyTemplateVarRefKeys(templateValue).forEach((key) => {
+    const ref = NOTIFY_TEMPLATE_VAR_REFS[key];
+    if (!ref?.legacyLabel) return;
+    const token = resolveNotifyTemplateVarToken(workflow, notifyNodeId, key);
+    if (!token) return;
+    result = result.split(`[${ref.legacyLabel}]`).join(token);
+  });
+  return result;
+}
+
+function getNotifyTemplateRecommendedVars(templateValue, workflow = null, notifyNodeId = '') {
+  const options = workflow && notifyNodeId
+    ? getNotifyVariableOptions(workflow, notifyNodeId)
+    : [];
+  return getNotifyTemplateVarRefKeys(templateValue).map((key) => {
+    const ref = NOTIFY_TEMPLATE_VAR_REFS[key];
+    const token = resolveNotifyTemplateVarToken(workflow, notifyNodeId, key);
+    const value = token.replace(/^\{|\}$/g, '');
+    const opt = options.find((item) => item.value === value);
+    return {
+      key,
+      value,
+      label: opt?.label || ref?.legacyLabel || key,
+      token,
+      group: opt?.group || '',
+    };
+  }).filter((item) => item.token);
+}
+
+/** @deprecated use getNotifyTemplateRecommendedVars */
+function getNotifyTemplateAllowedVars(templateValue, workflow = null, notifyNodeId = '') {
+  return getNotifyTemplateRecommendedVars(templateValue, workflow, notifyNodeId)
+    .map((item) => item.label);
+}
+
+function formatNotifyVariableToken(varPath) {
+  const path = String(varPath || '').trim();
+  if (!path) return '';
+  return path.startsWith('{') ? path : `{${path}}`;
+}
+
+function insertNotifyVariableText(text, varPath) {
+  const token = formatNotifyVariableToken(varPath);
+  if (!token) return String(text || '');
+  const current = String(text || '');
+  if (!current) return token;
+  const needsSpace = !current.endsWith('\n') && !current.endsWith(' ') && !current.endsWith('{');
+  return needsSpace ? `${current} ${token}` : `${current}${token}`;
+}
+
+function getNotifyVariableOptions(workflow, nodeId, verifyConfig = null) {
+  return getDecisionVariableOptions(workflow, nodeId, verifyConfig);
 }
 
 function getNotifyRecipientsLabel(channel) {
@@ -1639,13 +1902,57 @@ function getNotifyRecipientsLabel(channel) {
 }
 
 function getNotifyRecipientsPlaceholder(channel) {
-  if (channel === 'system') return '案件担当者 / その他ロール';
+  if (channel === 'system') return '通知先を選択';
   return 'example@company.co.jp';
+}
+
+function parseNotifySystemRecipients(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+  return raw.split(/[,、/／|]/).map((part) => part.trim()).filter(Boolean).map((part) => {
+    if (NOTIFY_RECIPIENT_OPTIONS.some((opt) => opt.value === part)) return part;
+    const byLabel = NOTIFY_RECIPIENT_OPTIONS.find((opt) => opt.label === part);
+    if (byLabel) return byLabel.value;
+    if (part.includes('案件担当')) return 'case_owner';
+    if (part.includes('その他')) return 'other_role';
+    return null;
+  }).filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i);
+}
+
+function serializeNotifySystemRecipients(values) {
+  const list = Array.isArray(values) ? values : [];
+  return list
+    .map((v) => String(v || '').trim())
+    .filter((v) => NOTIFY_RECIPIENT_OPTIONS.some((opt) => opt.value === v))
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(',');
+}
+
+function normalizeNotifyRecipients(recipients, channel) {
+  if (channel !== 'system') return String(recipients || '').trim();
+  return serializeNotifySystemRecipients(parseNotifySystemRecipients(recipients));
+}
+
+function formatNotifyRecipientsDisplay(recipients, channel) {
+  const raw = String(recipients || '').trim();
+  if (!raw) return '';
+  if (channel !== 'system') return raw;
+  const labels = parseNotifySystemRecipients(raw)
+    .map((value) => NOTIFY_RECIPIENT_OPTIONS.find((opt) => opt.value === value)?.label)
+    .filter(Boolean);
+  return labels.length ? labels.join(' / ') : raw;
 }
 
 function validateNotifyRecipients(channel, value) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
+  if (channel === 'system') {
+    const parsed = parseNotifySystemRecipients(v);
+    if (!parsed.length) {
+      return { ok: false, message: '通知先を選択してください' };
+    }
+    return { ok: true, message: '' };
+  }
   if (channel === 'email') {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
       return { ok: false, message: 'メールアドレスの形式を確認してください' };
@@ -1689,22 +1996,22 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
   if (judgmentContext === 'case_readiness') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'preprocess').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.preprocessStatus`, 'success'));
     });
-    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.result'));
+    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.case.preprocessStatus', 'success'));
     resolveUpstreamNodesByType(workflow, nodeId, 'ocr').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.ocrStatus`, 'success'));
     });
-    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.result'));
+    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.case.ocrStatus', 'success'));
     resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.confirmStatus`, 'completed'));
     });
     return [
       createDecisionCase('if', { id: 'if', label: '就緒完了', conditions: ifConditions }),
       createDecisionCase('elif', {
         id: 'elif-reupload',
         label: '再アップロード待ち',
-        conditions: [judgmentCond('case.reupload_required')],
+        conditions: [judgmentCond('ocr.case.ocrStatus', 'failed')],
       }),
     ];
   }
@@ -1714,33 +2021,30 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
       ? getWorkflowNodeVarName(verifyNodes[verifyNodes.length - 1], workflow)
       : 'verify';
     const ifConditions = [];
-    if (vCfg.completenessEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.categories.completeness.result`));
-    }
+    ifConditions.push(judgmentCond(`${vn}.case.verifyStatus`, 'success'));
     if (vCfg.textEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.categories.text.result`));
+      ifConditions.push(judgmentCond(`${vn}.case.textValidationStatus`, 'success'));
     }
     if (vCfg.dataEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.categories.data.result`));
+      ifConditions.push(judgmentCond(`${vn}.case.dataValidationStatus`, 'success'));
     }
     if (vCfg.sealEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.categories.seal.result`));
+      ifConditions.push(judgmentCond(`${vn}.case.signatureSealStatus`, 'success'));
     }
-    if (!ifConditions.length) ifConditions.push(judgmentCond(`${vn}.result`));
     return [createDecisionCase('if', { id: 'if', label: '自動パス', conditions: ifConditions })];
   }
   if (judgmentContext === 'processing_completion') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'master_match').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.masterStatus`, 'success'));
     });
-    if (!ifConditions.length) ifConditions.push(judgmentCond('master_match.result'));
+    if (!ifConditions.length) ifConditions.push(judgmentCond('master_match.case.masterStatus', 'success'));
     resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyStatus`, 'success'));
     });
-    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) ifConditions.push(judgmentCond('verify.result'));
+    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) ifConditions.push(judgmentCond('verify.case.verifyStatus', 'success'));
     resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.result`));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.confirmStatus`, 'completed'));
     });
     return [createDecisionCase('if', { id: 'if', label: '承認・完結', conditions: ifConditions })];
   }
@@ -1837,22 +2141,27 @@ function normalizeHitlGateNode(node) {
   };
 }
 
-function normalizeNotifyNode(node) {
+function normalizeNotifyNode(node, workflow = null) {
   if (node?.type !== 'notify') return node;
   const template = migrateNotifyTemplate(node.template);
-  const defaults = getNotifyTemplateDefaults(template);
-  const supplementEventEnabled = template === 'deficiency'
-    && (node.supplementEventEnabled === true || node.supplementEventEnabled == null);
+  const defaults = getNotifyTemplateDefaults(template, workflow, node.id);
+  const channel = node.channel || 'email';
+  const { supplementEventEnabled, ...rest } = node;
+  const subjectRaw = node.subject != null && String(node.subject).trim() !== ''
+    ? node.subject
+    : defaults.subject;
+  const bodyRaw = node.body != null && String(node.body).trim() !== ''
+    ? node.body
+    : defaults.body;
   return {
-    ...node,
+    ...rest,
     type: 'notify',
     label: node.label || '通知',
     template,
-    channel: node.channel || 'email',
-    recipients: node.recipients || '',
-    subject: node.subject != null && String(node.subject).trim() !== '' ? node.subject : defaults.subject,
-    body: node.body != null && String(node.body).trim() !== '' ? node.body : defaults.body,
-    supplementEventEnabled,
+    channel,
+    recipients: normalizeNotifyRecipients(node.recipients, channel),
+    subject: migrateNotifyLegacyTokens(subjectRaw, template, workflow, node.id),
+    body: migrateNotifyLegacyTokens(bodyRaw, template, workflow, node.id),
   };
 }
 
@@ -2007,21 +2316,122 @@ const DECISION_RESULT_VALUES = [
 ];
 
 const DECISION_OPERATORS = [
-  { value: 'is', label: '=' },
-  { value: 'is_not', label: '≠' },
-  { value: 'greater_than', label: '>' },
-  { value: 'greater_than_or_equal', label: '≥' },
-  { value: 'less_than', label: '<' },
-  { value: 'less_than_or_equal', label: '≤' },
-  { value: 'contains', label: '含む' },
-  { value: 'not_contains', label: '含まない' },
-  { value: 'starts_with', label: 'で始まる' },
-  { value: 'ends_with', label: 'で終わる' },
-  { value: 'is_empty', label: '空である' },
-  { value: 'is_not_empty', label: '空でない' },
+  { value: 'is', label: '=', types: ['all'], placeholder: '値を入力' },
+  { value: 'is_not', label: '≠', types: ['all'], placeholder: '値を入力' },
+  { value: 'is_empty', label: '未設定', types: ['all'], requiresValue: false },
+  { value: 'is_not_empty', label: '設定済み', types: ['all'], requiresValue: false },
+  { value: 'is_true', label: 'true', types: ['boolean'], requiresValue: false },
+  { value: 'is_false', label: 'false', types: ['boolean'], requiresValue: false },
+  { value: 'greater_than', label: '>', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
+  { value: 'greater_than_or_equal', label: '≥', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
+  { value: 'less_than', label: '<', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
+  { value: 'less_than_or_equal', label: '≤', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
+  { value: 'between', label: '範囲内', types: ['number', 'date', 'datetime'], placeholder: '開始値, 終了値' },
+  { value: 'not_between', label: '範囲外', types: ['number', 'date', 'datetime'], placeholder: '開始値, 終了値' },
+  { value: 'contains', label: '含む', types: ['string', 'enum', 'array'], placeholder: '含める値' },
+  { value: 'not_contains', label: '含まない', types: ['string', 'enum', 'array'], placeholder: '除外する値' },
+  { value: 'starts_with', label: 'で始まる', types: ['string'], placeholder: '先頭文字列' },
+  { value: 'ends_with', label: 'で終わる', types: ['string'], placeholder: '末尾文字列' },
+  { value: 'matches_regex', label: '正規表現に一致', types: ['string'], placeholder: '正規表現' },
+  { value: 'not_matches_regex', label: '正規表現に不一致', types: ['string'], placeholder: '正規表現' },
+  { value: 'text_length_equals', label: '文字数 =', types: ['string'], placeholder: '文字数' },
+  { value: 'text_length_greater_than', label: '文字数 >', types: ['string'], placeholder: '文字数' },
+  { value: 'text_length_greater_than_or_equal', label: '文字数 ≥', types: ['string'], placeholder: '文字数' },
+  { value: 'text_length_less_than', label: '文字数 <', types: ['string'], placeholder: '文字数' },
+  { value: 'text_length_less_than_or_equal', label: '文字数 ≤', types: ['string'], placeholder: '文字数' },
+  { value: 'in', label: 'いずれか', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: '値1, 値2, ...' },
+  { value: 'not_in', label: 'いずれでもない', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: '値1, 値2, ...' },
+  { value: 'within_last_days', label: '直近N日以内', types: ['date', 'datetime'], placeholder: '日数' },
+  { value: 'older_than_days', label: 'N日以前', types: ['date', 'datetime'], placeholder: '日数' },
+  { value: 'length_equals', label: '件数 =', types: ['array'], placeholder: '件数' },
+  { value: 'length_greater_than', label: '件数 >', types: ['array'], placeholder: '件数' },
+  { value: 'length_greater_than_or_equal', label: '件数 ≥', types: ['array'], placeholder: '件数' },
+  { value: 'length_less_than', label: '件数 <', types: ['array'], placeholder: '件数' },
+  { value: 'length_less_than_or_equal', label: '件数 ≤', types: ['array'], placeholder: '件数' },
+  { value: 'contains_any', label: 'いずれかを含む', types: ['array'], placeholder: '値1, 値2, ...' },
+  { value: 'contains_all', label: 'すべて含む', types: ['array'], placeholder: '値1, 値2, ...' },
+  { value: 'has_key', label: 'キーを含む', types: ['object'], placeholder: 'キー名' },
+  { value: 'not_has_key', label: 'キーを含まない', types: ['object'], placeholder: 'キー名' },
+  { value: 'json_path_exists', label: 'パスあり', types: ['object'], placeholder: '例：result.status' },
+  { value: 'json_path_not_exists', label: 'パスなし', types: ['object'], placeholder: '例：result.status' },
+  { value: 'json_path_equals', label: 'パス値 =', types: ['object'], placeholder: '例：result.status = success' },
+  { value: 'json_path_not_equals', label: 'パス値 ≠', types: ['object'], placeholder: '例：result.status = failed' },
+  { value: 'json_path_contains', label: 'パス値に含む', types: ['object'], placeholder: '例：messages[] = 不備' },
+  { value: 'file_name_contains', label: 'ファイル名に含む', types: ['file'], placeholder: 'ファイル名' },
+  { value: 'file_name_not_contains', label: 'ファイル名に含まない', types: ['file'], placeholder: 'ファイル名' },
+  { value: 'file_extension_is', label: '拡張子 =', types: ['file'], placeholder: 'pdf' },
+  { value: 'file_extension_in', label: '拡張子いずれか', types: ['file'], placeholder: 'pdf, jpg, png' },
+  { value: 'file_size_greater_than', label: 'サイズ >', types: ['file'], placeholder: 'MB' },
+  { value: 'file_size_less_than_or_equal', label: 'サイズ ≤', types: ['file'], placeholder: 'MB' },
+  { value: 'file_page_count_greater_than', label: 'ページ数 >', types: ['file'], placeholder: 'ページ数' },
+  { value: 'file_page_count_less_than_or_equal', label: 'ページ数 ≤', types: ['file'], placeholder: 'ページ数' },
 ];
 
-const DECISION_VALUELESS_OPERATORS = new Set(['is_empty', 'is_not_empty']);
+const DECISION_VALUELESS_OPERATORS = new Set(
+  DECISION_OPERATORS.filter((op) => op.requiresValue === false).map((op) => op.value),
+);
+const DECISION_OPERATOR_VALUES = new Set(DECISION_OPERATORS.map((op) => op.value));
+const DECISION_DEFAULT_OPERATOR_BY_TYPE = {
+  boolean: 'is_true',
+  number: 'is',
+  date: 'is',
+  datetime: 'is',
+  string: 'is',
+  enum: 'is',
+  array: 'contains',
+  object: 'is_not_empty',
+  file: 'is_not_empty',
+};
+
+function normalizeDecisionDataType(dataType) {
+  const raw = String(dataType || '').trim().toLowerCase();
+  if (!raw) return 'string';
+  if (['string', 'text', 'varchar', 'char'].includes(raw)) return 'string';
+  if (['enum', 'select', 'status'].includes(raw)) return 'enum';
+  if (['number', 'numeric', 'integer', 'int', 'float', 'double', 'decimal'].includes(raw)) return 'number';
+  if (['boolean', 'bool'].includes(raw)) return 'boolean';
+  if (['array', 'list'].includes(raw)) return 'array';
+  if (['object', 'dict', 'json', 'map'].includes(raw)) return 'object';
+  if (['file', 'document', 'image', 'pdf'].includes(raw)) return 'file';
+  if (['date'].includes(raw)) return 'date';
+  if (['datetime', 'timestamp', 'time'].includes(raw)) return 'datetime';
+  return raw;
+}
+
+function isDecisionOperatorAvailableForType(operator, dataType = '') {
+  const op = typeof operator === 'string'
+    ? DECISION_OPERATORS.find((item) => item.value === operator)
+    : operator;
+  if (!op) return false;
+  if (!String(dataType || '').trim()) return op.types?.includes('all');
+  const type = normalizeDecisionDataType(dataType);
+  return op.types?.includes('all') || op.types?.includes(type);
+}
+
+function getDecisionOperatorsForType(dataType = '') {
+  if (!String(dataType || '').trim()) return DECISION_OPERATORS.filter((op) => op.types?.includes('all'));
+  const type = normalizeDecisionDataType(dataType);
+  const options = DECISION_OPERATORS.filter((op) => isDecisionOperatorAvailableForType(op, type));
+  return options.length ? options : DECISION_OPERATORS.filter((op) => op.types?.includes('all'));
+}
+
+function getDecisionDefaultOperator(dataType = '') {
+  if (!String(dataType || '').trim()) return 'is';
+  const type = normalizeDecisionDataType(dataType);
+  const preferred = DECISION_DEFAULT_OPERATOR_BY_TYPE[type] || 'is';
+  return isDecisionOperatorAvailableForType(preferred, type) ? preferred : getDecisionOperatorsForType(type)[0]?.value || 'is';
+}
+
+function normalizeDecisionOperatorForType(value, dataType = '') {
+  const raw = normalizeDecisionOperator(value);
+  return isDecisionOperatorAvailableForType(raw, dataType) ? raw : getDecisionDefaultOperator(dataType);
+}
+
+function normalizeDecisionOperator(value) {
+  const raw = String(value || '').trim();
+  if (DECISION_OPERATOR_VALUES.has(raw)) return raw;
+  return 'is';
+}
 
 function getDecisionUpstreamNodeIds(workflow, nodeId) {
   const edges = workflow?.edges || [];
@@ -2046,6 +2456,10 @@ function appendDecisionVarOption(options, spec) {
     nodeType: spec.nodeType || '',
     nodeId: spec.nodeId || '',
     varName: spec.varName || '',
+    localId: spec.localId || '',
+    scope: spec.scope || '',
+    dataType: spec.dataType || spec.type || '',
+    description: spec.description || '',
     value: spec.value,
     label: spec.label,
     hint: spec.hint || `{${spec.value}}`,
@@ -2055,57 +2469,28 @@ function appendDecisionVarOption(options, spec) {
 function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null) {
   const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
   const options = [];
-  const currentNode = nodeMap[nodeId];
-  if (currentNode?.type === 'decision') {
-    const currentVarName = getWorkflowNodeVarName(currentNode, workflow);
-    appendDecisionVarOption(options, {
-      value: `${currentVarName}.branch_name`,
-      label: '分岐名',
-      group: currentNode.label || '判断器',
-      nodeType: 'decision',
-      nodeId: currentNode.id,
-      varName: currentVarName,
-    });
-  }
-  appendDecisionVarOption(options, {
-    value: 'case.reupload_required',
-    label: '再アップロード要 · {case.reupload_required}',
-    group: '案件',
-    nodeType: 'case',
-  });
   getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
     const n = nodeMap[id];
-    if (!n || n.type === 'decision' || n.type === 'notify') return;
-    const varName = getWorkflowNodeVarName(n, workflow);
-    const meta = getWorkflowNodeMeta(n.type);
-    const title = n.label || meta.title;
-    if (n.type === 'hitl_gate') {
-      appendNodeOutputVarCatalog(n, workflow, options);
-      return;
-    }
-    if (n.type === 'master_match') {
-      appendNodeOutputVarCatalog(n, workflow, options);
-      return;
-    }
+    if (!n || n.type === 'decision') return;
     appendNodeOutputVarCatalog(n, workflow, options);
   });
-  if (options.length > 1) return options;
-  return [
-    { value: 'preprocess.result', label: '前処理 · 判定結果', group: '前処理', nodeType: 'preprocess', varName: 'preprocess' },
-    { value: 'ocr.result', label: 'OCR抽出 · 判定結果', group: 'OCR抽出', nodeType: 'ocr', varName: 'ocr' },
-    { value: 'verify.result', label: 'AI検証 · 判定結果', group: 'AI検証', nodeType: 'ai_verify', varName: 'verify' },
-    { value: 'case.reupload_required', label: '再アップロード要', group: '案件', nodeType: 'case' },
-  ];
+  return options;
 }
 
 function getDecisionVariableOptionGroups(options) {
   const groups = [];
   const map = new Map();
   (options || []).forEach((opt) => {
-    const key = opt.group || 'その他';
+    const key = opt.nodeId || opt.group || 'その他';
     if (!map.has(key)) {
       map.set(key, []);
-      groups.push({ label: key, options: map.get(key) });
+      groups.push({
+        id: key,
+        label: opt.group || 'その他',
+        nodeType: opt.nodeType || '',
+        varName: opt.varName || '',
+        options: map.get(key),
+      });
     }
     map.get(key).push(opt);
   });
@@ -2118,6 +2503,28 @@ function getDecisionVariableOptions(workflow, nodeId, verifyConfig = null) {
 
 function getDecisionVariableLabel(value, options = []) {
   return options.find((o) => o.value === value)?.label || value || '変数';
+}
+
+function getDecisionVariableSecondaryLabel(option) {
+  if (!option) return '';
+  return String(option.label || option.value || '').trim();
+}
+
+function formatDecisionVariableDisplay(value, options = []) {
+  if (!value) return '';
+  const opt = (options || []).find((o) => o.value === value);
+  if (!opt) return String(value).trim();
+  const group = opt.group || '';
+  const secondary = getDecisionVariableSecondaryLabel(opt);
+  if (group && secondary) return `${group} › ${secondary}`;
+  return secondary || String(value).trim();
+}
+
+function formatDecisionVariableCanvasDisplay(value, options = []) {
+  if (!value) return '';
+  const opt = (options || []).find((o) => o.value === value);
+  if (!opt) return String(value).trim();
+  return getDecisionVariableSecondaryLabel(opt) || String(value).trim();
 }
 
 function decisionUsesValueField(operator) {
@@ -2192,7 +2599,7 @@ function createDecisionCondition(overrides = {}) {
     id: newRuleId('dc'),
     variable: '',
     operator: 'is',
-    value: '1',
+    value: '',
     preset: '',
     ...overrides,
   };
@@ -2213,7 +2620,7 @@ function normalizeDecisionCondition(condition) {
   return {
     id: c.id || newRuleId('dc'),
     variable: c.variable || '',
-    operator: c.operator || 'is',
+    operator: normalizeDecisionOperator(c.operator),
     value: c.value ?? '',
     preset: c.preset || '',
   };
@@ -2312,14 +2719,20 @@ function normalizeDecisionNode(node, workflow = null, verifyConfig = null) {
   if (workflow && node.id) {
     const options = buildDecisionVariableCatalog(workflow, node.id, verifyConfig);
     const optionValues = new Set(options.map((o) => o.value));
+    const optionMap = Object.fromEntries(options.map((o) => [o.value, o]));
     cases = cases.map((c) => ({
       ...c,
-      conditions: c.conditions.map((cond) => ({
-        ...cond,
-        variable: cond.variable && optionValues.has(cond.variable)
+      conditions: c.conditions.map((cond) => {
+        const variable = cond.variable && optionValues.has(cond.variable)
           ? cond.variable
-          : (options.find((o) => o.nodeType && cond.variable?.startsWith(o.varName))?.value || options[0]?.value || cond.variable),
-      })),
+          : (options.find((o) => o.nodeType && cond.variable?.startsWith(o.varName))?.value || options[0]?.value || cond.variable);
+        const dataType = optionMap[variable]?.dataType || '';
+        return {
+          ...cond,
+          variable,
+          operator: normalizeDecisionOperatorForType(cond.operator, dataType),
+        };
+      }),
     }));
   }
   return {
@@ -2368,12 +2781,12 @@ function getDecisionConditionDisplay(node, docTypes = [], variableOptions = []) 
 
 function decisionConditionPreview(decisionCase, variableOptions = []) {
   const conditions = decisionCase?.conditions || [];
-  if (!conditions.length) return '条件未設定';
+  if (!conditions.length) return 'Condition NOT setup';
   const parts = conditions.map((c) => {
-    const variable = formatDecisionConditionToken(c.variable);
+    const variable = formatDecisionVariableDisplay(c.variable, variableOptions) || '—';
     const operator = DECISION_OPERATORS.find((o) => o.value === c.operator)?.label || c.operator;
     if (!decisionUsesValueField(c.operator)) return `${variable} ${operator}`;
-    const value = c.value ? c.value : '値未入力';
+    const value = c.value ? c.value : '…';
     return `${variable} ${operator} ${value}`;
   });
   return parts.join(` ${decisionCase?.logic === 'or' ? 'OR' : 'AND'} `);
@@ -2383,6 +2796,18 @@ function getDecisionCaseCanvasPreview(node, decisionCase) {
   if (!decisionCase?.conditions?.some((c) => c.variable)) return '条件未設定';
   if (decisionCase.label) return decisionCase.label;
   return decisionConditionPreview(decisionCase);
+}
+
+function getDecisionNodeCanvasPreview(node, variableOptions = []) {
+  const cases = node?.cases || [];
+  if (!cases.length) return '条件未設定';
+  const parts = cases.map((decisionCase, i) => {
+    if (decisionCase.label) return decisionCase.label;
+    const preview = decisionConditionPreview(decisionCase, variableOptions);
+    if (preview && preview !== '条件未設定') return preview;
+    return i === 0 ? 'IF' : 'ELIF';
+  });
+  return parts.filter(Boolean).join(' · ');
 }
 
 function getDecisionElseCanvasPreview(node) {
@@ -2464,22 +2889,115 @@ function getHitlGateNoRule(node) {
   return getHitlGatePreset(node)?.noRule || '';
 }
 
-function getDecisionNodeBranches(node) {
+const DECISION_NODE_LAYOUT = {
+  w: 360,
+  minW: 280,
+  maxW: 520,
+  headerH: 44,
+  bodyPadTop: 4,
+  bodyPadBottom: 8,
+  rowGap: 4,
+  rowBaseH: 34,
+  condLineH: 15,
+  elseRowH: 32,
+  charW: 5.2,
+};
+
+function estimateDecisionConditionTextLines(text, contentWidth = 220) {
+  const normalized = String(text || '').trim();
+  if (!normalized) return 1;
+  const charW = DECISION_NODE_LAYOUT.charW;
+  const charsPerLine = Math.max(14, Math.floor(contentWidth / charW));
+  return Math.ceil(normalized.length / charsPerLine);
+}
+
+function formatDecisionConditionCanvasLine(item) {
+  if (!item || item.empty) return '条件未設定';
+  const parts = [];
+  if (item.variable) parts.push(item.variable);
+  if (item.operatorLabel) parts.push(item.operatorLabel);
+  if (item.needsValue) parts.push(item.value || '…');
+  return parts.length ? parts.join(' ') : '条件未設定';
+}
+
+function getDecisionNodeLayoutMetrics(node, variableOptions = []) {
+  const { minW, maxW, headerH, bodyPadTop, bodyPadBottom, rowGap, rowBaseH, condLineH, elseRowH, charW } = DECISION_NODE_LAYOUT;
   const cases = node?.cases?.length ? node.cases : [createDecisionCase('if')];
-  const total = cases.length + 1;
-  const branches = cases.map((c, i) => ({
-    key: c.id,
-    label: c.kind === 'if' || i === 0 ? 'IF' : 'ELIF',
-    caseLabel: `CASE ${i + 1}`,
-    ratio: (i + 0.5) / total,
-  }));
-  branches.push({
+  let maxTextLen = 0;
+  let y = headerH + bodyPadTop;
+  const rows = [];
+  let nodeW = minW;
+
+  cases.forEach((c, i) => {
+    const items = getDecisionConditionCanvasItems(c, variableOptions);
+    let condLineCount = 0;
+    items.forEach((item) => {
+      const line = formatDecisionConditionCanvasLine(item);
+      maxTextLen = Math.max(maxTextLen, line.length);
+      condLineCount += estimateDecisionConditionTextLines(line, minW - 72);
+    });
+    condLineCount = Math.max(1, condLineCount);
+    const rowH = Math.max(rowBaseH, condLineCount * condLineH + 10);
+    rows.push({
+      key: c.id,
+      label: c.kind === 'if' || i === 0 ? 'IF' : 'ELIF',
+      caseLabel: `CASE ${i + 1}`,
+      yCenter: y + rowH / 2,
+      rowH,
+      ratio: 0,
+    });
+    y += rowH + rowGap;
+  });
+
+  nodeW = Math.min(maxW, Math.max(minW, 72 + maxTextLen * charW));
+
+  rows.push({
     key: 'else',
     label: 'ELSE',
     caseLabel: 'ELSE',
-    ratio: (cases.length + 0.5) / total,
+    yCenter: y + elseRowH / 2,
+    rowH: elseRowH,
+    ratio: 0,
   });
-  return branches;
+  y += elseRowH + bodyPadBottom;
+
+  const height = Math.max(96, y);
+  rows.forEach((row) => {
+    row.ratio = row.yCenter / height;
+  });
+
+  return { w: Math.round(nodeW), h: height, rows };
+}
+
+function getDecisionNodeBranches(node) {
+  const metrics = getDecisionNodeLayoutMetrics(node);
+  return metrics.rows.map((row) => ({
+    key: row.key,
+    label: row.label,
+    caseLabel: row.caseLabel,
+    ratio: row.ratio,
+    yCenter: row.yCenter,
+  }));
+}
+
+function getDecisionConditionCanvasItems(decisionCase, variableOptions = []) {
+  const conditions = decisionCase?.conditions || [];
+  if (!conditions.length) {
+    return [{ id: 'empty', variable: '', operatorLabel: '', value: '', needsValue: false, empty: true }];
+  }
+  return conditions.map((c) => ({
+    id: c.id,
+    variable: formatDecisionVariableCanvasDisplay(c.variable, variableOptions),
+    rawVariable: c.variable || '',
+    operatorLabel: DECISION_OPERATORS.find((o) => o.value === c.operator)?.label || c.operator || '',
+    value: c.value || '',
+    needsValue: decisionUsesValueField(c.operator),
+    empty: !c.variable,
+  }));
+}
+
+function getDecisionOperatorLabel(operator) {
+  return DECISION_OPERATORS.find((o) => o.value === operator)?.label || operator || '';
 }
 
 function getDecisionBranchEdgeLabel(branch, node) {
@@ -2599,8 +3117,8 @@ function buildDefaultCaseWorkflow() {
         label: label || '通知',
         x: 0,
         y: 0,
-        template: template || 'supplement',
-      });
+        template: template || 'deficiency',
+      }, wf);
     } else if (type === 'decision') {
       node = normalizeDecisionNode({
         id,
@@ -2678,7 +3196,6 @@ function buildDefaultCaseWorkflow() {
     role: '医療審査',
   });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
-  place({ id: 'wf-ms', type: 'master_match', label: 'マスタ照合' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
   place({ id: 'wf-d-final', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
   place({ id: 'wf-n-ok', type: 'notify', label: '通知', template: 'completed' });
@@ -2689,14 +3206,14 @@ function buildDefaultCaseWorkflow() {
     hitlContext: 'verification',
     role: '給付審査',
   });
-  place({ id: 'wf-n-ng', type: 'notify', label: '通知', template: 'supplement' });
+  place({ id: 'wf-n-ng', type: 'notify', label: '通知', template: 'deficiency' });
   place({ id: 'wf-end', type: 'end', label: '終了' });
 
   const aiVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-ai'), wf);
   const dFinal = nodes.find((n) => n.id === 'wf-d-final');
   Object.assign(dFinal, {
     judgmentContext: 'custom',
-    cases: [createDecisionCase('if', { id: 'if', label: '通過', conditions: [judgmentCond(`${aiVar}.result`)] })],
+    cases: [createDecisionCase('if', { id: 'if', label: '通過', conditions: [judgmentCond(`${aiVar}.case.verifyStatus`, 'success')] })],
     elseLabel: '要確認',
   });
 
@@ -2706,8 +3223,7 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-hu-pre', to: 'wf-oc' },
     { from: 'wf-oc', to: 'wf-hu-ocr' },
     { from: 'wf-hu-ocr', to: 'wf-map' },
-    { from: 'wf-map', to: 'wf-ms' },
-    { from: 'wf-ms', to: 'wf-ai' },
+    { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-n-ok', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '要確認' },
@@ -2720,9 +3236,10 @@ function buildDefaultCaseWorkflow() {
     if (n.type === 'start') return normalizeStartNode(n);
     if (n.type === 'end') return normalizeEndNode(n);
     if (n.type === 'decision') return normalizeDecisionNode(n, wf);
-    if (n.type === 'notify') return normalizeNotifyNode(n);
+    if (n.type === 'notify') return normalizeNotifyNode(n, wf);
     if (n.type === 'code') return normalizeCodeNode(n, wf);
     if (n.type === 'data_mapping') return normalizeDataMappingNode(n, wf);
+    if (n.type === 'ai_verify') return normalizeAiVerifyNode(n, wf);
     if (isHitlGateNode(n)) return normalizeHitlGateNode(n);
     return n;
   });
@@ -2983,6 +3500,33 @@ function migrateRemoveCaseLinkNodes(workflow) {
   workflow.edges = workflow.edges.filter((e) => !removeIds.has(e.from) && !removeIds.has(e.to));
 }
 
+function migrateRemoveMasterMatchNodes(workflow) {
+  if (!workflow?.nodes?.length) return;
+  const removeIds = new Set(workflow.nodes.filter((n) => n.type === 'master_match').map((n) => n.id));
+  if (!removeIds.size) return;
+  removeIds.forEach((nodeId) => {
+    const inMain = workflow.edges.filter((e) => e.to === nodeId && !e.branch);
+    const outMain = workflow.edges.filter((e) => e.from === nodeId && !e.branch);
+    const inBranch = workflow.edges.filter((e) => e.to === nodeId && e.branch);
+    inMain.forEach((ie) => {
+      outMain.forEach((oe) => {
+        if (!workflow.edges.some((e) => !e.branch && e.from === ie.from && e.to === oe.to)) {
+          workflow.edges.push({ from: ie.from, to: oe.to });
+        }
+      });
+    });
+    inBranch.forEach((ie) => {
+      outMain.forEach((oe) => {
+        if (!workflow.edges.some((e) => e.from === ie.from && e.to === oe.to && e.branch === ie.branch)) {
+          workflow.edges.push({ from: ie.from, to: oe.to, branch: ie.branch, label: ie.label });
+        }
+      });
+    });
+  });
+  workflow.nodes = workflow.nodes.filter((n) => !removeIds.has(n.id));
+  workflow.edges = workflow.edges.filter((e) => !removeIds.has(e.from) && !removeIds.has(e.to));
+}
+
 function migrateMcpNodesToDataMapping(workflow) {
   if (!workflow?.nodes?.length) return;
   workflow.nodes = workflow.nodes.map((node) => {
@@ -3005,6 +3549,7 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
   if (!Array.isArray(w.edges)) w.edges = [];
   migrateRemoveLegacyIoNodes(w);
   migrateRemoveCaseLinkNodes(w);
+  migrateRemoveMasterMatchNodes(w);
   migrateMcpNodesToDataMapping(w);
   if (w.nodes.some((n) => REMOVED_WORKFLOW_NODE_TYPES.has(n.type))) {
     w.nodes = w.nodes.filter((n) => !REMOVED_WORKFLOW_NODE_TYPES.has(n.type));
@@ -3017,10 +3562,10 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
     if (n.type === 'end') return normalizeEndNode(n);
     if (isHitlGateNode(n)) return normalizeHitlGateNode(n);
     if (n.type === 'decision') return normalizeDecisionNode(n, w);
-    if (n.type === 'notify') return normalizeNotifyNode(n);
+    if (n.type === 'notify') return normalizeNotifyNode(n, w);
     if (n.type === 'code') return normalizeCodeNode(n, w);
     if (n.type === 'data_mapping') return normalizeDataMappingNode(n, w);
-    if (n.type === 'master_match') return normalizeMasterMatchNode(n, w);
+    if (n.type === 'ai_verify') return normalizeAiVerifyNode(n, w);
     if (isWorkflowProcessingNode(n)) return ensureWorkflowNodeVarName(n, w);
     return n;
   });
@@ -3144,6 +3689,11 @@ function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
 
   if (node?.__collapsed) {
     return { w: WORKFLOW_NODE_SIZE.default.w, h: 64 };
+  }
+
+  if (node?.type === 'decision') {
+    const metrics = getDecisionNodeLayoutMetrics(node);
+    return { w: metrics.w, h: metrics.h };
   }
 
   const nodeW = WORKFLOW_NODE_SIZE.default.w;
@@ -3349,4 +3899,235 @@ function layoutWorkflowGraph(workflow) {
 
   workflow.layoutVersion = 4;
   return workflow;
+}
+
+function sortWorkflowEndFlowNodes(nodes) {
+  return [...nodes].sort((a, b) => {
+    const ao = WORKFLOW_MAIN_CHAIN_TYPE_ORDER[a.type];
+    const bo = WORKFLOW_MAIN_CHAIN_TYPE_ORDER[b.type];
+    if (ao == null && bo == null) return (a.x || 0) - (b.x || 0);
+    if (ao == null) return 1;
+    if (bo == null) return -1;
+    if (ao !== bo) return ao - bo;
+    return (a.x || 0) - (b.x || 0);
+  });
+}
+
+/** 同一親からの非分岐ファンアウト（実並列） */
+function getWorkflowParallelFanOutChildren(workflow, parentId, endNodeId, nodeMap, cache = {}) {
+  const edges = (workflow?.edges || []).filter((e) => e.from === parentId && !e.branch);
+  const outs = edges.filter((e) => workflowEdgeLeadsToEnd(workflow, parentId, e.to, endNodeId, cache));
+  if (outs.length <= 1) return null;
+  const children = sortWorkflowEndFlowNodes(outs.map((e) => nodeMap[e.to]).filter(Boolean));
+  const mergeIds = children.map((child) => {
+    const next = (workflow?.edges || []).filter((e) => e.from === child.id && !e.branch);
+    return next.length === 1 ? next[0].to : null;
+  });
+  if (!mergeIds[0] || !mergeIds.every((id) => id === mergeIds[0])) return null;
+  return children;
+}
+
+function workflowEndFlowBranchPriority(branch) {
+  if (branch === 'if') return 0;
+  if (!branch) return 1;
+  if (branch && String(branch).startsWith('elif')) return 2;
+  if (branch === 'else') return 3;
+  return 4;
+}
+
+function workflowEdgeLeadsToEnd(workflow, fromId, toId, endNodeId, cache = {}) {
+  const key = `${fromId}->${toId}:${endNodeId}`;
+  if (cache[key] !== undefined) return cache[key];
+  if (toId === endNodeId) {
+    cache[key] = true;
+    return true;
+  }
+  const edges = workflow?.edges || [];
+  const visited = new Set();
+  const queue = [toId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (id === endNodeId) {
+      cache[key] = true;
+      return true;
+    }
+    if (visited.has(id)) continue;
+    visited.add(id);
+    edges.filter((e) => e.from === id).forEach((e) => queue.push(e.to));
+  }
+  cache[key] = false;
+  return false;
+}
+
+function pickWorkflowPathEdge(workflow, fromId, endNodeId, cache = {}) {
+  const edges = (workflow?.edges || []).filter((e) => e.from === fromId);
+  if (!edges.length) return null;
+  const ranked = edges
+    .filter((e) => workflowEdgeLeadsToEnd(workflow, e.from, e.to, endNodeId, cache))
+    .sort((a, b) => {
+      const prio = workflowEndFlowBranchPriority(a.branch) - workflowEndFlowBranchPriority(b.branch);
+      if (prio !== 0) return prio;
+      return String(a.label || '').localeCompare(String(b.label || ''), 'ja');
+    });
+  return ranked[0] || edges.find((e) => !e.branch) || edges[0];
+}
+
+function getWorkflowPathNodeIds(workflow, endNodeId) {
+  const nodes = workflow?.nodes || [];
+  const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const start = getWorkflowStartNode(workflow);
+  if (!start || !endNodeId) return [];
+  const ids = [];
+  const seen = new Set();
+  let cur = start;
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    ids.push(cur.id);
+    if (cur.id === endNodeId) break;
+    const edge = pickWorkflowPathEdge(workflow, cur.id, endNodeId);
+    if (!edge) break;
+    cur = nodeMap[edge.to];
+  }
+  return ids;
+}
+
+function collectWorkflowForwardChain(workflow, startNodeId, stopBeforeId = null) {
+  const nodes = workflow?.nodes || [];
+  const edges = workflow?.edges || [];
+  const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const chain = [];
+  let cur = nodeMap[startNodeId];
+  const seen = new Set();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    if (cur.type === 'end' || cur.id === stopBeforeId) break;
+    chain.push(cur);
+    const outs = edges.filter((e) => e.from === cur.id);
+    if (outs.length !== 1) break;
+    cur = nodeMap[outs[0].to];
+  }
+  return chain;
+}
+
+function getWorkflowEndFlowNodeRole(type) {
+  if (type === 'start') return 'start';
+  if (type === 'end') return 'end';
+  if (type === 'decision') return 'condition';
+  if (type === 'hitl_gate') return 'confirm';
+  if (type === 'notify') return 'notify';
+  return 'process';
+}
+
+function getWorkflowEndFlowNodeBadge(type) {
+  if (type === 'decision') return '条件';
+  if (type === 'hitl_gate') return '確認';
+  return '';
+}
+
+function buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId) {
+  if (!node) return null;
+  const state = node.id === endNodeId ? 'current' : 'configured';
+  return {
+    id: node.id,
+    type: node.type,
+    label: node.label || getWorkflowNodeMeta(node.type).title,
+    role: getWorkflowEndFlowNodeRole(node.type),
+    badge: getWorkflowEndFlowNodeBadge(node.type),
+    state,
+  };
+}
+
+function buildWorkflowEndFlowSummaryNotes(workflow, pathIds) {
+  const notes = [];
+  (workflow?.nodes || []).forEach((node) => {
+    if (!pathIds.has(node.id) || !isHitlGateNode(node)) return;
+    const preset = getHitlGatePreset(node);
+    const title = preset?.label || node.label || '人工確認';
+    notes.push(`${title}：必要（${node.label || title}へ）`);
+  });
+  return notes;
+}
+
+function buildWorkflowEndFlowPreview(workflow, endNodeId) {
+  const nodes = workflow?.nodes || [];
+  const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const endNode = nodeMap[endNodeId];
+  if (!endNode || endNode.type !== 'end') {
+    return { endLabel: '', summaryNotes: [], stages: [] };
+  }
+  const pathIds = new Set(getWorkflowPathNodeIds(workflow, endNodeId));
+  const pathNodes = getWorkflowPathNodeIds(workflow, endNodeId)
+    .map((id) => nodeMap[id])
+    .filter(Boolean);
+  const stages = [];
+  let i = 0;
+  while (i < pathNodes.length) {
+    const node = pathNodes[i];
+    if (node.type === 'end') {
+      stages.push({
+        id: `stage-end-${node.id}`,
+        kind: 'single',
+        node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
+      });
+      i += 1;
+      continue;
+    }
+    if (node.type === 'decision') {
+      const outEdges = (workflow?.edges || []).filter((e) => e.from === node.id);
+      const activeEdge = pickWorkflowPathEdge(workflow, node.id, endNodeId);
+      const activeChainIds = new Set(
+        collectWorkflowForwardChain(workflow, activeEdge?.to, endNodeId).map((n) => n.id),
+      );
+      const branches = outEdges.map((edge) => {
+        const active = edge === activeEdge;
+        const branchNodes = collectWorkflowForwardChain(workflow, edge.to, endNodeId)
+          .map((n) => buildWorkflowEndFlowNodeItem(n, pathIds, endNodeId));
+        return {
+          id: `${node.id}-${edge.branch || edge.to}`,
+          label: edge.label || getDecisionBranchEdgeLabel(edge.branch, node) || '分岐',
+          active,
+          nodes: branchNodes,
+        };
+      });
+      stages.push({
+        id: `stage-decision-${node.id}`,
+        kind: 'decision',
+        node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
+        branches,
+      });
+      while (i + 1 < pathNodes.length && activeChainIds.has(pathNodes[i + 1].id)) {
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+    const fanOutChildren = getWorkflowParallelFanOutChildren(workflow, node.id, endNodeId, nodeMap);
+    if (fanOutChildren?.length > 1) {
+      stages.push({
+        id: `stage-single-${node.id}`,
+        kind: 'single',
+        node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
+      });
+      stages.push({
+        id: `stage-row-${fanOutChildren.map((n) => n.id).join('-')}`,
+        kind: 'row',
+        nodes: fanOutChildren.map((n) => buildWorkflowEndFlowNodeItem(n, pathIds, endNodeId)),
+      });
+      const childIds = new Set(fanOutChildren.map((n) => n.id));
+      i += 1;
+      while (i < pathNodes.length && childIds.has(pathNodes[i].id)) i += 1;
+      continue;
+    }
+    stages.push({
+      id: `stage-single-${node.id}`,
+      kind: 'single',
+      node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
+    });
+    i += 1;
+  }
+  return {
+    endLabel: endNode.label || getWorkflowNodeMeta('end').title,
+    summaryNotes: buildWorkflowEndFlowSummaryNotes(workflow, pathIds),
+    stages,
+  };
 }

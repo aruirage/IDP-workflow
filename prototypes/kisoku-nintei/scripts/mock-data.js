@@ -186,6 +186,7 @@ const END_NAMING_TOKENS = [
 const OUTPUT_DEFAULTS = {
   conflictResolution: '最新値を優先',
   format: 'API',
+  fileFormat: 'CSV',
   deliveryMethod: 'api',
   outputTarget: OUTPUT_TARGET_DEFAULT,
   encoding: 'UTF-8',
@@ -197,9 +198,12 @@ const OUTPUT_DEFAULTS = {
   apiExportEndpoint: 'https://core.example.com/api/v1/idp/export',
   sharedFolderPath: '\\\\fileserver\\idp\\export',
   includeVerifyReport: true,
+  exportReviewRequired: false,
+  exportReviewRole: '案件担当者',
   templateLocked: true,
   exportStandardFieldIds: [],
   exportStandardFieldOrderByDoc: {},
+  exportFieldModeByDoc: {},
   masterMatchExports: [],
   masterFields: [],
 };
@@ -213,7 +217,7 @@ const SCENE_AGGREGATE_DEFAULTS = {
 
 const OUTPUT_CONFLICT_RESOLUTIONS = ['最新値を優先', '先入力を優先', '空欄のみ補完'];
 const OUTPUT_MASKING_LEVELS = ['なし', '部分マスキング', '全面マスキング'];
-const OUTPUT_FORMATS = ['JSON', 'CSV', 'Excel'];
+const OUTPUT_FORMATS = ['CSV', 'JSON', 'EXCEL'];
 const OUTPUT_ENCODINGS = ['UTF-8', 'Shift_JIS'];
 const OUTPUT_SHEET_EXPORT_MODE_OPTIONS = [
   { value: '帳票別Sheetで出力', label: '1ファイルにまとめる' },
@@ -315,7 +319,7 @@ const DOC_FIELD_SCHEMA = {
   診療明細書: {
     exportLabel: '領収書・診療明細書',
     fields: ['被保険者氏名', '合計金額', '医療機関名'],
-    tables: { 明細行: ['診療日', '診療内容', '点数', '金額'] },
+    tables: { 診療項目明細: ['診療日', '区分', '項目名', '点数', '回数', '合計点数'] },
   },
   領収書: {
     fields: ['被保険者氏名', '診療日', '金額', '医療機関名'],
@@ -374,72 +378,205 @@ function replaceDocTypeIdsInText(text) {
   return result;
 }
 
-/** 出力設定：左プレビュー用（P1: OCR / 前処理ファイル / 検証レポート / マスタ照合） */
-function buildExportPreviewTree(docFields, masterMatchRules = []) {
-  const docs = docFields || [];
-  const rules = masterMatchRules || [];
-  const fileNodes = docs.flatMap((doc) =>
-    buildExportPreviewFiles(doc.docType).map((file) => ({
-      ...file,
-      parentScope: 'files',
-    })));
-  const masterNodes = rules.map((rule) => ({
-    id: `export-mm:${rule.id}`,
-    kind: 'master_rule',
+const MASTER_MATCH_EXPORT_FIELD_SAMPLES = [
+  { id: 'export-master-field:icd10', label: 'ICD-10コード', sample: 'K35.80' },
+  { id: 'export-master-field:std_disease', label: '標準傷病名', sample: '急性虫垂炎' },
+  { id: 'export-master-field:inst_code', label: '機関コード', sample: '1310123456' },
+  { id: 'export-master-field:std_inst', label: '標準医療機関名', sample: '慶應大学病院' },
+];
+
+const EXPORT_FIELD_SAMPLE_VALUES = {
+  証券番号: '02468135-008-002',
+  ご契約者氏名: '高橋 誠',
+  'ご契約者氏名（カナ）': 'タカハシマコト',
+  被保険者氏名: '高橋 真由美',
+  患者氏名: '高橋 真由美',
+  被保険者生年月日: '1992-07-18',
+  患者生年月日: '1992-07-18',
+  請求区分: '入院給付金',
+  給付金種類: '入院給付金',
+  入院日: '2025-09-08',
+  退院日: '2025-09-14',
+  入院日数: '7',
+  請求金額: '420,000',
+  振込先金融機関名: 'みずほ銀行',
+  合計金額: '128,400',
+  医療機関名: '慶應大学病院',
+  傷病名: '急性虫垂炎',
+  診断名: '急性虫垂炎',
+  発行日: '2025-09-15',
+  金額: '128,400',
+  診療日: '2025-09-12',
+  氏名: '高橋 真由美',
+  明細合計: '128,400',
+  項目名: '入院基本料',
+  数量: '1',
+  単価: '42,000',
+};
+
+function getExportFieldSampleValue(docType, fieldLabel) {
+  const name = String(fieldLabel || '').split('.').pop();
+  return EXPORT_FIELD_SAMPLE_VALUES[name]
+    || EXPORT_FIELD_SAMPLE_VALUES[fieldLabel]
+    || `${getDocExportLabel(docType)} 抽出値`;
+}
+
+function getMasterMatchOutputFieldSample(outputFieldLabel) {
+  const label = String(outputFieldLabel || '').trim();
+  if (!label) return '—';
+  const matched = MASTER_MATCH_EXPORT_FIELD_SAMPLES.find((item) => item.label === label);
+  return matched?.sample || `${label}（照合値）`;
+}
+
+function formatExportMatchValue(outputFields) {
+  const fields = Array.isArray(outputFields) ? outputFields.filter(Boolean) : [];
+  if (!fields.length) return '—';
+  return fields.map((field) => getMasterMatchOutputFieldSample(field)).join(' / ');
+}
+
+function findMasterMatchRuleForExport(ctx, matchRules) {
+  const { docType, standardFieldId, fieldName, sourceFieldIds } = ctx || {};
+  const rules = matchRules || [];
+
+  if (standardFieldId) {
+    const direct = rules.find((rule) => rule.inputKind === 'standard' && rule.standardFieldId === standardFieldId);
+    if (direct) return direct;
+  }
+
+  if (fieldName && docType) {
+    const targetDoc = migrateDocTypeId(docType);
+    const ocr = rules.find((rule) => {
+      if (rule.inputKind === 'standard') return false;
+      return migrateDocTypeId(rule.docType || '') === targetDoc && rule.field === fieldName;
+    });
+    if (ocr) return ocr;
+  }
+
+  for (const sourceId of (sourceFieldIds || [])) {
+    const text = String(sourceId || '');
+    const dot = text.indexOf('.');
+    if (dot < 0) continue;
+    const srcDoc = migrateDocTypeId(text.slice(0, dot));
+    const srcField = text.slice(dot + 1);
+    const linked = rules.find((rule) => {
+      if (rule.inputKind === 'standard') return false;
+      return migrateDocTypeId(rule.docType || '') === srcDoc && rule.field === srcField;
+    });
+    if (linked) return linked;
+  }
+
+  return null;
+}
+
+function getExportExtractValueFromMappingRule(rule, docType) {
+  const sources = (rule?.sourceFieldIds || []).filter(Boolean);
+  if (!sources.length) return '—';
+  const docKey = docType || '';
+  const forDoc = sources.find((sourceId) => {
+    const text = String(sourceId || '');
+    return text.startsWith(`${docKey}.`) || text.includes(`${docKey}・`);
+  });
+  const sourceId = forDoc || sources.find((item) => item.includes('.')) || sources[0];
+  const dot = String(sourceId).indexOf('.');
+  if (dot < 0) return getExportFieldSampleValue(docKey, sourceId);
+  return getExportFieldSampleValue(sourceId.slice(0, dot), sourceId.slice(dot + 1));
+}
+
+function resolveExportMatchValue(ctx, matchRules) {
+  const rule = findMasterMatchRuleForExport(ctx, matchRules);
+  if (!rule) return '—';
+  const outputFields = Array.isArray(rule.outputFields) && rule.outputFields.length
+    ? rule.outputFields
+    : resolveMasterRuleOutputFields(rule);
+  return formatExportMatchValue(outputFields);
+}
+
+function buildMasterMatchPreviewNodes() {
+  return MASTER_MATCH_EXPORT_FIELD_SAMPLES.map((item) => ({
+    id: item.id,
+    kind: 'master_field',
     scope: 'master_match',
-    ruleId: rule.id,
-    label: rule.name || '照合ルール',
+    label: item.label,
   }));
+}
+
+/** 出力設定：左ナビ用（OCR 抽出 / 標準フィールド → 帳票タイプ） */
+function buildExportPreviewTree(docFields) {
+  const docs = docFields || [];
   return {
     id: 'export-root',
-    kind: 'group',
+    kind: 'root',
     label: 'エクスポート対象',
     children: [
       {
-        id: 'export-scope-ocr',
-        kind: 'scope',
-        scope: 'ocr',
-        label: '検証済み OCR 抽出結果',
+        id: 'export-folder:ocr',
+        kind: 'folder',
+        label: 'OCR抽出',
+        outputMode: 'ocr',
         children: docs.map((doc) => ({
-          id: `export-ocr:${doc.docType}`,
+          id: `export-ocr-doc:${doc.docType}`,
           kind: 'doctype',
-          scope: 'ocr',
+          scope: 'doctype',
+          outputMode: 'ocr',
           docType: doc.docType,
           label: getDocExportLabel(doc.docType),
         })),
       },
       {
-        id: 'export-scope-master',
-        kind: 'scope',
-        scope: 'master_match',
-        label: 'マスタ照合結果',
-        children: masterNodes.length
-          ? masterNodes
-          : [{ id: 'export-master-empty', kind: 'placeholder', scope: 'master_match', label: '照合ルール未設定' }],
-      },
-      {
-        id: 'export-scope-files',
-        kind: 'scope',
-        scope: 'files',
-        label: '前処理後案件ファイル',
-        children: fileNodes.length
-          ? fileNodes
-          : [{ id: 'export-files-empty', kind: 'placeholder', scope: 'files', label: '対象ファイルなし' }],
-      },
-      {
-        id: 'export-scope-report',
-        kind: 'scope',
-        scope: 'report',
-        label: '検証結果レポート',
-        children: [{
-          id: 'export-report',
-          kind: 'report',
-          scope: 'report',
-          label: '検証結果レポート',
-        }],
+        id: 'export-folder:standard',
+        kind: 'folder',
+        label: '標準フィールド',
+        outputMode: 'standard',
+        children: docs.map((doc) => ({
+          id: `export-standard-doc:${doc.docType}`,
+          kind: 'doctype',
+          scope: 'doctype',
+          outputMode: 'standard',
+          docType: doc.docType,
+          label: getDocExportLabel(doc.docType),
+        })),
       },
     ],
   };
+}
+
+function buildExportOcrFieldRows(docType, docFieldsEntry, matchRules = []) {
+  const schema = getDocSchema(docType);
+  const schemaFields = schema.fields || [];
+  if (!schemaFields.length) return [];
+  const existing = docFieldsEntry?.fields || [];
+  const existingMap = Object.fromEntries(existing.map((field) => [field.name, field]));
+  const orderedNames = existing.length
+    ? [...new Set([...existing.map((field) => field.name), ...schemaFields])]
+    : schemaFields;
+  const fieldRows = orderedNames
+    .filter((name) => schemaFields.includes(name))
+    .map((name) => {
+      const ctx = { docType, fieldName: name };
+      return {
+        key: `ocr:${docType}:${name}`,
+        orderKey: `field:${name}`,
+        fieldName: name,
+        label: name,
+        checked: existingMap[name]?.checked !== false,
+        extractValue: getExportFieldSampleValue(docType, name),
+        matchValue: resolveExportMatchValue(ctx, matchRules),
+      };
+    });
+  return fieldRows;
+}
+
+/** プレビュー用：Workflow 完了時に自動出力される対象一覧 */
+function buildExportAutoTargetLabels(docFields, includeVerifyReport = true) {
+  const docs = docFields || [];
+  const labels = [
+    '検証済み OCR 抽出結果',
+    ...docs.map((doc) => getDocExportLabel(doc.docType)),
+    'マスタ照合結果',
+    '前処理後案件ファイル',
+  ];
+  if (includeVerifyReport) labels.push('検証結果レポート');
+  return labels;
 }
 
 function buildStructuredNamingPattern(naming) {
@@ -532,22 +669,25 @@ function syncMasterMatchExportConfig(exportConfigs, rules) {
   });
 }
 
-function buildExportPreviewFiles(docType) {
+function buildExportPreviewFiles(docType, fileKind = 'processed') {
   const label = getDocExportLabel(docType);
+  const sourceLabel = fileKind === 'original' ? '原本' : '処理後';
+  const sourceKind = fileKind === 'original' ? 'original' : 'processed';
+  const prefix = fileKind === 'original' ? 'original-file' : 'export-file';
   if (label.includes('診断書')) {
     return [
-      { id: `export-file:${docType}:a`, kind: 'file', docType, label: '診断書_A.pdf' },
-      { id: `export-file:${docType}:b`, kind: 'file', docType, label: '診断書_補足説明.pdf' },
+      { id: `${prefix}:${docType}:a`, kind: 'file', docType, label: '診断書_A.pdf', sourceLabel, sourceKind },
+      { id: `${prefix}:${docType}:b`, kind: 'file', docType, label: '診断書_補足説明.pdf', sourceLabel, sourceKind },
     ];
   }
   if (label.includes('領収書') || label.includes('診療明細')) {
     return [
-      { id: `export-file:${docType}:a`, kind: 'file', docType, label: '診療明細_慶應大学病院.pdf' },
-      { id: `export-file:${docType}:b`, kind: 'file', docType, label: '領収書_入院費.pdf' },
+      { id: `${prefix}:${docType}:a`, kind: 'file', docType, label: '診療明細_慶應大学病院.pdf', sourceLabel, sourceKind },
+      { id: `${prefix}:${docType}:b`, kind: 'file', docType, label: '領収書_入院費.pdf', sourceLabel, sourceKind },
     ];
   }
   return [
-    { id: `export-file:${docType}:a`, kind: 'file', docType, label: '請求書_001.pdf' },
+    { id: `${prefix}:${docType}:a`, kind: 'file', docType, label: '請求書_001.pdf', sourceLabel, sourceKind },
   ];
 }
 
@@ -1482,4 +1622,3 @@ function normalizeInputConfig(input) {
   delete base.receptionType;
   return base;
 }
-

@@ -218,7 +218,7 @@ function buildOutputExportRows(doc) {
   }).filter(Boolean);
 }
 
-function buildExportStandardFieldRows(docType, mappingNode, selectedIds = []) {
+function buildExportStandardFieldRows(docType, mappingNode, selectedIds = [], matchRules = []) {
   const rules = (mappingNode?.mappingRules || []).filter((rule) => rule.standardFieldId);
   const selectedSet = new Set(selectedIds || []);
   const useAllWhenEmpty = !selectedSet.size;
@@ -232,11 +232,18 @@ function buildExportStandardFieldRows(docType, mappingNode, selectedIds = []) {
     })
     .map((rule) => {
       const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === rule.standardFieldId);
+      const ctx = {
+        docType,
+        standardFieldId: rule.standardFieldId,
+        sourceFieldIds: rule.sourceFieldIds,
+      };
       return {
         key: rule.id,
         standardFieldId: rule.standardFieldId,
         standardLabel: meta?.label || rule.standardLabel || rule.standardFieldId,
         sourceSummary: formatDataMappingRuleSourceSummary(rule),
+        extractValue: getExportExtractValueFromMappingRule(rule, docType),
+        matchValue: resolveExportMatchValue(ctx, matchRules),
         checked: useAllWhenEmpty ? true : selectedSet.has(rule.standardFieldId),
         dataType: meta?.dataType || rule.dataType || 'string',
       };
@@ -579,10 +586,16 @@ function normalizeOutputConfig(output, documents, masterMappings, knowledgeSourc
   base.sharedFolderPath = String(base.sharedFolderPath || OUTPUT_DEFAULTS.sharedFolderPath);
   base.deliveryMethod = base.deliveryMethod === 'shared_folder' ? 'shared_folder' : 'api';
   base.format = base.deliveryMethod === 'shared_folder' ? '共有フォルダ' : 'API';
+  base.fileFormat = OUTPUT_FORMATS.includes(base.fileFormat) ? base.fileFormat : (OUTPUT_FORMATS.includes(base.format) ? base.format : OUTPUT_DEFAULTS.fileFormat);
   base.outputTarget = base.outputTarget || OUTPUT_TARGET_DEFAULT;
+  base.exportReviewRequired = base.exportReviewRequired === true;
+  base.exportReviewRole = base.exportReviewRole || OUTPUT_DEFAULTS.exportReviewRole || '案件担当者';
   base.exportStandardFieldIds = Array.isArray(base.exportStandardFieldIds) ? base.exportStandardFieldIds : [];
   base.exportStandardFieldOrderByDoc = (base.exportStandardFieldOrderByDoc && typeof base.exportStandardFieldOrderByDoc === 'object')
     ? base.exportStandardFieldOrderByDoc
+    : {};
+  base.exportFieldModeByDoc = (base.exportFieldModeByDoc && typeof base.exportFieldModeByDoc === 'object')
+    ? base.exportFieldModeByDoc
     : {};
   base.masterMatchExports = Array.isArray(base.masterMatchExports) ? base.masterMatchExports : [];
   base.templateLocked = base.templateLocked !== false;
@@ -811,6 +824,53 @@ function normalizeSceneDocuments(documents) {
   });
 }
 
+const SCENE_FILE_SPLIT_DEFAULT = {
+  enabled: true,
+  rules: ['page_continuity'],
+  ruleText: 'ページ連続性と共通タイトルを利用して、アップロードされたPDF・画像・ZIPを案件候補ごとに分割する。',
+};
+
+const SCENE_FILE_SPLIT_RULE_VALUES = new Set([
+  'page_continuity',
+  'doc_title',
+  'separator_page',
+  'folder_layer',
+  'file_name',
+  'barcode',
+]);
+
+const SCENE_FILE_SPLIT_RULE_LEGACY_MAP = {
+  file_stream_key: 'page_continuity',
+  main_doc_key: 'doc_title',
+  period_key: 'page_continuity',
+  same_type_multi: 'page_continuity',
+};
+
+const SCENE_FILE_SPLIT_RULE_TEXT_MAP = {
+  page_continuity: 'ページ連続性を利用して、連続するページを同一案件候補として扱う。',
+  doc_title: '共通タイトルや帳票見出しを利用して、同一案件候補の境界を判定する。',
+  separator_page: '区切りページを検出した位置でファイルを分割する。',
+  folder_layer: 'フォルダ階層を案件候補のまとまりとして扱う。',
+  file_name: 'ファイル名に含まれる案件番号・顧客名・日付などを利用して案件候補を分割する。',
+  barcode: 'バーコード / QR コードの値を利用して案件候補を分割する。',
+};
+
+function normalizeSceneFileSplit(fileSplit) {
+  const rawRules = Array.isArray(fileSplit?.rules) ? fileSplit.rules : SCENE_FILE_SPLIT_DEFAULT.rules;
+  const normalizedRules = rawRules.map((item) => SCENE_FILE_SPLIT_RULE_LEGACY_MAP[item] || item);
+  const rule = rawRules.find((item) => SCENE_FILE_SPLIT_RULE_VALUES.has(item))
+    || normalizedRules.find((item) => SCENE_FILE_SPLIT_RULE_VALUES.has(item))
+    || SCENE_FILE_SPLIT_DEFAULT.rules[0];
+  const ruleText = String(fileSplit?.ruleText || '').trim()
+    || SCENE_FILE_SPLIT_RULE_TEXT_MAP[rule]
+    || SCENE_FILE_SPLIT_DEFAULT.ruleText;
+  return {
+    enabled: fileSplit?.enabled !== false,
+    rules: [rule],
+    ruleText,
+  };
+}
+
 function sceneForm(sceneOrId) {
   const routeKey = SCENE_ROUTE[sceneOrId]
     || SCENE_ROUTE[SCENES.find((s) => s.id === sceneOrId || s.name === sceneOrId)?.id]
@@ -822,6 +882,7 @@ function sceneForm(sceneOrId) {
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
   data.scene.documents = normalizeSceneDocuments(data.scene.documents);
+  data.scene.fileSplit = normalizeSceneFileSplit(data.scene.fileSplit);
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
   data.processing.image = normalizeImageConfig(data.processing?.image, data.scene.documents);
@@ -847,6 +908,7 @@ function sceneFormByScene(scene) {
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
   data.scene.documents = normalizeSceneDocuments(data.scene.documents);
+  data.scene.fileSplit = normalizeSceneFileSplit(data.scene.fileSplit);
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
   data.processing.image = normalizeImageConfig(data.processing?.image, data.scene.documents);
@@ -870,6 +932,7 @@ function normalizeLoadedForm(form) {
   }
   form.scene.deficiencyAction = normalizeDeficiencyAction();
   delete form.scene.notificationEmail;
+  form.scene.fileSplit = normalizeSceneFileSplit(form.scene.fileSplit);
   applySceneAggregate(form.scene, form.scene.documents, form.output);
   applySceneDocFieldLinks(form.scene, form.scene.documents);
   form.processing = form.processing || {};
@@ -1539,6 +1602,14 @@ function saveStorage(sceneId, formData) {
     store[sceneId] = JSON.parse(JSON.stringify(formData));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch (e) { console.warn('localStorage save failed', e); }
+}
+
+function removeSceneFromStorage(sceneId) {
+  try {
+    const store = loadStorage() || {};
+    delete store[sceneId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (e) { console.warn('localStorage remove failed', e); }
 }
 
 function loadSceneFromStorage(sceneId) {
