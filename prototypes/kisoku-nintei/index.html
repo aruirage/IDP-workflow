@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=527" />
+  <link rel="stylesheet" href="style.css?v=536" />
 </head>
 <body>
   <div id="app">
@@ -481,9 +481,10 @@
                       show-word-limit
                     />
                   </div>
+                </div>
 
                   <div
-                    class="wf-setup-file-split-panel wf-setup-file-split-panel--inline"
+                    class="wf-setup-file-split-panel"
                     :class="{ 'is-disabled': !sceneSetupDraft.fileSplitEnabled }"
                   >
                     <div class="wf-step-card-head wf-step-card-head--sub">
@@ -533,7 +534,6 @@
                       </div>
                     </div>
                   </div>
-                </div>
 
                 <div class="wf-setup-docs-panel">
                     <div class="wf-step-card-head">
@@ -597,7 +597,7 @@
                       <inspector-title title="案件集約ルール" :hint="INSPECTOR_HINTS.docFieldLinks"></inspector-title>
                       <span class="wf-step-card-spacer"></span>
                       <div class="case-aggregate-policy-inline">
-                        <span class="case-aggregate-policy-label">比較方式</span>
+                        <span class="case-aggregate-policy-label">マッチング戦略</span>
                         <el-select
                           v-model="sceneSetupDraft.aggregateCompareStrategy"
                           class="case-aggregate-policy-select"
@@ -623,6 +623,10 @@
                         <div class="case-aggregate-rule-head">
                           <div class="case-aggregate-rule-main">
                             <div class="case-aggregate-rule-title case-aggregate-rule-title-edit">
+                              <span class="case-aggregate-title-text">
+                                {{ getDocDisplayLabel(sceneSetupDraft.mainDocType) || '主帳票未選択' }}
+                              </span>
+                              <span class="case-aggregate-title-arrow">→</span>
                               <el-select
                                 :model-value="group.docType"
                                 class="case-aggregate-title-select"
@@ -634,20 +638,7 @@
                                   :key="'agg-title-related-' + group.docType + '-' + doc.type"
                                   :label="getDocDisplayLabel(doc.type)"
                                   :value="doc.type"
-                                />
-                              </el-select>
-                              <span class="case-aggregate-title-arrow">→</span>
-                              <el-select
-                                v-model="sceneSetupDraft.mainDocType"
-                                class="case-aggregate-title-select"
-                                size="small"
-                                @change="setSceneSetupMainDoc"
-                              >
-                                <el-option
-                                  v-for="doc in sceneSetupDraft.documents"
-                                  :key="'agg-title-main-' + doc.type"
-                                  :label="getDocDisplayLabel(doc.type)"
-                                  :value="doc.type"
+                                  :disabled="isSceneSetupAggregateDocOptionDisabled(group.docType, doc.type)"
                                 />
                               </el-select>
                             </div>
@@ -821,6 +812,7 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
+              <span class="wf-publish-badge" :class="{ 'is-published': form.scene.publishStatus === 'published' }">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
@@ -1010,7 +1002,7 @@
                       </div>
                     </div>
                     <button
-                      v-for="branch in getDecisionNodeBranches(node)"
+                      v-for="branch in getDecisionNodeVisibleBranches(node)"
                       :key="branch.key"
                       v-show="isWorkflowTopologyEditable"
                       type="button"
@@ -1445,8 +1437,8 @@
                                   <template #default="{ node, data }">
                                     <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
                                       <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                                      <span v-if="data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                                        {{ [data.scope, data.dataType].filter(Boolean).join(' · ') }}
+                                      <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
+                                        {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
                                       </span>
                                     </div>
                                   </template>
@@ -1928,8 +1920,8 @@
                           <template #default="{ node, data }">
                             <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
                               <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                              <span v-if="data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                                {{ [data.scope, data.dataType].filter(Boolean).join(' · ') }}
+                              <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
+                                {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
                               </span>
                             </div>
                           </template>
@@ -1987,7 +1979,9 @@
               <button type="button" class="export-task-back" @click="goToWorkflowSetupStep(2)">‹ ワークフロー設定</button>
               <strong>エクスポート設定</strong>
               <span class="export-task-header-meta">{{ form.scene.name }}</span>
-              <el-button type="primary" @click="handleSave">保存</el-button>
+              <span class="wf-publish-badge" :class="{ 'is-published': form.scene.publishStatus === 'published' }">{{ scenePublishBadge }}</span>
+              <el-button @click="handleSave">下書き保存</el-button>
+              <el-button type="primary" @click="publishWorkflowScene">公開</el-button>
             </div>
 
             <div class="export-config export-config--step">
@@ -1995,12 +1989,6 @@
                 <div class="export-config-toolbar-left">
                   <span class="export-task-bar-label">API出力</span>
                   <el-switch v-model="form.output.apiExportEnabled" size="small" />
-                  <el-input
-                    v-if="form.output.apiExportEnabled"
-                    v-model="form.output.apiExportEndpoint"
-                    class="export-delivery-input"
-                    placeholder="API エンドポイント"
-                  />
                 </div>
                 <div class="export-config-toolbar-right">
                   <label class="export-inline-select">
@@ -2039,6 +2027,13 @@
                       @click="onExportPreviewRowClick(row.node)"
                     >
                       <div class="export-preview-row-main">
+                        <el-checkbox
+                          class="export-preview-checkbox"
+                          :model-value="getExportPreviewNodeCheckState(row.node).checked"
+                          :indeterminate="getExportPreviewNodeCheckState(row.node).indeterminate"
+                          @click.stop
+                          @change="(checked) => onExportPreviewCheckboxChange(row.node, checked)"
+                        />
                         <button
                           v-if="row.node.children && row.node.children.length"
                           type="button"
@@ -2597,8 +2592,8 @@
               <template #default="{ data }">
                 <div class="inspector-ifelse-cascader-option" :title="data.description || data.text">
                   <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                  <span v-if="data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                    {{ [data.scope, data.dataType].filter(Boolean).join(' · ') }}
+                  <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
+                    {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
                   </span>
                 </div>
               </template>
@@ -2630,9 +2625,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=505"></script>
+  <script src="scripts/workflow-core.js?v=515"></script>
   <script src="scripts/mock-data.js?v=498"></script>
   <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=508"></script>
+  <script src="main.js?v=524"></script>
 </body>
 </html>

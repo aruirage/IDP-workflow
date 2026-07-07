@@ -49,8 +49,8 @@ const appOptions = {
     const sceneSetupActiveTab = ref('basic');
     const sceneSetupAggregateDetailOpen = reactive({});
     const SCENE_AGGREGATE_COMPARE_STRATEGIES = [
-      { value: 'exact', label: '完全一致' },
-      { value: 'fuzzy', label: '近似一致' },
+      { value: 'exact', label: '精密マッチング' },
+      { value: 'fuzzy', label: '近似マッチング' },
     ];
     const SCENE_FILE_SPLIT_RULE_OPTIONS = [
       { value: 'page_continuity', label: 'ページ連続性' },
@@ -179,7 +179,7 @@ const appOptions = {
     const selectedDataMappingRuleId = ref(null);
     const inspectorMode = ref('node');
     const wfLibraryDrag = reactive({ type: null });
-    const wfNodeDrag = reactive({ id: null, startX: 0, startY: 0, originX: 0, originY: 0 });
+    const wfNodeDrag = reactive({ id: null, startX: 0, startY: 0, originX: 0, originY: 0, moved: false });
     const wfConnectDrag = reactive({ fromId: null, branch: null, clientX: 0, clientY: 0, active: false });
     const wfConnectHoverTargetId = ref(null);
     let wfConnectSuppressClick = false;
@@ -612,6 +612,12 @@ const appOptions = {
     const isFirstNode = computed(() => nodeIndex.value === 0);
     const isLastNode = computed(() => nodeIndex.value === NODE_ORDER.length - 1);
     const saveButtonText = computed(() => (isLastNode.value ? '設定を完了' : '保存'));
+    const scenePublishBadge = computed(() => {
+      if (form.scene.publishStatus === 'published') {
+        return `公開済み v${form.scene.publishedVersion || 1}`;
+      }
+      return '下書き';
+    });
 
     const sceneStats = computed(() => {
       const docs = form.scene.documents;
@@ -770,7 +776,7 @@ const appOptions = {
 
     const exportDeliveryPathLabel = computed(() => (
       form.output.deliveryMethod === 'api'
-        ? (form.output.apiExportEndpoint || '—')
+        ? '—'
         : (form.output.sharedFolderPath || '—')
     ));
 
@@ -1155,9 +1161,10 @@ const appOptions = {
         items: group.options.map((opt) => ({
           id: opt.value,
           text: getDecisionVariableSecondaryLabel(opt),
+          title: [getDecisionVariableSecondaryLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
           scope: opt.scope || '',
           dataType: opt.dataType || '',
-          description: opt.description || '',
+          description: opt.description || opt.label || '',
         })),
       })));
 
@@ -1259,9 +1266,10 @@ const appOptions = {
         items: group.options.map((opt) => ({
           id: opt.value,
           text: getDecisionVariableSecondaryLabel(opt),
+          title: [getDecisionVariableSecondaryLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
           scope: opt.scope || '',
           dataType: opt.dataType || '',
-          description: opt.description || '',
+          description: opt.description || opt.label || '',
         })),
       })));
 
@@ -1774,7 +1782,7 @@ const appOptions = {
         checks.push(createReuseCheck(
           'warn',
           '案件集約キー',
-          '主帳票、主帳票キー、関連キー、比較方式はコピー後も必ず手動確認してください。',
+          '主帳票、主帳票キー、関連キー、マッチング戦略はコピー後も必ず手動確認してください。',
         ));
         checks.push(createReuseCheck(
           'warn',
@@ -1925,6 +1933,18 @@ const appOptions = {
     }
 
     let workflowEdgePathsEvalCount = 0;
+    function buildWorkflowRoutedEdgePath(x1, y1, x2, y2, direction = 'top') {
+      const gap = Math.max(72, Math.min(120, Math.abs(x2 - x1) * 0.18));
+      const laneY = direction === 'bottom'
+        ? Math.max(y1, y2) + 92
+        : Math.min(y1, y2) - 92;
+      return {
+        d: `M ${x1} ${y1} C ${x1 + gap} ${y1}, ${x1 + gap} ${laneY}, ${x1 + gap * 1.45} ${laneY} L ${x2 - gap * 1.45} ${laneY} C ${x2 - gap} ${laneY}, ${x2 - gap} ${y2}, ${x2} ${y2}`,
+        mid: { x: (x1 + x2) / 2, y: laneY },
+        labelAnchor: { x: (x1 + x2) / 2, y: laneY },
+      };
+    }
+
     const workflowEdgePaths = computed(() => {
       workflowEdgePathsEvalCount += 1;
       if (workflowEdgePathsEvalCount <= 20 || workflowEdgePathsEvalCount % 100 === 0) {
@@ -1934,6 +1954,7 @@ const appOptions = {
       const PORT = 6;
 
       return (getActiveWf()?.edges || []).map((edge) => {
+        if (edge.visualHidden) return null;
         const from = nodeMap[edge.from];
         const to = nodeMap[edge.to];
         if (!from || !to) return null;
@@ -1958,9 +1979,11 @@ const appOptions = {
           y2 = toCy;
         }
 
-        const d = wfBezierPath(x1, y1, x2, y2);
-        const mid = wfBezierPoint(x1, y1, x2, y2, 0.5);
-        const labelAnchor = wfBezierPoint(x1, y1, x2, y2, from.type === 'decision' && edge.branch ? 0.32 : 0.42);
+        const shouldRoute = edge.route && Math.abs(x2 - x1) > 180;
+        const routed = shouldRoute ? buildWorkflowRoutedEdgePath(x1, y1, x2, y2, edge.route) : null;
+        const d = routed?.d || wfBezierPath(x1, y1, x2, y2);
+        const mid = routed?.mid || wfBezierPoint(x1, y1, x2, y2, 0.5);
+        const labelAnchor = routed?.labelAnchor || wfBezierPoint(x1, y1, x2, y2, from.type === 'decision' && edge.branch ? 0.32 : 0.42);
 
         const branchLabel = from.type === 'decision' && edge.branch
           ? getDecisionBranchEdgeLabel(edge.branch, from)
@@ -2089,9 +2112,11 @@ const appOptions = {
     function organizeWorkflowNodes() {
       const wf = getActiveWf();
       if (!wf) return;
+      selectedWorkflowEdgeKey.value = null;
+      hoveredWorkflowEdgeKey.value = null;
+      closeWfNodePicker();
       layoutWorkflowGraph(wf);
       pushWorkflowHistory('ノードを整列');
-      closeWfNodePicker();
       nextTick(() => fitWorkflowToView());
     }
 
@@ -2103,21 +2128,45 @@ const appOptions = {
 
     function collapseWorkflowNodes() {
       wfCanvasNodesCollapsed.value = true;
+      nextTick(() => fitWorkflowToView());
     }
 
     function expandWorkflowNodes() {
       wfCanvasNodesCollapsed.value = false;
+      nextTick(() => fitWorkflowToView());
     }
 
     function toggleWorkflowNodesCollapsed() {
       wfCanvasNodesCollapsed.value = !wfCanvasNodesCollapsed.value;
+      nextTick(() => fitWorkflowToView());
+    }
+
+    function getCollapsedDecisionNodeSize(node) {
+      const opts = getDecisionCanvasVariableOptions(node);
+      const preview = getDecisionNodeCanvasPreview(node, opts);
+      const lines = estimateDecisionConditionTextLines(preview, 192);
+      const lineCount = Math.min(4, Math.max(1, lines));
+      const w = Math.min(340, Math.max(208, 76 + preview.length * DECISION_NODE_LAYOUT.charW));
+      return { w: Math.round(w), h: 38 + lineCount * 14 + 8 };
     }
 
     function getDecisionLayoutMetricsForNode(node) {
       if (!node) return getDecisionNodeLayoutMetrics(node);
       const wf = getActiveWf();
       const opts = wf ? getDecisionVariableOptions(wf, node.id, form.verify) : [];
-      return getDecisionNodeLayoutMetrics(node, opts);
+      const metrics = getDecisionNodeLayoutMetrics(node, opts);
+      if (!wfCanvasNodesCollapsed.value) return metrics;
+      const collapsed = getCollapsedDecisionNodeSize(node);
+      const rows = (metrics.rows || []).map((row, idx, all) => {
+        const step = collapsed.h / Math.max(1, all.length + 1);
+        const yCenter = Math.round(step * (idx + 1));
+        return {
+          ...row,
+          yCenter,
+          ratio: yCenter / collapsed.h,
+        };
+      });
+      return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
     }
 
     function getWorkflowNodeDisplaySize(node, summary = null) {
@@ -2125,13 +2174,8 @@ const appOptions = {
         ? { ...node, __collapsed: true }
         : node;
       if (displayNode?.type === 'decision') {
-        const opts = getDecisionCanvasVariableOptions(displayNode);
         if (displayNode.__collapsed) {
-          const preview = getDecisionNodeCanvasPreview(displayNode, opts);
-          const lines = estimateDecisionConditionTextLines(preview, 192);
-          const lineCount = Math.min(4, Math.max(1, lines));
-          const w = Math.min(340, Math.max(208, 76 + preview.length * DECISION_NODE_LAYOUT.charW));
-          return { w: Math.round(w), h: 38 + lineCount * 14 + 8 };
+          return getCollapsedDecisionNodeSize(displayNode);
         }
         return getDecisionLayoutMetricsForNode(displayNode);
       }
@@ -3467,16 +3511,17 @@ const appOptions = {
 
     function setSceneSetupMainDoc(docType) {
       if (!sceneSetupDraft.documents.some((d) => d.type === docType)) return;
+      const previousMainDocType = sceneSetupDraft.mainDocType;
       sceneSetupDraft.mainDocType = docType;
       const fields = getSceneSetupFieldOptions(docType);
       sceneSetupDraft.mainKey = fields.includes(sceneSetupDraft.mainKey) ? sceneSetupDraft.mainKey : (fields[0] || '');
       ensureSceneSetupAggregateRuleSettings();
       clearSceneSetupLinkCheckDisplay();
-      if (sceneSetupDraft.documents.length >= 2 && !(sceneSetupDraft.docFieldLinks || []).length) {
-        sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
-          sceneSetupDraft.documents,
-          [docType],
-        );
+      if (previousMainDocType && previousMainDocType !== docType) {
+        sceneSetupDraft.docFieldLinks = [];
+        Object.keys(sceneSetupAggregateDetailOpen).forEach((key) => {
+          delete sceneSetupAggregateDetailOpen[key];
+        });
       }
     }
 
@@ -3511,6 +3556,7 @@ const appOptions = {
         if (!scene) return;
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
+          form.scene.publishStatus = 'draft';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -3519,6 +3565,7 @@ const appOptions = {
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
+          stored.scene.publishStatus = 'draft';
           scene.name = name;
           saveStorage(scene.id, stored);
           if (scene.id === currentSceneId.value) {
@@ -3535,6 +3582,7 @@ const appOptions = {
       const id = String(Date.now());
       const data = sceneForm('application');
       const name = applySceneSetupDraftToData(data);
+      data.scene.publishStatus = 'draft';
       scenes.value.unshift({ id, name });
       saveStorage(id, data);
       selectScene(id, { skipFinishRename: true, focusScene: true });
@@ -3542,6 +3590,107 @@ const appOptions = {
       workflowSetupStep.value = 2;
       enterWorkflowCanvasView();
       ElementPlus.ElMessage.success('業務シーンを作成しました');
+    }
+
+    function applyCurrentSceneSetupDraftIfNeeded() {
+      if (workflowSetupStep.value !== 1) return true;
+      if (!sceneSetupDraft.documents.length) {
+        ElementPlus.ElMessage.warning('関連帳票を1件以上追加してください');
+        return false;
+      }
+      applySceneSetupAggregate();
+      const err = validateSceneAggregateDraft(sceneSetupDraft);
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return false;
+      }
+      sceneSetupDraft.docFieldLinks = normalizeDocFieldLinks(
+        sceneSetupDraft.docFieldLinks,
+        sceneSetupDraft.documents,
+      );
+      const linkErr = getSceneLinkValidationError(
+        sceneSetupDraft.documents,
+        sceneSetupDraft.mainDocType,
+        sceneSetupDraft.docFieldLinks,
+        getDocDisplayLabel,
+      );
+      if (linkErr) {
+        flashSceneSetupLinkCheckResult();
+        ElementPlus.ElMessage.warning(linkErr);
+        return false;
+      }
+      if (sceneSetupMode.value === 'edit') {
+        const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
+        if (!scene) return false;
+        if (scene.id === currentSceneId.value) {
+          const name = applySceneSetupDraftToData(form);
+          form.scene.publishStatus = 'draft';
+          scene.name = name;
+          syncOcrExtractTypes();
+          syncOutputDocFieldsBySceneDocs();
+        } else {
+          const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
+          const name = applySceneSetupDraftToData(stored);
+          stored.scene.publishStatus = 'draft';
+          scene.name = name;
+          saveStorage(scene.id, stored);
+          selectScene(scene.id, { skipFinishRename: true, focusScene: true });
+        }
+        return true;
+      }
+      const id = String(Date.now());
+      const data = sceneForm('application');
+      const name = applySceneSetupDraftToData(data);
+      data.scene.publishStatus = 'draft';
+      scenes.value.unshift({ id, name });
+      saveStorage(id, data);
+      selectScene(id, { skipFinishRename: true, focusScene: true });
+      return true;
+    }
+
+    function validateWorkflowPublish() {
+      const sceneErr = validateSceneAggregate();
+      if (sceneErr) return sceneErr;
+      if (!form.scene.documents?.length) return '関連帳票を1件以上追加してください';
+      const linkErr = getSceneLinkValidationError(
+        form.scene.documents,
+        getSceneMainDocType(form.scene),
+        form.scene.docFieldLinks || [],
+        getDocDisplayLabel,
+      );
+      if (linkErr) return linkErr;
+      if (!getActiveWf()?.nodes?.length) return 'Workflowノードを設定してください';
+      if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
+      if ((outputFieldCount.value + outputTableStats.value.columns) <= 0) return 'エクスポート字段を1件以上選択してください';
+      return '';
+    }
+
+    function publishWorkflowScene() {
+      ElementPlus.ElMessageBox.confirm(
+        'Step1〜Step3の現在の設定を公開します。公開後、この業務シーンの新しい案件処理に反映されます。',
+        '業務シーンを公開しますか？',
+        {
+          confirmButtonText: '公開',
+          cancelButtonText: 'キャンセル',
+          type: 'warning',
+        },
+      ).then(() => {
+        if (!applyCurrentSceneSetupDraftIfNeeded()) return;
+        syncOutputDocFieldsBySceneDocs();
+        const err = validateWorkflowPublish();
+        if (err) {
+          ElementPlus.ElMessage.warning(err);
+          return;
+        }
+        const publishedAt = new Date().toISOString();
+        const currentVersion = Number(form.scene.publishedVersion || 0);
+        form.scene.publishStatus = 'published';
+        form.scene.publishedAt = publishedAt;
+        form.scene.publishedVersion = currentVersion + 1;
+        savedSnapshot.value = JSON.stringify(form);
+        saveStorage(currentSceneId.value, form);
+        ElementPlus.ElMessage.success(`公開しました（v${form.scene.publishedVersion}）`);
+      }).catch(() => {});
     }
 
     function confirmSceneSetup() {
@@ -3693,6 +3842,7 @@ const appOptions = {
 
     function updateSceneSetupAggregateGroupDoc(oldDocType, newDocType) {
       if (!oldDocType || !newDocType || oldDocType === newDocType || newDocType === sceneSetupDraft.mainDocType) return;
+      if (isSceneSetupAggregateDocOptionDisabled(oldDocType, newDocType)) return;
       const relatedFields = getSceneSetupFieldOptions(newDocType);
       (sceneSetupDraft.docFieldLinks || []).forEach((link) => {
         if (!isSceneSetupLinkBetweenMainAndDoc(link, oldDocType)) return;
@@ -3705,6 +3855,14 @@ const appOptions = {
       sceneSetupAggregateDetailOpen[oldDocType] = false;
       sceneSetupAggregateDetailOpen[newDocType] = true;
       clearSceneSetupLinkCheckDisplay();
+    }
+
+    function isSceneSetupAggregateDocOptionDisabled(currentDocType, optionDocType) {
+      if (!optionDocType || optionDocType === currentDocType) return false;
+      if (optionDocType === sceneSetupDraft.mainDocType) return true;
+      return sceneSetupAggregateRuleGroups.value.some((group) =>
+        group.docType === optionDocType && group.docType !== currentDocType
+      );
     }
 
     function addSceneSetupAggregateLink(docType) {
@@ -3952,7 +4110,10 @@ const appOptions = {
         Object.assign(pickedNode, normalizeEndNode(pickedNode));
       } else if (pickedNode?.type === 'start') {
         Object.assign(pickedNode, normalizeStartNode(pickedNode));
-      } else if (pickedNode?.type === 'decision') Object.assign(pickedNode, normalizeDecisionNode(pickedNode, getActiveWf()));
+      } else if (pickedNode?.type === 'decision') {
+        Object.assign(pickedNode, normalizeDecisionNode(pickedNode, getActiveWf()));
+        applyDecisionConditionDefaultValues(pickedNode);
+      }
       else if (pickedNode?.type === 'notify') Object.assign(pickedNode, normalizeNotifyNode(pickedNode, getActiveWf()));
       else if (pickedNode?.type === 'code') Object.assign(pickedNode, normalizeCodeNode(pickedNode, getActiveWf()));
       else if (pickedNode && isHitlGateNode(pickedNode)) Object.assign(pickedNode, normalizeHitlGateNode(pickedNode));
@@ -4160,24 +4321,30 @@ const appOptions = {
       if (event.button !== 0) return;
       if (!isWorkflowTopologyEditable.value) return;
       event.preventDefault();
+      document.body.classList.add('wf-node-dragging');
       wfNodeDrag.id = node.id;
       wfNodeDrag.startX = event.clientX;
       wfNodeDrag.startY = event.clientY;
       wfNodeDrag.originX = node.x;
       wfNodeDrag.originY = node.y;
+      wfNodeDrag.moved = false;
       const onMove = (ev) => {
         const target = getActiveWf().nodes.find((n) => n.id === wfNodeDrag.id);
         if (!target) return;
         target.x = Math.max(8, wfNodeDrag.originX + (ev.clientX - wfNodeDrag.startX) / wfViewport.scale);
         target.y = Math.max(8, wfNodeDrag.originY + (ev.clientY - wfNodeDrag.startY) / wfViewport.scale);
+        wfNodeDrag.moved = Math.abs(target.x - wfNodeDrag.originX) > 1
+          || Math.abs(target.y - wfNodeDrag.originY) > 1;
       };
       const onUp = () => {
         const target = getActiveWf().nodes.find((n) => n.id === wfNodeDrag.id);
-        const moved = target && (
+        const moved = wfNodeDrag.moved || (target && (
           Math.abs(target.x - wfNodeDrag.originX) > 1
           || Math.abs(target.y - wfNodeDrag.originY) > 1
-        );
+        ));
         wfNodeDrag.id = null;
+        wfNodeDrag.moved = false;
+        document.body.classList.remove('wf-node-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         if (moved) pushWorkflowHistory('ノード位置を移動');
@@ -4389,10 +4556,10 @@ const appOptions = {
       if (scope === '案件' || value.includes('.case.')) {
         return { id: 'case', label: '案件流' };
       }
-      if (scope === 'ファイル' || value.includes('files[].')) {
+      if (scope === 'ファイル' || value.includes('files[].') || value.includes('.ocrFields.')) {
         return { id: 'file', label: 'ファイル流' };
       }
-      return { id: 'document', label: '帳票流' };
+      return { id: 'case', label: '案件流' };
     }
 
     const decisionVariableCascaderOptions = computed(() =>
@@ -4411,21 +4578,26 @@ const appOptions = {
         const variableItem = {
           id: opt.value,
           text: formatDecisionVariableCascaderLabel(opt),
-          title: [opt.group, formatDecisionVariableCascaderLabel(opt)].filter(Boolean).join(' › '),
+          title: [formatDecisionVariableCascaderLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
           scope: opt.scope || '',
           dataType: opt.dataType || '',
-          description: opt.description || '',
+          description: opt.description || opt.label || '',
         };
         if (opt.nodeType === 'ocr' && String(opt.value || '').includes('ocrFields')) {
+          const seenFields = new Set();
           variableItem.items = sceneDocTypes.value.flatMap((docType) =>
             getDocSchema(docType).fields.map((field) => ({
               id: `${opt.value}.${docType}.${field}`,
-              text: `${getDocDisplayLabel(docType)} · ${field}`,
+              text: field,
               title: `${getDocDisplayLabel(docType)} · ${field}`,
-              scope: 'フィールド',
+              scope: 'ファイル',
               dataType: 'String',
-              description: 'OCR抽出フィールド',
-            }))
+              description: `${getDocDisplayLabel(docType)}のOCR抽出フィールド`,
+            })).filter((item) => {
+              if (seenFields.has(item.text)) return false;
+              seenFields.add(item.text);
+              return true;
+            })
           );
         }
         nodeGroup.items.push(variableItem);
@@ -4445,6 +4617,7 @@ const appOptions = {
             found = {
               value: item.id,
               label: item.text,
+              displayName: item.text,
               group: parent?.text || '',
               scope: item.scope || '',
               dataType: item.dataType || '',
@@ -4479,6 +4652,43 @@ const appOptions = {
       return operator?.placeholder || '値を入力';
     }
 
+    function inferDecisionConditionDefaultValue(condition, decisionCase = null) {
+      if (!condition || !decisionUsesValueField(condition.operator) || condition.value !== '') return condition?.value || '';
+      const variable = String(condition.variable || '');
+      const branchLabel = String(decisionCase?.label || '');
+      const branchId = String(decisionCase?.id || '');
+      const branchText = `${branchLabel} ${branchId}`;
+      if (/confirmAction$/.test(variable)) {
+        if (branchText.includes('修正')) return 'request_fix';
+        if (branchText.includes('補件')) return 'request_supplement';
+        if (branchText.includes('異常')) return 'reject';
+        return 'approve';
+      }
+      if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
+      if (/manualReviewRequired$/.test(variable)) return 'false';
+      if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
+      if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
+      if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$/.test(variable)) {
+        return branchText.includes('異常') ? 'failed' : 'success';
+      }
+      if (/lowConfidenceFieldCount$|preprocessWarnings$/.test(variable)) return '0';
+      const dataType = getDecisionConditionDataType(condition);
+      if (dataType === 'Boolean') return branchText.includes('補件') ? 'true' : 'false';
+      return '';
+    }
+
+    function applyDecisionConditionDefaultValues(node) {
+      if (!node?.cases?.length) return;
+      node.cases.forEach((decisionCase) => {
+        (decisionCase.conditions || []).forEach((condition) => {
+          ensureDecisionConditionOperator(condition);
+          if (!decisionUsesValueField(condition.operator) || condition.value !== '') return;
+          const nextValue = inferDecisionConditionDefaultValue(condition, decisionCase);
+          if (nextValue !== '') condition.value = nextValue;
+        });
+      });
+    }
+
     function ensureDecisionConditionOperator(condition, preferTypeDefault = false) {
       if (!condition) return;
       const dataType = getDecisionConditionDataType(condition);
@@ -4487,6 +4697,7 @@ const appOptions = {
       }
       condition.operator = normalizeDecisionOperatorForType(condition.operator, dataType);
       if (!decisionUsesValueField(condition.operator)) condition.value = '';
+      else if (!condition.value) condition.value = inferDecisionConditionDefaultValue(condition);
     }
 
     function getDecisionCanvasVariableOptions(node) {
@@ -4570,8 +4781,17 @@ const appOptions = {
     }
 
     function getDecisionBranchTargetId(nodeId, branch) {
-      const edge = (getActiveWf()?.edges || []).find((e) => e.from === nodeId && e.branch === branch);
+      const edge = (getActiveWf()?.edges || []).find((e) => e.from === nodeId && e.branch === branch && !e.visualHidden);
       return edge?.to || '';
+    }
+
+    function getDecisionNodeVisibleBranches(node) {
+      if (!node?.id) return getDecisionNodeBranches(node);
+      const wf = getActiveWf();
+      return getDecisionNodeBranches(node).filter((branch) => {
+        const edge = (wf?.edges || []).find((e) => e.from === node.id && e.branch === branch.key);
+        return !edge?.visualHidden;
+      });
     }
 
     function setDecisionBranchTarget(nodeId, branch, targetNodeId) {
@@ -6240,15 +6460,15 @@ const appOptions = {
       if (step === 2) enterWorkflowCanvasView();
     });
 
-    watch(() => sceneSetupDraft.mainDocType, () => {
+    watch(() => sceneSetupDraft.mainDocType, (newDocType, oldDocType) => {
       clearSceneSetupLinkCheckDisplay();
       const fields = getSceneSetupFieldOptions(sceneSetupDraft.mainDocType);
       sceneSetupDraft.mainKey = fields.includes(sceneSetupDraft.mainKey) ? sceneSetupDraft.mainKey : (fields[0] || '');
-      if (sceneSetupDraft.documents.length >= 2 && !(sceneSetupDraft.docFieldLinks || []).length) {
-        sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
-          sceneSetupDraft.documents,
-          sceneSetupDraft.mainDocType ? [sceneSetupDraft.mainDocType] : [],
-        );
+      if (oldDocType && newDocType && oldDocType !== newDocType) {
+        sceneSetupDraft.docFieldLinks = [];
+        Object.keys(sceneSetupAggregateDetailOpen).forEach((key) => {
+          delete sceneSetupAggregateDetailOpen[key];
+        });
       }
     });
     watch(
@@ -6611,12 +6831,14 @@ const appOptions = {
 
     function onExportPreviewCheckboxChange(node, checked) {
       setExportPreviewSubtreeChecked(node, checked);
+      setExportPreviewNodeOutputChecked(node, checked);
     }
 
     function toggleExportPreviewSelectAll(checked) {
       collectExportPreviewNodes(exportPreviewRoot.value).forEach((node) => {
         exportPreviewChecked[node.id] = checked;
       });
+      (exportPreviewRoot.value.children || []).forEach((node) => setExportPreviewNodeOutputChecked(node, checked));
     }
 
     function onExportPreviewRowClick(node) {
@@ -6660,6 +6882,107 @@ const appOptions = {
           && (node.outputMode || 'ocr') === outputExportFieldMode.value;
       }
       return false;
+    }
+
+    function getExportPreviewDocNodes(node) {
+      if (!node) return [];
+      if (node.kind === 'doctype') return [node];
+      return (node.children || []).flatMap((child) => getExportPreviewDocNodes(child));
+    }
+
+    function getExportRowsForDocMode(docType, mode) {
+      if (!docType) return [];
+      const matchRules = primaryMasterMatchNode.value?.matchRules || [];
+      if (mode === 'standard') {
+        return buildExportStandardFieldRows(
+          docType,
+          primaryDataMappingNode.value,
+          form.output.exportStandardFieldIds,
+          matchRules,
+        );
+      }
+      const doc = (form.output.docFields || []).find((item) => item.docType === docType);
+      return buildExportOcrFieldRows(docType, doc, matchRules);
+    }
+
+    function getAllExportStandardFieldRows() {
+      const matchRules = primaryMasterMatchNode.value?.matchRules || [];
+      return (form.output.docFields || []).flatMap((doc) =>
+        buildExportStandardFieldRows(
+          doc.docType,
+          primaryDataMappingNode.value,
+          form.output.exportStandardFieldIds,
+          matchRules,
+        ));
+    }
+
+    function setOutputOcrFieldForDoc(docType, row, checked) {
+      const doc = (form.output.docFields || []).find((item) => item.docType === docType);
+      if (!doc || !row?.fieldName) return;
+      if (!doc.fields) doc.fields = [];
+      let field = doc.fields.find((item) => item.name === row.fieldName);
+      if (!field) {
+        field = { name: row.fieldName, checked };
+        doc.fields.push(field);
+      } else {
+        field.checked = checked;
+      }
+    }
+
+    function setExportStandardFieldsForDoc(docType, checked) {
+      const rows = getExportRowsForDocMode(docType, 'standard');
+      const rowIds = rows.map((row) => row.standardFieldId).filter(Boolean);
+      let ids = [...(form.output.exportStandardFieldIds || [])];
+      if (!ids.length) {
+        ids = getAllExportStandardFieldRows()
+          .filter((row) => row.checked !== false)
+          .map((row) => row.standardFieldId)
+          .filter(Boolean);
+      }
+      const next = new Set(ids);
+      rowIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      form.output.exportStandardFieldIds = [...next];
+    }
+
+    function setExportPreviewNodeOutputChecked(node, checked) {
+      getExportPreviewDocNodes(node).forEach((docNode) => {
+        const mode = docNode.outputMode || 'ocr';
+        if (mode === 'standard') {
+          setExportStandardFieldsForDoc(docNode.docType, checked);
+          return;
+        }
+        getExportRowsForDocMode(docNode.docType, 'ocr')
+          .forEach((row) => setOutputOcrFieldForDoc(docNode.docType, row, checked));
+      });
+    }
+
+    function getExportPreviewDocNodeCheckState(node) {
+      const rows = getExportRowsForDocMode(node.docType, node.outputMode || 'ocr');
+      if (!rows.length) return { checked: false, indeterminate: false };
+      const checkedCount = rows.filter((row) => {
+        if ((node.outputMode || 'ocr') === 'standard') return isExportStandardFieldChecked(row);
+        return row.checked !== false;
+      }).length;
+      return {
+        checked: checkedCount === rows.length,
+        indeterminate: checkedCount > 0 && checkedCount < rows.length,
+      };
+    }
+
+    function getExportPreviewNodeCheckState(node) {
+      if (node.kind === 'doctype') return getExportPreviewDocNodeCheckState(node);
+      const children = getExportPreviewDocNodes(node);
+      if (!children.length) return { checked: false, indeterminate: false };
+      const states = children.map((child) => getExportPreviewDocNodeCheckState(child));
+      const checkedCount = states.filter((state) => state.checked).length;
+      const partialCount = states.filter((state) => state.indeterminate).length;
+      return {
+        checked: checkedCount === states.length,
+        indeterminate: partialCount > 0 || (checkedCount > 0 && checkedCount < states.length),
+      };
     }
 
     function isOutputFieldChecked(row) {
@@ -6949,9 +7272,10 @@ const appOptions = {
           return;
         }
       }
+      form.scene.publishStatus = 'draft';
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
-      ElementPlus.ElMessage.success(isLastNode.value ? '設定を保存しました' : '保存しました');
+      ElementPlus.ElMessage.success('下書きを保存しました');
     }
 
     function openWorkflowTestDialog() {
@@ -6969,6 +7293,51 @@ const appOptions = {
       workflowTestResult.value = null;
     }
 
+    function getExpectedHitlContextFromWorkflow(node, workflow) {
+      if (!node || !workflow) return '';
+      const nodeMap = Object.fromEntries((workflow.nodes || []).map((item) => [item.id, item]));
+      const upstreamIds = getDecisionUpstreamNodeIds(workflow, node.id);
+      for (const id of upstreamIds) {
+        const upstream = nodeMap[id];
+        if (upstream?.type === 'preprocess') return 'preprocess';
+        if (upstream?.type === 'ocr') return 'ocr';
+        if (upstream?.type === 'ai_verify') return 'verification';
+      }
+      return '';
+    }
+
+    function buildWorkflowTestValidationSteps() {
+      const wf = getActiveWf();
+      if (!wf) return [];
+      return (wf.nodes || [])
+        .filter((node) => isHitlGateNode(node))
+        .map((node) => {
+          const expected = getExpectedHitlContextFromWorkflow(node, wf);
+          const actual = inferHitlContext(node);
+          const expectedLabel = expected ? getHitlContextMeta(expected)?.label : '';
+          const actualLabel = getHitlContextMeta(actual)?.label || actual;
+          if (!expected) {
+            return {
+              name: `人工確認：${node.label || '未命名'}`,
+              status: 'error',
+              detail: '前処理・OCR抽出・AI検証の確認分岐に接続されていません。',
+            };
+          }
+          if (actual !== expected) {
+            return {
+              name: `人工確認：${node.label || '未命名'}`,
+              status: 'error',
+              detail: `上流は「${expectedLabel}」ですが、確認タイプは「${actualLabel}」です。`,
+            };
+          }
+          return {
+            name: `人工確認：${node.label || '未命名'}`,
+            status: 'success',
+            detail: `確認タイプ「${actualLabel}」で上流ノードと一致しています。`,
+          };
+        });
+    }
+
     function runWorkflowTest() {
       if (!workflowTestFileName.value) {
         ElementPlus.ElMessage.warning('テストファイルを選択してください');
@@ -6980,18 +7349,31 @@ const appOptions = {
         const steps = workflowTestForceFail.value
           ? [
             { name: '前処理', status: 'success', detail: '画像補正・画像分割が正常終了' },
+            { name: '前処理条件判断', status: 'success', detail: '前処理結果は後続処理へ進行可能' },
             { name: 'OCR抽出', status: 'warning', detail: '診断書の被保険者氏名が低信頼。確認対象として出力' },
+            { name: 'OCR条件判断', status: 'warning', detail: '低信頼フィールドがあるため人工確認へ分岐' },
+            { name: '人工確認', status: 'success', detail: 'OCR結果を修正してデータマッピングへ進行' },
             { name: 'データマッピング', status: 'success', detail: '標準フィールドへ変換済み' },
             { name: 'AI検証', status: 'error', detail: '必要書類「領収書・診療明細書」が不足。補件分岐が必要' },
-            { name: '出力', status: 'skipped', detail: '上流エラーにより出力生成をスキップ' },
+            { name: 'AI検証条件判断', status: 'warning', detail: '補件必要として人工確認へ分岐' },
+            { name: '人工確認後条件', status: 'warning', detail: '補件依頼を送信する分岐を選択' },
+            { name: '補件通知', status: 'skipped', detail: 'テストのため実送信はスキップ' },
           ]
           : [
             { name: '前処理', status: 'success', detail: '画像補正・画像分割が正常終了' },
+            { name: '前処理条件判断', status: 'success', detail: '前処理結果は後続処理へ進行可能' },
             { name: 'OCR抽出', status: 'success', detail: '帳票タイプ判定と抽出が正常終了' },
+            { name: 'OCR条件判断', status: 'success', detail: '低信頼・未識別・欠損なし' },
             { name: 'データマッピング', status: 'success', detail: '標準フィールドへ変換済み' },
             { name: 'AI検証', status: 'success', detail: '必須フィールド・必要書類・データ検証を通過' },
-            { name: '出力', status: 'success', detail: 'エクスポート対象フィールドを生成済み' },
+            { name: 'AI検証条件判断', status: 'success', detail: '処理完了通知へ分岐' },
+            { name: '処理完了通知', status: 'success', detail: '通知内容の生成まで正常終了' },
+            { name: '終了', status: 'success', detail: '案件状態：処理完了' },
           ];
+        const validationSteps = buildWorkflowTestValidationSteps();
+        if (validationSteps.length) {
+          steps.splice(Math.min(steps.length, 2), 0, ...validationSteps);
+        }
         const failed = steps.some((row) => row.status === 'error');
         const warning = !failed && steps.some((row) => row.status === 'warning');
         workflowTestResult.value = {
@@ -7002,7 +7384,7 @@ const appOptions = {
           total: steps.length,
           steps,
           nextAction: failed
-            ? 'AI検証ノードの必要書類ルール、または補件分岐条件を確認してください。修正後に再度テストしてください。'
+            ? '人工確認タイプ、条件分岐、通知ノードの接続を確認してください。修正後に再度テストしてください。'
             : '',
         };
         workflowTestRunning.value = false;
@@ -7281,6 +7663,7 @@ const appOptions = {
       sceneSetupPageTitle,
       sceneSetupSceneIdDisplay,
       sceneSetupConfirmLabel,
+      scenePublishBadge,
       sceneSetupDocTypeOptions,
       sceneSetupLinkStats,
       sceneSetupUnlinkedDocLabels,
@@ -7294,6 +7677,7 @@ const appOptions = {
       SCENE_FILE_SPLIT_RULE_OPTIONS,
       confirmSceneSetup,
       proceedToWorkflowStep,
+      publishWorkflowScene,
       resetSceneSetup,
       clearSceneFileSplitRule,
       optimizeSceneFileSplitRule,
@@ -7310,6 +7694,7 @@ const appOptions = {
       getSceneSetupLinkRelatedField,
       updateSceneSetupAggregateLink,
       updateSceneSetupAggregateGroupDoc,
+      isSceneSetupAggregateDocOptionDisabled,
       addSceneSetupAggregateLink,
       removeSceneSetupAggregateLink,
       isSceneSetupAggregateDetailOpen,
@@ -7397,6 +7782,7 @@ const appOptions = {
       toggleExportPreviewSelectAll,
       onExportPreviewRowClick,
       isExportPreviewRowActive,
+      getExportPreviewNodeCheckState,
       activeOutputDocFields,
       setOutputFormat,
       setAllOutputDocFieldsChecked,
@@ -7734,6 +8120,7 @@ const appOptions = {
       removeDecisionCondition,
       getDecisionCaseKindLabel,
       getDecisionNodeBranches,
+      getDecisionNodeVisibleBranches,
       getDecisionNodeLayoutMetrics,
       getDecisionConditionCanvasItems,
       formatDecisionVariableDisplay,

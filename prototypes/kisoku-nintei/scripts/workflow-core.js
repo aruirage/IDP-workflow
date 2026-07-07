@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '337-prd-node-output-vars';
+const PROTOTYPE_BUILD = '345-case-file-variable-scope';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -94,7 +94,7 @@ const INSPECTOR_HINTS = {
   mcpError: 'タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。',
   nodeOutput: '後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
   nodeOutputPreprocess: '処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。',
-  nodeOutputOcr: 'OCR 結果・帳票別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。',
+  nodeOutputOcr: 'OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。',
   nodeOutputVerify: '必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。',
   nodeOutputStart: 'Workflow 入口の案件番号・起動イベント・案件データバージョン。',
   nodeOutputEnd: 'この分岐の完了状態。案件ライフサイクルの終了は表しません。',
@@ -157,18 +157,29 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 6;
-const WF_LAYOUT_PAD = { x: 48, y: 48 };
+const CASE_WORKFLOW_TEMPLATE_VERSION = 16;
+const WF_LAYOUT_PAD = { x: 48, y: 160 };
 const WF_BRANCH_LANE_GAP = 56;
+const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
+  'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+  'wf-n-supp', 'wf-n-error', 'wf-n-ok', 'wf-end',
+];
 
 const DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
-  'wf-pp', 'wf-hu-pre', 'wf-oc', 'wf-hu-ocr', 'wf-map', 'wf-ai', 'wf-d-final',
-  'wf-n-ok', 'wf-hu-final', 'wf-n-ng',
+  'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+  'wf-n-supp', 'wf-n-error', 'wf-n-ok',
 ];
 
 const PREVIOUS_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
   'wf-intake', 'wf-d-quality', 'wf-d-ocr', 'wf-logic', 'wf-auto', 'wf-d-audit',
   'wf-hu-quality', 'wf-hu-audit', 'wf-hu-prelim',
+];
+
+const PREVIOUS_V6_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
+  'wf-pp', 'wf-hu-pre', 'wf-oc', 'wf-hu-ocr', 'wf-map', 'wf-ai',
+  'wf-d-final', 'wf-n-ok', 'wf-hu-final',
 ];
 
 const LEGACY_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
@@ -700,26 +711,24 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   preprocess: [
     { id: 'case.preprocessStatus', label: '前処理ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
-    { id: 'documents[].documentCandidates', label: '帳票インスタンス候補', scope: '帳票', type: 'Array', description: '帳票分類により生成された帳票インスタンス候補' },
-    { id: 'documents[].classificationWarnings', label: '帳票分類警告', scope: '帳票', type: 'Array', description: '帳票分類の曖昧、分類低信頼などの明細' },
-    { id: 'documents[].classificationConfidence', label: '帳票分類信頼度', scope: '帳票', type: 'Number', description: '帳票インスタンス候補の分類信頼度' },
-    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', description: '補正・回転・帳票分類後のファイル' },
+    { id: 'case.fileCandidateCount', label: '候補ファイル件数', scope: '案件', type: 'Number', description: '前処理後に案件へ紐付く候補ファイル数' },
+    { id: 'case.classificationWarnings', label: '分類警告', scope: '案件', type: 'Array', description: '分類の曖昧、低信頼などを案件単位で集約した明細' },
+    { id: 'files[].classificationConfidence', label: 'ファイル分類信頼度', scope: 'ファイル', type: 'Number', description: 'ファイル単位の分類信頼度' },
+    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', description: '補正・回転・画像分割後のファイル' },
     { id: 'files[].preprocessWarnings', label: '前処理警告', scope: 'ファイル', type: 'Array', description: '傾き補正不可、分類曖昧などの明細' },
   ],
   ocr: [
     { id: 'case.ocrStatus', label: 'OCRステータス', scope: '案件', type: 'Enum', description: 'OCR 全体の処理状態' },
     { id: 'case.lowConfidenceFieldCount', label: '低信頼フィールド件数', scope: '案件', type: 'Number', description: '低信頼 OCR フィールドの合計' },
-    { id: 'documents[].ocrFields', label: '帳票別OCRフィールド', scope: '帳票', type: 'Object', description: '帳票インスタンス単位の抽出結果' },
-    { id: 'files[].ocrFields', label: 'ファイル別OCRフィールド', scope: 'ファイル', type: 'Object', description: '同一帳票タイプ複数ファイル時の抽出結果' },
+    { id: 'case.ocrFields', label: 'OCRフィールド集約', scope: '案件', type: 'Object', description: '案件単位に集約した OCR 抽出結果' },
+    { id: 'files[].ocrFields', label: 'OCRフィールド', scope: 'ファイル', type: 'Object', description: 'ファイル単位の OCR 抽出結果' },
   ],
   data_mapping: [
     { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', description: '案件級の標準フィールドビュー' },
     { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
     { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', description: '案件級に集約したフィールド競合' },
-    { id: 'documents[].standardFields', label: '帳票別標準フィールド', scope: '帳票', type: 'Object', description: '帳票インスタンス単位の標準化結果' },
-    { id: 'files[].standardFields', label: 'ファイル別標準フィールド', scope: 'ファイル', type: 'Object', description: '同一帳票タイプ複数ファイル時の標準化結果' },
+    { id: 'files[].standardFields', label: '標準フィールド', scope: 'ファイル', type: 'Object', description: 'ファイル単位の標準化結果' },
     { id: 'files[].mappingConflicts', label: 'ファイル別競合', scope: 'ファイル', type: 'Array', description: 'ファイル単位の競合明細' },
-    { id: 'fields[].sourceOcrFields', label: 'OCR来源フィールド', scope: 'フィールド', type: 'Array', description: '標準フィールドの入力元 OCR フィールド' },
     { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', description: 'ルール不適用、字段缺失、変換失敗の明細' },
   ],
   master_match: [
@@ -729,9 +738,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.masterNoHitCount', label: '未命中件数', scope: '案件', type: 'Number', description: 'マスタ未命中数' },
     { id: 'case.masterLowScoreCount', label: '低信頼件数', scope: '案件', type: 'Number', description: '低スコア照合数' },
     { id: 'case.masterMultiCandidateCount', label: '複数候補件数', scope: '案件', type: 'Number', description: '複数候補返却数' },
-    { id: 'documents[].masterMatchResults', label: '帳票別照合結果', scope: '帳票', type: 'Array', description: '帳票インスタンス級の照合結果' },
-    { id: 'files[].masterMatchResults', label: 'ファイル別照合結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の照合明細' },
-    { id: 'fields[].masterCandidates', label: '候補一覧', scope: 'フィールド', type: 'Array', description: '字段級の候補、返却列、信頼度' },
+    { id: 'files[].masterMatchResults', label: '照合結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の照合明細' },
   ],
   decision: [
     { id: 'case.branchName', label: '分岐名', scope: '案件', type: 'String', description: '命中した IF / ELIF / ELSE 分岐名' },
@@ -748,18 +755,15 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', description: 'AI検証の詳細結果' },
     { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', description: '必要書類の不足明細' },
     { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', description: '必須フィールドの不足明細' },
-    { id: 'documents[].validationResults', label: '帳票別検証結果', scope: '帳票', type: 'Array', description: '帳票インスタンス単位の検証結果' },
-    { id: 'files[].validationResults', label: 'ファイル別検証結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の検証結果' },
+    { id: 'files[].validationResults', label: '検証結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の検証結果' },
     { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', description: 'ファイル単位で違反したルール' },
-    { id: 'rules[].validationResults', label: 'ルール別検証結果', scope: 'フィールド', type: 'Array', description: 'ルール単位の命中、違反、スキップ明細' },
   ],
   hitl_gate: [
     { id: 'case.confirmTaskId', label: '確認タスクID', scope: '案件', type: 'String', description: '生成した人工確認タスク ID' },
     { id: 'case.confirmStatus', label: '確認状態', scope: '案件', type: 'Enum', description: 'created / completed / failed / timeout' },
-    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', description: 'approve / edit / reject / request_supplement' },
+    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', description: 'approve / request_fix / reject / request_supplement' },
     { id: 'case.assigneeRole', label: '担当ロール', scope: '案件', type: 'String', description: 'タスク分派ロール' },
-    { id: 'documents[].manualEdits', label: '帳票別修正摘要', scope: '帳票', type: 'Array', description: '帳票インスタンス単位の人工修正摘要' },
-    { id: 'files[].manualEdits', label: 'ファイル別修正摘要', scope: 'ファイル', type: 'Array', description: 'ファイル単位の人工修正摘要' },
+    { id: 'files[].manualEdits', label: '修正摘要', scope: 'ファイル', type: 'Array', description: 'ファイル単位の人工修正摘要' },
   ],
   notify: [
     { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', description: '通知送信の結果' },
@@ -853,6 +857,7 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
       label: item.label,
+      displayName: String(item.id || '').split('.').pop() || item.id,
       group: title,
       scope: item.scope || '案件',
       dataType: item.type || '',
@@ -2451,17 +2456,19 @@ function getDecisionUpstreamNodeIds(workflow, nodeId) {
 }
 
 function appendDecisionVarOption(options, spec) {
+  const localId = spec.localId || String(spec.value || '').split('.').pop() || '';
   options.push({
     group: spec.group || '変数',
     nodeType: spec.nodeType || '',
     nodeId: spec.nodeId || '',
     varName: spec.varName || '',
-    localId: spec.localId || '',
+    localId,
     scope: spec.scope || '',
     dataType: spec.dataType || spec.type || '',
     description: spec.description || '',
     value: spec.value,
     label: spec.label,
+    displayName: spec.displayName || localId || spec.value,
     hint: spec.hint || `{${spec.value}}`,
   });
 }
@@ -2507,7 +2514,7 @@ function getDecisionVariableLabel(value, options = []) {
 
 function getDecisionVariableSecondaryLabel(option) {
   if (!option) return '';
-  return String(option.label || option.value || '').trim();
+  return String(option.displayName || option.localId || option.value || '').trim();
 }
 
 function formatDecisionVariableDisplay(value, options = []) {
@@ -2626,6 +2633,23 @@ function normalizeDecisionCondition(condition) {
   };
 }
 
+function migrateDecisionVariableScope(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return raw;
+  return raw
+    .replace(/\.documents\[\]\.documentCandidates$/g, '.case.fileCandidateCount')
+    .replace(/\.documents\[\]\.classificationWarnings$/g, '.case.classificationWarnings')
+    .replace(/\.documents\[\]\.classificationConfidence$/g, '.files[].classificationConfidence')
+    .replace(/\.documents\[\]\.ocrFields/g, '.files[].ocrFields')
+    .replace(/\.documents\[\]\.standardFields/g, '.files[].standardFields')
+    .replace(/\.documents\[\]\.masterMatchResults/g, '.files[].masterMatchResults')
+    .replace(/\.documents\[\]\.validationResults/g, '.files[].validationResults')
+    .replace(/\.documents\[\]\.manualEdits/g, '.files[].manualEdits')
+    .replace(/\.fields\[\]\.sourceOcrFields$/g, '.files[].ocrFields')
+    .replace(/\.fields\[\]\.masterCandidates$/g, '.files[].masterMatchResults')
+    .replace(/\.rules\[\]\.validationResults$/g, '.files[].validationResults');
+}
+
 function normalizeDecisionCase(decisionCase, index) {
   const kind = decisionCase?.kind || (index === 0 ? 'if' : 'elif');
   const conditions = decisionCase?.conditions?.length
@@ -2671,15 +2695,58 @@ function syncDecisionVariablesInWorkflow(workflow) {
     const options = getDecisionVariableOptions(workflow, node.id);
     if (!options.length) return;
     const optionValues = new Set(options.map((o) => o.value));
+    const isAllowedVariable = (value) => optionValues.has(value)
+      || options.some((o) => String(o.value || '').includes('ocrFields') && String(value || '').startsWith(`${o.value}.`));
     (node.cases || []).forEach((c) => {
       (c.conditions || []).forEach((cond) => {
-        if (cond.variable && optionValues.has(cond.variable)) return;
-        const preset = cond.preset || node.conditionType;
-        const resolved = resolveDecisionPresetVariable(workflow, node.id, preset);
-        cond.variable = resolved && optionValues.has(resolved) ? resolved : options[0].value;
+        cond.variable = migrateDecisionVariableScope(cond.variable);
+        if (!cond.variable || !isAllowedVariable(cond.variable)) {
+          const preset = cond.preset || node.conditionType;
+          const resolved = resolveDecisionPresetVariable(workflow, node.id, preset);
+          cond.variable = resolved && isAllowedVariable(resolved) ? resolved : options[0].value;
+        }
+        const baseOption = options.find((o) => o.value === cond.variable)
+          || options.find((o) => String(o.value || '').includes('ocrFields') && String(cond.variable || '').startsWith(`${o.value}.`));
+        const dataType = String(cond.variable || '').includes('.ocrFields.') ? 'String' : (baseOption?.dataType || '');
+        cond.operator = normalizeDecisionOperatorForType(cond.operator, dataType);
+        if (!decisionUsesValueField(cond.operator)) {
+          cond.value = '';
+        } else if (cond.value === '' || cond.value == null) {
+          cond.value = inferDecisionConditionValue(cond, c);
+        } else {
+          cond.value = migrateDecisionConditionValue(cond);
+        }
       });
     });
   });
+}
+
+function inferDecisionConditionValue(condition, decisionCase = null) {
+  const variable = String(condition?.variable || '');
+  const branchText = `${decisionCase?.label || ''} ${decisionCase?.id || ''}`;
+  if (/confirmAction$/.test(variable)) {
+    if (branchText.includes('修正')) return 'request_fix';
+    if (branchText.includes('補件')) return 'request_supplement';
+    if (branchText.includes('異常')) return 'reject';
+    return 'approve';
+  }
+  if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
+  if (/manualReviewRequired$/.test(variable)) return branchText.includes('人工') || branchText.includes('確認') ? 'true' : 'false';
+  if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
+  if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
+  if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|masterStatus$/.test(variable)) {
+    return branchText.includes('異常') ? 'failed' : 'success';
+  }
+  if (/lowConfidenceFieldCount$|master(NoHit|LowScore|MultiCandidate)Count$|fileCandidateCount$/.test(variable)) return '0';
+  if (/preprocessWarnings$|classificationWarnings$|mappingConflicts$|mappingErrors$|missingDocuments$|missingFields$|failedRules$/.test(variable)) return '0';
+  if (/ReviewRequired$/.test(variable)) return branchText.includes('確認') ? 'true' : 'false';
+  return '';
+}
+
+function migrateDecisionConditionValue(condition) {
+  if (!condition) return '';
+  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'edit') return 'request_fix';
+  return condition.value ?? '';
 }
 
 function resolveDecisionPresetVariable(workflow, nodeId, presetValue) {
@@ -2720,17 +2787,31 @@ function normalizeDecisionNode(node, workflow = null, verifyConfig = null) {
     const options = buildDecisionVariableCatalog(workflow, node.id, verifyConfig);
     const optionValues = new Set(options.map((o) => o.value));
     const optionMap = Object.fromEntries(options.map((o) => [o.value, o]));
+    const resolveDecisionConditionVariable = (rawValue) => {
+      const migrated = migrateDecisionVariableScope(rawValue);
+      if (migrated && optionValues.has(migrated)) return migrated;
+      const ocrBase = options.find((o) => String(o.value || '').includes('ocrFields') && String(migrated || '').startsWith(`${o.value}.`));
+      if (ocrBase) return migrated;
+      return options.find((o) => o.nodeType && migrated?.startsWith(o.varName))?.value || options[0]?.value || migrated;
+    };
+    const resolveDecisionConditionDataType = (variable) => {
+      if (String(variable || '').includes('.ocrFields.')) return 'String';
+      const ocrBase = options.find((o) => String(o.value || '').includes('ocrFields') && String(variable || '').startsWith(`${o.value}.`));
+      return optionMap[variable]?.dataType || ocrBase?.dataType || '';
+    };
     cases = cases.map((c) => ({
       ...c,
       conditions: c.conditions.map((cond) => {
-        const variable = cond.variable && optionValues.has(cond.variable)
-          ? cond.variable
-          : (options.find((o) => o.nodeType && cond.variable?.startsWith(o.varName))?.value || options[0]?.value || cond.variable);
-        const dataType = optionMap[variable]?.dataType || '';
+        const variable = resolveDecisionConditionVariable(cond.variable);
+        const dataType = resolveDecisionConditionDataType(variable);
+        const operator = normalizeDecisionOperatorForType(cond.operator, dataType);
         return {
           ...cond,
           variable,
-          operator: normalizeDecisionOperatorForType(cond.operator, dataType),
+          operator,
+          value: decisionUsesValueField(operator) && (cond.value === '' || cond.value == null)
+            ? inferDecisionConditionValue({ ...cond, variable, operator }, c)
+            : migrateDecisionConditionValue({ ...cond, variable, operator }),
         };
       }),
     }));
@@ -3094,6 +3175,7 @@ function buildDefaultCaseWorkflow() {
   const nodes = [];
   const edges = [];
   const wf = { nodes, edges };
+  const cond = (variable, operator, value = '') => createDecisionCondition({ variable, operator, value });
 
   function place(spec) {
     const {
@@ -3180,6 +3262,7 @@ function buildDefaultCaseWorkflow() {
 
   place({ id: 'wf-start', type: 'start', label: '開始' });
   place({ id: 'wf-pp', type: 'preprocess', label: '前処理' });
+  place({ id: 'wf-d-pre', type: 'decision', label: '前処理条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-pre',
     type: 'hitl_gate',
@@ -3188,6 +3271,7 @@ function buildDefaultCaseWorkflow() {
     role: '入力オペレータ',
   });
   place({ id: 'wf-oc', type: 'ocr', label: 'OCR抽出' });
+  place({ id: 'wf-d-ocr', type: 'decision', label: 'OCR条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-ocr',
     type: 'hitl_gate',
@@ -3197,8 +3281,7 @@ function buildDefaultCaseWorkflow() {
   });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
-  place({ id: 'wf-d-final', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
-  place({ id: 'wf-n-ok', type: 'notify', label: '通知', template: 'completed' });
+  place({ id: 'wf-d-final', type: 'decision', label: 'AI検証条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-final',
     type: 'hitl_gate',
@@ -3206,30 +3289,134 @@ function buildDefaultCaseWorkflow() {
     hitlContext: 'verification',
     role: '給付審査',
   });
-  place({ id: 'wf-n-ng', type: 'notify', label: '通知', template: 'deficiency' });
+  place({ id: 'wf-d-hitl-result', type: 'decision', label: '人工確認後条件', judgmentContext: 'custom' });
+  place({ id: 'wf-n-supp', type: 'notify', label: '補件通知', template: 'deficiency' });
+  place({ id: 'wf-n-error', type: 'notify', label: '異常通知', template: 'exception' });
+  place({ id: 'wf-n-ok', type: 'notify', label: '処理完了通知', template: 'completed' });
   place({ id: 'wf-end', type: 'end', label: '終了' });
 
+  const ppVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-pp'), wf);
+  const ocrVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-oc'), wf);
   const aiVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-ai'), wf);
+  const finalHitlVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-hu-final'), wf);
+  const dPre = nodes.find((n) => n.id === 'wf-d-pre');
+  Object.assign(dPre, {
+    judgmentContext: 'custom',
+    cases: [
+      createDecisionCase('if', {
+        id: 'if',
+        label: '通過',
+        logic: 'and',
+        conditions: [
+          cond(`${ppVar}.case.preprocessStatus`, 'is', 'success'),
+          cond(`${ppVar}.files[].preprocessWarnings`, 'length_equals', '0'),
+        ],
+      }),
+    ],
+    elseLabel: '人工確認',
+  });
+
+  const dOcr = nodes.find((n) => n.id === 'wf-d-ocr');
+  Object.assign(dOcr, {
+    judgmentContext: 'custom',
+    cases: [
+      createDecisionCase('if', {
+        id: 'if',
+        label: '通過',
+        logic: 'and',
+        conditions: [
+          cond(`${ocrVar}.case.ocrStatus`, 'is', 'success'),
+          cond(`${ocrVar}.case.lowConfidenceFieldCount`, 'is', '0'),
+        ],
+      }),
+    ],
+    elseLabel: '人工確認',
+  });
+
   const dFinal = nodes.find((n) => n.id === 'wf-d-final');
   Object.assign(dFinal, {
     judgmentContext: 'custom',
-    cases: [createDecisionCase('if', { id: 'if', label: '通過', conditions: [judgmentCond(`${aiVar}.case.verifyStatus`, 'success')] })],
-    elseLabel: '要確認',
+    cases: [
+      createDecisionCase('if', {
+        id: 'if',
+        label: '通過',
+        logic: 'and',
+        conditions: [
+          cond(`${aiVar}.case.verifyStatus`, 'is', 'success'),
+          cond(`${aiVar}.case.supplementRequired`, 'is', 'false'),
+          cond(`${aiVar}.case.manualReviewRequired`, 'is', 'false'),
+        ],
+      }),
+      createDecisionCase('elif', {
+        id: 'elif-deficiency',
+        label: '補件',
+        logic: 'or',
+        conditions: [
+          cond(`${aiVar}.case.supplementRequired`, 'is', 'true'),
+          cond(`${aiVar}.case.requiredDocumentStatus`, 'is', 'missing'),
+          cond(`${aiVar}.case.requiredFieldStatus`, 'is', 'missing'),
+        ],
+      }),
+      createDecisionCase('elif', {
+        id: 'elif-error',
+        label: '異常',
+        logic: 'or',
+        conditions: [
+          cond(`${aiVar}.case.verifyStatus`, 'is', 'failed'),
+          cond(`${aiVar}.case.dataValidationStatus`, 'is', 'failed'),
+        ],
+      }),
+    ],
+    elseLabel: '人工確認',
+  });
+
+  const dHitlResult = nodes.find((n) => n.id === 'wf-d-hitl-result');
+  Object.assign(dHitlResult, {
+    judgmentContext: 'custom',
+    cases: [
+      createDecisionCase('if', {
+        id: 'if',
+        label: '確認通過',
+        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'approve')],
+      }),
+      createDecisionCase('elif', {
+        id: 'elif-edit',
+        label: '修正通過',
+        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'request_fix')],
+      }),
+      createDecisionCase('elif', {
+        id: 'elif-deficiency',
+        label: '補件',
+        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'request_supplement')],
+      }),
+    ],
+    elseLabel: '異常',
   });
 
   edges.push(
     { from: 'wf-start', to: 'wf-pp' },
-    { from: 'wf-pp', to: 'wf-hu-pre' },
+    { from: 'wf-pp', to: 'wf-d-pre' },
+    { from: 'wf-d-pre', to: 'wf-oc', branch: 'if', label: '通過', visualHidden: true },
+    { from: 'wf-d-pre', to: 'wf-hu-pre', branch: 'else', label: '人工確認' },
     { from: 'wf-hu-pre', to: 'wf-oc' },
-    { from: 'wf-oc', to: 'wf-hu-ocr' },
+    { from: 'wf-oc', to: 'wf-d-ocr' },
+    { from: 'wf-d-ocr', to: 'wf-map', branch: 'if', label: '通過', visualHidden: true },
+    { from: 'wf-d-ocr', to: 'wf-hu-ocr', branch: 'else', label: '人工確認' },
     { from: 'wf-hu-ocr', to: 'wf-map' },
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-n-ok', branch: 'if', label: '通過' },
-    { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '要確認' },
+    { from: 'wf-d-final', to: 'wf-hu-final', branch: 'elif-deficiency', label: '補件' },
+    { from: 'wf-d-final', to: 'wf-n-error', branch: 'elif-error', label: '異常' },
+    { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
+    { from: 'wf-hu-final', to: 'wf-d-hitl-result' },
+    { from: 'wf-d-hitl-result', to: 'wf-n-ok', branch: 'if', label: '確認通過' },
+    { from: 'wf-d-hitl-result', to: 'wf-n-ok', branch: 'elif-edit', label: '修正通過' },
+    { from: 'wf-d-hitl-result', to: 'wf-n-supp', branch: 'elif-deficiency', label: '補件' },
+    { from: 'wf-d-hitl-result', to: 'wf-n-error', branch: 'else', label: '異常' },
+    { from: 'wf-n-supp', to: 'wf-end' },
+    { from: 'wf-n-error', to: 'wf-end' },
     { from: 'wf-n-ok', to: 'wf-end' },
-    { from: 'wf-hu-final', to: 'wf-n-ng' },
-    { from: 'wf-n-ng', to: 'wf-end' },
   );
 
   wf.nodes = wf.nodes.map((n) => {
@@ -3249,8 +3436,8 @@ function buildDefaultCaseWorkflow() {
   layoutWorkflowGraph(wf);
 
   return {
-    nodes,
-    edges,
+    nodes: wf.nodes,
+    edges: wf.edges,
     isTemplate: true,
     templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
     startNodeId: wf.startNodeId,
@@ -3273,13 +3460,21 @@ function isDefaultCaseWorkflowTemplate(workflow) {
     && workflow?.templateVersion === CASE_WORKFLOW_TEMPLATE_VERSION;
 }
 
+function isPreviousV6CaseWorkflowTemplate(workflow) {
+  return workflowHasTemplateNodeIds(workflow, PREVIOUS_V6_CASE_WORKFLOW_TEMPLATE_NODE_IDS)
+    && !workflowHasTemplateNodeIds(workflow, ['wf-d-pre', 'wf-d-ocr', 'wf-d-hitl-result']);
+}
+
 function shouldMigrateCaseWorkflowToDefault(workflow) {
   if (!workflow?.nodes?.length) return true;
+  if (isDefaultCaseWorkflowTemplate(workflow)) return false;
   if (isLegacyCaseWorkflowTemplate(workflow)) return true;
+  if (isPreviousV6CaseWorkflowTemplate(workflow)) return true;
   if (!workflow.templateVersion || workflow.templateVersion < CASE_WORKFLOW_TEMPLATE_VERSION) {
     if (workflow.isTemplate) return true;
     return workflowHasTemplateNodeIds(workflow, DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS)
       || workflowHasTemplateNodeIds(workflow, PREVIOUS_CASE_WORKFLOW_TEMPLATE_NODE_IDS)
+      || isPreviousV6CaseWorkflowTemplate(workflow)
       || isLegacyCaseWorkflowTemplate(workflow);
   }
   return false;
@@ -3819,11 +4014,77 @@ function resolveWorkflowBranchOverlaps(branchNodes, sizes) {
   }
 }
 
+function layoutStraightCaseWorkflow(workflow, sizes) {
+  const nodes = workflow?.nodes || [];
+  if (!workflowHasTemplateNodeIds(workflow, STRAIGHT_CASE_WORKFLOW_NODE_IDS)) return false;
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  const mainIds = [
+    'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+    'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+  ];
+  const endId = 'wf-end';
+  const laneGap = 142;
+  const stepGap = 72;
+  const branchPlacements = [
+    { id: 'wf-n-ok', lane: -1 },
+    { id: 'wf-n-supp', lane: 0 },
+    { id: 'wf-n-error', lane: 1 },
+  ];
+  let x = WF_LAYOUT_PAD.x;
+  const y = WF_LAYOUT_PAD.y;
+  mainIds.forEach((id) => {
+    const node = byId[id];
+    if (!node) return;
+    const size = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
+    node.x = x;
+    node.y = y + Math.round((76 - Math.min(76, size.h)) / 2);
+    x += size.w + stepGap;
+  });
+  const resultDecision = byId['wf-d-hitl-result'];
+  const resultSize = resultDecision
+    ? (sizes.get(resultDecision.id) || getWorkflowNodeLayoutSize(resultDecision))
+    : null;
+  const terminalX = resultDecision && resultSize
+    ? resultDecision.x + resultSize.w + stepGap
+    : x + stepGap;
+  branchPlacements.forEach((placement) => {
+    const node = byId[placement.id];
+    if (!node) return;
+    const nodeSize = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
+    node.x = terminalX;
+    node.y = y + placement.lane * laneGap + Math.round((76 - Math.min(76, nodeSize.h)) / 2);
+  });
+  const endNode = byId[endId];
+  if (endNode) {
+    const endSize = sizes.get(endNode.id) || getWorkflowNodeLayoutSize(endNode);
+    const terminalIds = ['wf-n-ok', 'wf-n-supp', 'wf-n-error'];
+    const maxTerminalRight = Math.max(
+      ...terminalIds
+        .map((id) => byId[id])
+        .filter(Boolean)
+        .map((node) => node.x + (sizes.get(node.id) || getWorkflowNodeLayoutSize(node)).w),
+      x,
+    );
+    endNode.x = maxTerminalRight + stepGap;
+    endNode.y = y + Math.round((76 - Math.min(76, endSize.h)) / 2);
+  }
+  nodes
+    .filter((node) => !mainIds.includes(node.id) && node.id !== endId && !branchPlacements.some((item) => item.id === node.id))
+    .forEach((node, idx) => {
+      const size = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
+      node.x = x + idx * (size.w + stepGap);
+      node.y = y + laneGap;
+    });
+  workflow.layoutVersion = 9;
+  return true;
+}
+
 function layoutWorkflowGraph(workflow) {
   if (!workflow?.nodes?.length) return workflow;
   const nodes = workflow.nodes;
   const edges = workflow.edges || [];
   const sizes = new Map(nodes.map((n) => [n.id, getWorkflowNodeLayoutSize(n)]));
+  if (layoutStraightCaseWorkflow(workflow, sizes)) return workflow;
   const mainChain = buildWorkflowMainChain(workflow);
   const mainIds = new Set(mainChain.map((n) => n.id));
 

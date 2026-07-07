@@ -201,11 +201,18 @@ body {
 .el-button.el-button--primary:not(.is-link):not(.is-plain):not(.is-text) {
   --el-button-bg-color: var(--el-color-primary);
   --el-button-border-color: var(--el-color-primary);
+  --el-button-text-color: #fff;
   --el-button-hover-bg-color: var(--primary-hover);
   --el-button-hover-border-color: var(--primary-hover);
+  --el-button-hover-text-color: #fff;
   --el-button-active-bg-color: var(--primary-active);
   --el-button-active-border-color: var(--primary-active);
+  --el-button-active-text-color: #fff;
+  color: #fff;
   font-size: var(--app-font-size-base);
+}
+.el-button.el-button--primary:not(.is-link):not(.is-plain):not(.is-text) > span {
+  color: #fff !important;
 }
 .el-button.el-button--default:not(.is-link):not(.is-plain):not(.is-text) {
   border-color: var(--el-color-primary);
@@ -2626,6 +2633,10 @@ code.export-config-meta-value {
   flex: 1;
   min-width: 0;
 }
+.export-preview-checkbox {
+  flex-shrink: 0;
+  margin-right: 2px;
+}
 .export-config-auto-output-note {
   margin-bottom: 12px;
   padding: 10px 14px;
@@ -3029,7 +3040,7 @@ code.export-config-meta-value {
   font-weight: 700;
 }
 .export-config--step .export-preview-row--depth-1 {
-  padding-left: 30px;
+  padding-left: 26px;
 }
 .export-config--step .export-preview-label {
   font-size: 14px;
@@ -5242,7 +5253,12 @@ code.export-config-meta-value {
 .el-button--primary:not(.is-link):focus {
   background-color: var(--el-color-primary) !important;
   border-color: var(--el-color-primary) !important;
+  color: #fff !important;
   box-shadow: none !important; transform: none !important;
+}
+.el-button--primary:not(.is-link):hover > span,
+.el-button--primary:not(.is-link):focus > span {
+  color: #fff !important;
 }
 
 /* ── Master・外部データ照合 ── */
@@ -5863,6 +5879,23 @@ code.export-config-meta-value {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.wf-publish-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.wf-publish-badge.is-published {
+  background: #ecfdf3;
+  color: #039855;
 }
 .wf-toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .wf-toolbar-center {
@@ -6548,8 +6581,17 @@ body.wf-panning .idp-canvas-viewport { cursor: grabbing; }
 .wf-node-shell {
   position: absolute;
   z-index: 2;
-  cursor: default;
+  cursor: grab;
   height: auto;
+  user-select: none;
+  touch-action: none;
+}
+.wf-node-shell:active,
+body.wf-node-dragging .wf-node-shell {
+  cursor: grabbing;
+}
+body.wf-node-dragging {
+  user-select: none;
 }
 .wf-node-shell.is-selected { z-index: 3; }
 
@@ -8842,23 +8884,8 @@ body.idp-inspector-resizing * {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: var(--wf-setup-top-card-min-h);
-  box-sizing: border-box;
-}
-.wf-setup-file-split-panel--inline {
-  margin-top: 4px;
-  padding: 14px 0 0;
-  border: none;
-  border-top: 1px solid #eaecf0;
-  border-radius: 0;
-  background: transparent;
   min-height: 0;
-}
-.wf-setup-file-split-panel--inline .wf-step-card-head {
-  min-height: 30px;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  border-bottom: none;
+  box-sizing: border-box;
 }
 .wf-setup-file-split-panel.is-disabled .file-split-rule-textarea {
   opacity: 0.72;
@@ -9021,8 +9048,7 @@ body.idp-inspector-resizing * {
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  min-height: var(--wf-setup-top-card-min-h);
-  height: 100%;
+  min-height: 0;
   overflow: visible;
   position: relative;
   box-sizing: border-box;
@@ -9396,6 +9422,32 @@ body.idp-inspector-resizing * {
 }
 .case-aggregate-title-select {
   width: 100%;
+}
+.case-aggregate-title-text {
+  min-width: 0;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.case-aggregate-title-readonly {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .case-aggregate-title-select .el-select__wrapper {
   min-height: 30px;
@@ -9808,6 +9860,9 @@ body.idp-inspector-resizing * {
   font-size: 15px;
   line-height: 1.45;
   color: #667085;
+}
+.inspector-field-hint.is-warning {
+  color: #b54708;
 }
 .inspector-switch-row {
   display: flex;
