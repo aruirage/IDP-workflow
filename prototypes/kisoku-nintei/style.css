@@ -2526,6 +2526,27 @@ code.export-config-meta-value {
   gap: 8px;
   margin-top: 10px;
 }
+.export-field-bulk-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.export-field-bulk-btn {
+  border: 0;
+  background: transparent;
+  color: #175cd3;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0;
+  transition: color .16s ease;
+}
+.export-field-bulk-btn:hover {
+  color: #004eeb;
+  text-decoration: underline;
+}
 .export-config-order-hint {
   color: #667085;
   font-size: 15px;
@@ -3978,6 +3999,8 @@ code.export-config-meta-value {
 /* ── Workflow テストダイアログ ── */
 .wf-test-dialog .el-dialog__body {
   padding-top: 8px;
+  max-height: min(760px, calc(100vh - 170px));
+  overflow: hidden;
 }
 .wf-test-dialog-subtitle {
   margin: 0 0 12px;
@@ -4023,7 +4046,8 @@ code.export-config-meta-value {
   display: grid;
   grid-template-columns: minmax(400px, 46%) minmax(0, 1fr);
   gap: 16px;
-  min-height: 620px;
+  height: min(620px, calc(100vh - 285px));
+  min-height: 460px;
 }
 .wf-test-left,
 .wf-test-right {
@@ -4282,8 +4306,10 @@ code.export-config-meta-value {
 .wf-test-timeline {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px 12px 14px;
+  scroll-behavior: smooth;
 }
 .wf-test-timeline-node {
   display: flex;
@@ -4384,34 +4410,6 @@ code.export-config-meta-value {
   color: #b42318;
   font-size: 12px;
   line-height: 1.45;
-}
-.wf-test-diagnostics {
-  border-top: 1px solid #eaecf0;
-  background: #f9fafb;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.wf-test-diagnostic-row {
-  display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  font-size: 12px;
-  line-height: 1.45;
-}
-.wf-test-diagnostic-label {
-  color: #475467;
-  font-weight: 700;
-}
-.wf-test-diagnostic-text {
-  color: #667085;
-  white-space: pre-line;
-}
-.wf-test-diagnostic-row.is-error .wf-test-diagnostic-label,
-.wf-test-diagnostic-row.is-error .wf-test-diagnostic-text {
-  color: #b42318;
 }
 .reuse-field-row {
   display: grid;
@@ -12023,9 +12021,34 @@ body.idp-inspector-resizing * {
 }
 
 /* Inspector：検証モジュール开关列表 */
+.verify-inspector .ai-verify-module-switch-panel {
+  display: block;
+  padding: 0 20px 18px;
+  background: #fff;
+}
+.verify-inspector .ai-verify-module-switch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+.verify-inspector .ai-verify-module-switch-head .inspector-module-title {
+  margin: 0;
+}
+.ai-verify-module-switch-count {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
 .verify-inspector .workflow-module-toggle-list,
 .inspector-section-block__body .workflow-module-toggle-list,
 .inspector-module-card__body .workflow-module-toggle-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
   border: none;
   border-radius: 0;
   overflow: visible;
@@ -12034,10 +12057,52 @@ body.idp-inspector-resizing * {
 .verify-inspector .workflow-module-toggle-row,
 .inspector-section-block__body .workflow-module-toggle-row,
 .inspector-module-card__body .workflow-module-toggle-row {
-  padding: 14px 0;
-  min-height: 56px;
-  gap: 20px;
+  width: 100%;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+  min-height: 58px;
+  gap: 14px;
   align-items: center;
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.verify-inspector .workflow-module-toggle-row.is-enabled,
+.inspector-section-block__body .workflow-module-toggle-row.is-enabled,
+.inspector-module-card__body .workflow-module-toggle-row.is-enabled {
+  border-color: #84adff;
+  background: #f5f8ff;
+}
+.workflow-module-toggle-copy {
+  min-width: 0;
+}
+.workflow-module-toggle-switch {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: #d0d5dd;
+  padding: 2px;
+  flex: 0 0 auto;
+  transition: background .16s ease;
+}
+.workflow-module-toggle-switch.is-on {
+  background: #175cd3;
+}
+.workflow-module-toggle-knob {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .18);
+  transition: transform .16s ease;
+}
+.workflow-module-toggle-switch.is-on .workflow-module-toggle-knob {
+  transform: translateX(14px);
 }
 
 /* ── Data Mapping ルール参照（Inspector 摘要 · 无外框） ── */

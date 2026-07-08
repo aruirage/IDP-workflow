@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=536" />
+  <link rel="stylesheet" href="style.css?v=542" />
 </head>
 <body>
   <div id="app">
@@ -1751,21 +1751,30 @@
                         <el-button type="primary" link @click="switchModule('ai-verify-config')">設定ページへ →</el-button>
                       </template>
                     </inspector-module-card>
-                    <inspector-module-card title="検証モジュール">
+                    <section class="ai-verify-module-switch-panel">
+                      <div class="ai-verify-module-switch-head">
+                        <h4 class="inspector-section-block__title inspector-module-title">検証モジュール</h4>
+                        <span class="ai-verify-module-switch-count">{{ aiVerifyEnabledModuleCount }}/{{ AI_VERIFY_MODULE_OPTIONS.length }}</span>
+                      </div>
                       <div class="workflow-module-toggle-list">
-                        <div
+                        <button
                           v-for="mod in AI_VERIFY_MODULE_OPTIONS"
                           :key="'ai-module-' + mod.key"
+                          type="button"
                           class="workflow-module-toggle-row"
+                          :class="{ 'is-enabled': isAiVerifyModuleEnabled(selectedWorkflowNode, mod.key) }"
+                          @click="toggleAiVerifyModule(selectedWorkflowNode, mod.key)"
                         >
-                          <div>
+                          <div class="workflow-module-toggle-copy">
                             <span class="workflow-module-toggle-name">{{ mod.label }}</span>
                             <span class="workflow-module-toggle-meta">{{ getAiVerifyModuleRuleSummary(mod.key) }}</span>
                           </div>
-                          <el-switch v-model="selectedWorkflowNode.moduleEnabled[mod.key]" size="small" />
-                        </div>
+                          <span class="workflow-module-toggle-switch" :class="{ 'is-on': isAiVerifyModuleEnabled(selectedWorkflowNode, mod.key) }">
+                            <span class="workflow-module-toggle-knob"></span>
+                          </span>
+                        </button>
                       </div>
-                    </inspector-module-card>
+                    </section>
                   </inspector-module>
                 </div>
 
@@ -2046,6 +2055,10 @@
                           <template v-if="outputExportFieldMode === 'standard'">標準フィールド：マッピング後の標準項目を表示</template>
                           <template v-else>OCR抽出：帳票タイプ内の抽出項目を表示</template>
                         </span>
+                        <div class="export-field-bulk-actions">
+                          <button type="button" class="export-field-bulk-btn" @click="setActiveOutputFieldsChecked(true)">全選択</button>
+                          <button type="button" class="export-field-bulk-btn" @click="setActiveOutputFieldsChecked(false)">全解除</button>
+                        </div>
                       </div>
                     </div>
 
@@ -2343,12 +2356,13 @@
             <p v-else class="wf-test-result-hint">案件集約完了後、Workflow ノードを順に実行します</p>
           </div>
 
-          <div class="wf-test-timeline">
+          <div ref="workflowTestTimelineRef" class="wf-test-timeline">
             <button
               v-for="(step, index) in workflowTestStepRows"
               :key="step.id"
               type="button"
               class="wf-test-timeline-node"
+              :data-step-id="step.id"
               :class="[
                 'is-' + getWorkflowTestStepDisplayStatus(step),
                 { 'is-selected': workflowTestSelectedStep && workflowTestSelectedStep.id === step.id },
@@ -2368,18 +2382,6 @@
                 <p v-if="step.errorReason" class="wf-test-step-error">{{ step.errorReason }}</p>
               </div>
             </button>
-          </div>
-
-          <div v-if="workflowTestDiagnostics" class="wf-test-diagnostics">
-            <div
-              v-for="item in getWorkflowTestDiagnosticRows(workflowTestDiagnostics)"
-              :key="item.key"
-              class="wf-test-diagnostic-row"
-              :class="{ 'is-error': item.status === 'error' }"
-            >
-              <span class="wf-test-diagnostic-label">{{ item.label }}</span>
-              <span class="wf-test-diagnostic-text">{{ item.text }}</span>
-            </div>
           </div>
         </section>
       </div>
@@ -2683,8 +2685,8 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
   <script src="scripts/workflow-core.js?v=515"></script>
-  <script src="scripts/mock-data.js?v=498"></script>
+  <script src="scripts/mock-data.js?v=501"></script>
   <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=525"></script>
+  <script src="main.js?v=529"></script>
 </body>
 </html>

@@ -202,6 +202,7 @@ const OUTPUT_DEFAULTS = {
   exportReviewRole: '案件担当者',
   templateLocked: true,
   exportStandardFieldIds: [],
+  exportStandardFieldIdsInitialized: false,
   exportStandardFieldOrderByDoc: {},
   exportFieldModeByDoc: {},
   masterMatchExports: [],
@@ -1938,13 +1939,35 @@ function workflowTestStepErrorReason(step, caseType) {
   return '';
 }
 
+function getWorkflowTestReachableNodeIds(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  if (!wf.nodes?.length) return [];
+  const nodeMap = Object.fromEntries(wf.nodes.map((node) => [node.id, node]));
+  const start = (typeof getWorkflowStartNode === 'function' ? getWorkflowStartNode(wf) : null) || wf.nodes[0];
+  const visited = new Set();
+  const ids = [];
+  const queue = [start.id];
+  while (queue.length) {
+    const id = queue.shift();
+    if (!id || visited.has(id) || !nodeMap[id]) continue;
+    visited.add(id);
+    ids.push(id);
+    (wf.edges || [])
+      .filter((edge) => edge.from === id && !edge.visualHidden)
+      .forEach((edge) => queue.push(edge.to));
+  }
+  return ids;
+}
+
 function buildWorkflowTestSteps(workflow, caseType = 'normal') {
   const wf = workflow || { nodes: [], edges: [] };
-  const chainIds = typeof getWorkflowMainChainIds === 'function'
-    ? getWorkflowMainChainIds(wf)
-    : (wf.nodes || []).map((node) => node.id);
+  const chainIds = getWorkflowTestReachableNodeIds(wf);
   const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
-  const wfSteps = chainIds.map((id) => {
+  const orderedChainIds = [
+    ...chainIds.filter((id) => nodeMap[id]?.type !== 'end'),
+    ...chainIds.filter((id) => nodeMap[id]?.type === 'end'),
+  ];
+  const wfSteps = orderedChainIds.map((id) => {
     const node = nodeMap[id] || {};
     return {
       id,
@@ -1955,6 +1978,7 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
     };
   });
   const allSteps = [...WORKFLOW_TEST_SYSTEM_STEPS, ...wfSteps];
+  const hitlIssues = Object.fromEntries(validateWorkflowTestHitlContext(wf).map((issue) => [issue.nodeId, issue.message]));
   const errorStepId = caseType === 'abnormal'
     ? (allSteps.find((step) => step.type === 'ocr')?.id
       || allSteps.find((step) => step.type === 'ai_verify')?.id
@@ -1963,8 +1987,7 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
   const warningStepId = caseType === 'supplement'
     ? allSteps.find((step) => step.type === 'ai_verify')?.id
     : (caseType === 'abnormal' ? allSteps.find((step) => step.phase === 'aggregate')?.id : '');
-  const skippedTypes = new Set(caseType === 'normal' ? ['hitl_gate'] : []);
-  const waitingHumanTypes = new Set(['hitl_gate']);
+  const skippedTypes = new Set(['hitl_gate']);
 
   return allSteps.map((step) => {
     let status = 'success';
@@ -1972,6 +1995,7 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
     if (step.id === warningStepId && caseType !== 'abnormal') status = 'warning';
     if (step.id === warningStepId && caseType === 'abnormal' && step.phase === 'aggregate') status = 'warning';
     if (step.id === errorStepId) status = 'error';
+    if (hitlIssues[step.id]) status = 'error';
     if (status === 'error' && errorStepId) {
       const errorIndex = allSteps.findIndex((item) => item.id === errorStepId);
       const stepIndex = allSteps.findIndex((item) => item.id === step.id);
@@ -1981,23 +2005,27 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
       ...step,
       status,
       summary: status === 'pending' ? '未実行' : workflowTestStepResultText(step, caseType),
-      errorReason: status === 'error' ? workflowTestStepErrorReason(step, caseType) : '',
-      needsHuman: waitingHumanTypes.has(step.type) && status !== 'pending' && status !== 'skipped',
+      errorReason: hitlIssues[step.id] || (status === 'error' ? workflowTestStepErrorReason(step, caseType) : ''),
+      needsHuman: false,
     };
   });
 }
 
-function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_TEST_DEFAULT_ZIP, diagnostics = null) {
+function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_TEST_DEFAULT_ZIP) {
   const list = steps || [];
   const passed = list.filter((step) => ['success', 'skipped', 'warning'].includes(step.status)).length;
   const hasError = list.some((step) => step.status === 'error');
-  const hasDiagnosticError = diagnostics?.hasError === true;
   const hasWarning = list.some((step) => step.status === 'warning');
+  const endStep = [...list].reverse().find((step) => step.type === 'end');
+  const reachedEnd = !!endStep && ['success', 'warning', 'skipped'].includes(endStep.status);
   let overallStatus = 'success';
   let overallLabel = '成功';
-  if (hasError || hasDiagnosticError) {
+  if (hasError) {
     overallStatus = 'error';
     overallLabel = '失敗';
+  } else if (!reachedEnd) {
+    overallStatus = 'error';
+    overallLabel = '終了未到達';
   } else if (hasWarning || caseType === 'supplement') {
     overallStatus = 'warning';
     overallLabel = '要確認';
@@ -2011,6 +2039,7 @@ function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_
     totalCount: list.length,
     uploadFileCount: upload.fileCount,
     caseCount: aggregate.cases?.length || 0,
+    reachedEnd,
   };
 }
 
@@ -2062,7 +2091,10 @@ function validateWorkflowTestHitlContext(workflow) {
       const sourceLabels = sources.length
         ? sources.map((source) => source.label || source.type).join('、')
         : '上流ノードなし';
-      issues.push(`${node.label || '人工確認'}：コンテキスト「${rule.label}」に対して、上流が ${sourceLabels} です。前処理/OCR/AI検証以外、または一致しない上流から人工確認へ接続されています。`);
+      issues.push({
+        nodeId: node.id,
+        message: `${node.label || '人工確認'}：コンテキスト「${rule.label}」に対して、上流が ${sourceLabels} です。前処理/OCR/AI検証以外、または一致しない上流から人工確認へ接続されています。`,
+      });
     }
   });
   return issues;
@@ -2080,7 +2112,7 @@ function buildWorkflowTestDiagnostics(workflow) {
       ? 'IF/ELSE 分岐先・入力値・型不一致は検出されませんでした。'
       : '条件分岐ノードがないため、分岐チェックをスキップしました。',
     hitlContext: hitlIssues.length
-      ? hitlIssues.join('\n')
+      ? hitlIssues.map((issue) => issue.message).join('\n')
       : '人工確認コンテキストと上流ノードの不一致は検出されませんでした。',
     hasError: hitlIssues.length > 0,
   };

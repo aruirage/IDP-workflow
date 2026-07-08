@@ -29,6 +29,7 @@ const appOptions = {
     const workflowSetupStep = ref(2);
     const workflowTestDialogVisible = ref(false);
     const workflowTestRunning = ref(false);
+    const workflowTestTimelineRef = ref(null);
     let workflowTestRunTimer = null;
     const workflowTestDraft = reactive({
       caseType: 'normal',
@@ -39,7 +40,6 @@ const appOptions = {
       steps: [],
       summary: null,
       artifacts: null,
-      diagnostics: null,
     });
     const sceneSetupMode = ref('create');
     const sceneSetupDraft = reactive({
@@ -142,6 +142,8 @@ const appOptions = {
       ['テーブル', '表格'],
       ['全 ', '共 '],
       [' フィールド', ' 个字段'],
+      ['全選択', '全选中'],
+      ['全解除', '全解除'],
       ['処理完了通知', '处理完成通知'],
       ['異常通知', '异常通知'],
       ['不備通知', '补件通知'],
@@ -150,6 +152,7 @@ const appOptions = {
       ['異常', '异常'],
       ['成功', '成功'],
       ['失敗', '失败'],
+      ['終了未到達', '未到达终了节点'],
       ['未実行', '未执行'],
       ['実行中', '执行中'],
       ['要確認', '待确认'],
@@ -6986,6 +6989,19 @@ const appOptions = {
       return count ? `${count} 件` : 'ルール未設定';
     }
 
+    function isAiVerifyModuleEnabled(node, key) {
+      if (!node || node.type !== 'ai_verify') return false;
+      return node.moduleEnabled?.[key] !== false;
+    }
+
+    function toggleAiVerifyModule(node, key) {
+      if (!node || node.type !== 'ai_verify') return;
+      if (!node.moduleEnabled) node.moduleEnabled = {};
+      node.moduleEnabled[key] = !isAiVerifyModuleEnabled(node, key);
+      pushWorkflowHistory('AI検証モジュールを変更');
+      nextTick(() => applyUiLanguage());
+    }
+
     const aiVerifyEnabledModuleCount = computed(() => {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'ai_verify') return 0;
@@ -7609,6 +7625,21 @@ const appOptions = {
       return buildExportOcrFieldRows(docType, doc, matchRules);
     }
 
+    function isExportStandardFieldSelectionInitialized() {
+      return form.output.exportStandardFieldIdsInitialized === true;
+    }
+
+    function markExportStandardFieldSelectionInitialized() {
+      form.output.exportStandardFieldIdsInitialized = true;
+    }
+
+    function getDefaultExportStandardFieldIds() {
+      return getAllExportStandardFieldRows()
+        .filter((row) => row.checked !== false)
+        .map((row) => row.standardFieldId)
+        .filter(Boolean);
+    }
+
     function getAllExportStandardFieldRows() {
       const matchRules = primaryMasterMatchNode.value?.matchRules || [];
       return (form.output.docFields || []).flatMap((doc) =>
@@ -7637,17 +7668,15 @@ const appOptions = {
       const rows = getExportRowsForDocMode(docType, 'standard');
       const rowIds = rows.map((row) => row.standardFieldId).filter(Boolean);
       let ids = [...(form.output.exportStandardFieldIds || [])];
-      if (!ids.length) {
-        ids = getAllExportStandardFieldRows()
-          .filter((row) => row.checked !== false)
-          .map((row) => row.standardFieldId)
-          .filter(Boolean);
+      if (!isExportStandardFieldSelectionInitialized()) {
+        ids = getDefaultExportStandardFieldIds();
       }
       const next = new Set(ids);
       rowIds.forEach((id) => {
         if (checked) next.add(id);
         else next.delete(id);
       });
+      markExportStandardFieldSelectionInitialized();
       form.output.exportStandardFieldIds = [...next];
     }
 
@@ -7773,17 +7802,16 @@ const appOptions = {
 
     function isExportStandardFieldChecked(row) {
       const ids = form.output.exportStandardFieldIds || [];
-      if (!ids.length) return row.checked;
+      if (!isExportStandardFieldSelectionInitialized()) return row.checked !== false;
       return ids.includes(row.standardFieldId);
     }
 
     function toggleExportStandardField(row, checked) {
       let ids = [...(form.output.exportStandardFieldIds || [])];
-      if (!ids.length) {
-        ids = activeOutputExportRows.value
-          .filter((item) => item.checked)
-          .map((item) => item.standardFieldId);
+      if (!isExportStandardFieldSelectionInitialized()) {
+        ids = getDefaultExportStandardFieldIds();
       }
+      markExportStandardFieldSelectionInitialized();
       if (checked) {
         if (!ids.includes(row.standardFieldId)) ids.push(row.standardFieldId);
       } else {
@@ -7794,6 +7822,7 @@ const appOptions = {
 
     function setActiveExportStandardFieldsChecked(checked) {
       const rows = activeOutputExportRows.value;
+      markExportStandardFieldSelectionInitialized();
       form.output.exportStandardFieldIds = checked
         ? rows.map((row) => row.standardFieldId)
         : [];
@@ -8040,6 +8069,26 @@ const appOptions = {
       ElementPlus.ElMessage.success('テストファイルを選択しました');
     }
 
+    function scrollWorkflowTestStepIntoView(stepId) {
+      if (!stepId) return;
+      Vue.nextTick(() => {
+        const container = workflowTestTimelineRef.value;
+        if (!container) return;
+        const target = Array.from(container.querySelectorAll('[data-step-id]'))
+          .find((el) => el.dataset.stepId === stepId);
+        if (!target) return;
+        const targetTop = target.offsetTop;
+        const targetBottom = targetTop + target.offsetHeight;
+        const viewTop = container.scrollTop;
+        const viewBottom = viewTop + container.clientHeight;
+        if (targetTop < viewTop + 12) {
+          container.scrollTo({ top: Math.max(0, targetTop - 12), behavior: 'smooth' });
+        } else if (targetBottom > viewBottom - 12) {
+          container.scrollTo({ top: targetBottom - container.clientHeight + 12, behavior: 'smooth' });
+        }
+      });
+    }
+
     function runWorkflowTest() {
       if (workflowTestRunning.value) return;
       const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.caseType);
@@ -8051,7 +8100,6 @@ const appOptions = {
         needsHuman: false,
       }));
       workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.caseType);
-      workflowTestDraft.diagnostics = buildWorkflowTestDiagnostics(getActiveWf());
       workflowTestDraft.hasRun = true;
       workflowTestRunning.value = true;
       workflowTestDraft.runningStepId = '';
@@ -8066,7 +8114,6 @@ const appOptions = {
             workflowTestDraft.steps,
             workflowTestDraft.caseType,
             workflowTestDraft.artifacts?.upload,
-            workflowTestDraft.diagnostics,
           );
           workflowTestDraft.selectedStepId = workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
             || workflowTestDraft.selectedStepId;
@@ -8077,6 +8124,7 @@ const appOptions = {
         const target = steps[index];
         workflowTestDraft.runningStepId = target.id;
         workflowTestDraft.selectedStepId = target.id;
+        scrollWorkflowTestStepIntoView(target.id);
         index += 1;
         window.setTimeout(() => {
           const finalized = steps[index - 1];
@@ -8119,22 +8167,6 @@ const appOptions = {
     const workflowTestNeedsHumanContinue = computed(() =>
       workflowTestStepRows.value.some((step) => step.needsHuman
         && ['success', 'warning', 'skipped'].includes(step.status)));
-    const workflowTestDiagnostics = computed(() => workflowTestDraft.diagnostics || {
-      variableRefs: '—',
-      branchChecks: '—',
-      hitlContext: '—',
-      hasError: false,
-    });
-
-    function getWorkflowTestDiagnosticRows(diagnostics) {
-      const d = diagnostics || {};
-      return [
-        { key: 'variableRefs', label: '変数参照', text: d.variableRefs || '—', status: 'ok' },
-        { key: 'branchChecks', label: '条件分岐', text: d.branchChecks || '—', status: 'ok' },
-        { key: 'hitlContext', label: '人工確認コンテキスト', text: d.hitlContext || '—', status: d.hasError ? 'error' : 'ok' },
-      ];
-    }
-
     function resetWorkflowTestProgress() {
       workflowTestDraft.hasRun = false;
       workflowTestDraft.runningStepId = '';
@@ -8152,9 +8184,8 @@ const appOptions = {
       const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.caseType);
       workflowTestDraft.steps = steps;
       workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.caseType);
-      workflowTestDraft.diagnostics = buildWorkflowTestDiagnostics(getActiveWf());
       workflowTestDraft.summary = workflowTestDraft.hasRun
-        ? buildWorkflowTestSummary(steps, workflowTestDraft.caseType, workflowTestDraft.artifacts?.upload, workflowTestDraft.diagnostics)
+        ? buildWorkflowTestSummary(steps, workflowTestDraft.caseType, workflowTestDraft.artifacts?.upload)
         : null;
       if (!workflowTestDraft.selectedStepId && steps[0]) {
         workflowTestDraft.selectedStepId = steps[0].id;
@@ -8171,6 +8202,7 @@ const appOptions = {
 
     function selectWorkflowTestStep(stepId) {
       workflowTestDraft.selectedStepId = stepId;
+      scrollWorkflowTestStepIntoView(stepId);
     }
 
     function getWorkflowTestStepDisplayStatus(step) {
@@ -8284,6 +8316,7 @@ const appOptions = {
       form,
       workflowTestDialogVisible,
       workflowTestRunning,
+      workflowTestTimelineRef,
       workflowTestDraft,
       workflowTestStepRows,
       workflowTestSummary,
@@ -8291,8 +8324,6 @@ const appOptions = {
       workflowTestSelectedStep,
       workflowTestNodeDetail,
       workflowTestNeedsHumanContinue,
-      workflowTestDiagnostics,
-      getWorkflowTestDiagnosticRows,
       scenes,
       nodes,
       extractFields,
@@ -9035,6 +9066,8 @@ const appOptions = {
       sealRuleCount,
       AI_VERIFY_MODULE_OPTIONS,
       getAiVerifyModuleRuleSummary,
+      isAiVerifyModuleEnabled,
+      toggleAiVerifyModule,
       aiVerifyEnabledModuleCount,
       aiVerifyConfiguredRuleCount,
       sealRuleDisplayText,
