@@ -214,19 +214,27 @@ const appOptions = {
       ['サイズ', '大小'],
       ['信頼度', '置信度'],
       ['参照変数', '参照变量'],
+      ['入力パラメータ', '输入参数'],
       ['固定入力パラメータ', '固定输入参数'],
       ['Python スクリプト', 'Python 脚本'],
       ['出力パラメータ', '输出参数'],
+      ['スクリプトへ渡す引数を定義します。参照パラメータまたはカスタム値を選択できます。', '定义传给脚本的参数。可选择参照参数或自定义值。'],
       ['上流ノードの出力変数を JSON として Python 関数へ渡します。', '将上游节点输出变量作为 JSON 传给 Python 函数。'],
       ['必要な固定値だけ追加します。上流変数は上の JSON から参照します。', '只添加必要的固定值。上游变量从上方 JSON 参照。'],
       ['main(inputs) 関数を実装します。', '实现 main(inputs) 函数。'],
       ['戻り値の項目名とデータ型を定義します。', '定义返回值的字段名和数据类型。'],
+      ['入力パラメータがありません', '没有输入参数'],
       ['固定入力パラメータがありません', '没有固定输入参数'],
       ['出力パラメータがありません', '没有输出参数'],
       ['パラメータ名', '参数名'],
       ['データ型', '数据类型'],
+      ['ソース', '来源'],
+      ['参照パラメータ', '参照参数'],
+      ['カスタム', '自定义'],
       ['カスタム値', '自定义值'],
+      ['上流ノードの出力変数を選択', '选择上游节点输出变量'],
       ['固定値を入力', '输入固定值'],
+      ['（参照パラメータ未設定）', '（未设置参照参数）'],
       ['必須', '必填'],
       ['文字列', '字符串'],
       ['整数', '整数'],
@@ -1933,29 +1941,6 @@ const appOptions = {
       }
     }
 
-    const codeVariableOptions = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code') return [];
-      return buildCodeVariableOptions(getActiveWf(), node.id, form.verify);
-    });
-
-    const codeVariableOptionGroups = computed(() =>
-      getDecisionVariableOptionGroups(codeVariableOptions.value));
-
-    const codeVariableCascaderOptions = computed(() =>
-      codeVariableOptionGroups.value.map((group) => ({
-        id: `node:${group.id || group.label}`,
-        text: group.label,
-        items: group.options.map((opt) => ({
-          id: opt.value,
-          text: getDecisionVariableSecondaryLabel(opt),
-          title: [getDecisionVariableSecondaryLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
-          scope: opt.scope || '',
-          dataType: opt.dataType || '',
-          description: opt.description || opt.label || '',
-        })),
-      })));
-
     function normalizeWorkflowVariableCategory(opt = {}) {
       const value = String(opt.value || opt.id || '');
       const label = String(opt.label || opt.displayName || '');
@@ -1970,26 +1955,6 @@ const appOptions = {
       }
       return { key: 'case', label: '案件変数' };
     }
-
-    const codeVariableJsonText = computed(() => {
-      const grouped = {
-        案件変数: {},
-        ファイル変数: {},
-        帳票タイプ変数: {},
-      };
-      codeVariableOptions.value.forEach((opt) => {
-        const category = normalizeWorkflowVariableCategory(opt);
-        const nodeLabel = opt.group || opt.nodeLabel || opt.varName || '上流ノード';
-        if (!grouped[category.label][nodeLabel]) grouped[category.label][nodeLabel] = {};
-        const key = opt.displayName || String(opt.value || '').split('.').pop() || opt.label;
-        grouped[category.label][nodeLabel][key] = {
-          path: opt.value,
-          type: opt.dataType || opt.type || 'Object',
-          description: opt.description || opt.label || '',
-        };
-      });
-      return JSON.stringify(grouped, null, 2);
-    });
 
     const codeParamDialogVisible = ref(false);
     const codeParamDialogMode = ref('input');
@@ -2008,8 +1973,20 @@ const appOptions = {
       const draft = codeParamDialogDraft.value;
       if (!draft?.name?.trim()) return false;
       if (codeParamDialogMode.value === 'output') return true;
+      if (draft.source === 'reference') return true;
       return !!(draft.customValue || '').trim();
     });
+
+    function onCodeParamSourceChange(source) {
+      const draft = codeParamDialogDraft.value;
+      if (!draft) return;
+      if (source === 'reference') {
+        draft.customValue = '';
+        draft.variable = '';
+      } else {
+        draft.variable = '';
+      }
+    }
 
     function openCodeParamDialog(mode = 'input', row = null) {
       const node = selectedWorkflowNode.value;
@@ -2034,9 +2011,9 @@ const appOptions = {
           id: row.id,
           name: row.name,
           dataType: row.dataType || 'string',
-          source: 'custom',
+          source: row.source === 'custom' ? 'custom' : 'reference',
           required: row.required !== false,
-          variable: '',
+          variable: row.variable || '',
           customValue: row.customValue || '',
         };
       } else {
@@ -2075,9 +2052,9 @@ const appOptions = {
         id: draft.id || newRuleId('cin'),
         name: draft.name.trim(),
         dataType: draft.dataType,
-        source: 'custom',
+        source: draft.source === 'custom' ? 'custom' : 'reference',
         required: draft.required,
-        variable: '',
+        variable: draft.variable || '',
         customValue: draft.customValue || '',
       }, node.inputs.length);
       const idx = node.inputs.findIndex((r) => r.id === draft.id);
@@ -5711,7 +5688,7 @@ const appOptions = {
           const normalized = normalizeCodeNode(node, getActiveWf());
           const tags = ['Python'];
           const inCount = normalized.inputs?.length || 0;
-          if (inCount) tags.push(`固定入力 ${inCount}`);
+          if (inCount) tags.push(`入力 ${inCount}`);
           const lines = String(normalized.pythonCode || '').split('\n').length;
           tags.push(`${lines}行`);
           return tags;
@@ -5817,7 +5794,7 @@ const appOptions = {
         case 'code': {
           const normalized = normalizeCodeNode(node, getActiveWf());
           const inCount = normalized.inputs?.length || 0;
-          return joinWorkflowSummary(reusePrefix, 'Python', inCount ? `固定入力${inCount}` : null);
+          return joinWorkflowSummary(reusePrefix, 'Python', inCount ? `入力${inCount}` : null);
         }
         default: {
           const tasks = getWorkflowNodeActiveTasks(node);
@@ -8531,10 +8508,6 @@ const appOptions = {
       CODE_PARAM_SOURCES,
       CODE_OUTPUT_TYPES,
       DEFAULT_CODE_PYTHON,
-      codeVariableOptions,
-      codeVariableOptionGroups,
-      codeVariableCascaderOptions,
-      codeVariableJsonText,
       codeParamDialogVisible,
       codeParamDialogMode,
       codeParamDialogDraft,
@@ -8547,6 +8520,7 @@ const appOptions = {
       getCodeParamDataTypeLabel,
       getCodeParamSourceLabel,
       formatCodeInputRowDisplay,
+      onCodeParamSourceChange,
       addCodeInputRow,
       addCodeOutputRow,
       removeCodeInputRow,

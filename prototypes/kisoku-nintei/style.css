@@ -12366,33 +12366,3 @@ body.idp-inspector-resizing * {
   color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
 }
-.code-variable-json-box {
-  border: 1px solid #e4e7ec;
-  border-radius: 8px;
-  background: #0f172a;
-  overflow: hidden;
-}
-.code-variable-json-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
-  font-size: 12px;
-  font-weight: 600;
-}
-.code-variable-json {
-  margin: 0;
-  max-height: 260px;
-  overflow: auto;
-  padding: 10px;
-  color: #e2e8f0;
-  font-size: 11px;
-  line-height: 1.55;
-  white-space: pre;
-}
-.code-variable-json code {
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-}

@@ -1721,16 +1721,7 @@
                 <!-- カスタム関数（Python） -->
                 <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="参照変数" desc="上流ノードの出力変数を JSON として Python 関数へ渡します。">
-                      <div class="code-variable-json-box">
-                        <div class="code-variable-json-head">
-                          <span>inputs</span>
-                          <span>{{ codeVariableOptions.length }} 変数</span>
-                        </div>
-                        <pre class="code-variable-json"><code>{{ codeVariableJsonText }}</code></pre>
-                      </div>
-                    </inspector-module-card>
-                    <inspector-module-card title="固定入力パラメータ" desc="必要な固定値だけ追加します。上流変数は上の JSON から参照します。">
+                    <inspector-module-card title="入力パラメータ" desc="スクリプトへ渡す引数を定義します。">
                       <template #action>
                         <el-button type="primary" link @click="addCodeInputRow">+ 追加</el-button>
                       </template>
@@ -1739,8 +1730,9 @@
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}</span>
                             <span class="code-param-list-tag">{{ getCodeParamDataTypeLabel(row.dataType) }}</span>
+                            <span class="code-param-list-tag">{{ getCodeParamSourceLabel(row.source) }}</span>
                             <span v-if="row.required" class="code-param-list-tag code-param-list-tag--req">必須</span>
-                            <code class="code-param-list-value">{{ formatCodeInputRowDisplay(row) }}</code>
+                            <code v-if="row.source === 'custom'" class="code-param-list-value">{{ formatCodeInputRowDisplay(row) }}</code>
                           </div>
                           <div class="code-param-list-actions">
                             <el-button type="primary" link @click="openCodeParamDialog('input', row)">編集</el-button>
@@ -1748,7 +1740,6 @@
                           </div>
                         </li>
                       </ul>
-                      <p v-else class="verify-empty">固定入力パラメータがありません</p>
                     </inspector-module-card>
                     <inspector-module-card title="Python スクリプト" desc="main(inputs) 関数を実装します。">
                       <div class="inspector-field">
@@ -1785,10 +1776,9 @@
                     </inspector-module-card>
                     <inspector-module-card title="出力設定" desc="後続ノードへ公開する戻り値を制御します。">
                       <div class="inspector-switch-row">
-                        <label class="inspector-field-label">ユーザーへ出力</label>
+                        <inspector-field-label label="ユーザーへ出力" :hint="INSPECTOR_HINTS.codeReturn"></inspector-field-label>
                         <el-switch v-model="selectedWorkflowNode.returnContent" @change="onCodeFieldChange" />
                       </div>
-                      <p v-if="!selectedWorkflowNode.returnContent" class="inspector-field-hint">OFF の場合、ユーザー定義の戻り値は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。</p>
                     </inspector-module-card>
                   </inspector-module>
                 </div>
@@ -2449,9 +2439,6 @@
           </div>
         </section>
       </div>
-      <template #footer>
-        <el-button @click="workflowTestDialogVisible = false">閉じる</el-button>
-      </template>
     </el-dialog>
 
     <el-dialog
@@ -2723,6 +2710,21 @@
         </div>
         <template v-if="codeParamDialogMode === 'input'">
           <div class="inspector-field">
+            <inspector-field-label label="ソース" :hint="INSPECTOR_HINTS.codeParamSource"></inspector-field-label>
+            <el-select
+              v-model="codeParamDialogDraft.source"
+              class="inspector-field-control"
+              @change="onCodeParamSourceChange"
+            >
+              <el-option
+                v-for="opt in CODE_PARAM_SOURCES"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </div>
+          <div v-if="codeParamDialogDraft.source === 'custom'" class="inspector-field">
             <inspector-field-label label="カスタム値" :hint="INSPECTOR_HINTS.codeParamCustom"></inspector-field-label>
             <el-input
               v-model="codeParamDialogDraft.customValue"
@@ -2748,9 +2750,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=515"></script>
+  <script src="scripts/workflow-core.js?v=516"></script>
   <script src="scripts/mock-data.js?v=501"></script>
   <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=535"></script>
+  <script src="main.js?v=536"></script>
 </body>
 </html>

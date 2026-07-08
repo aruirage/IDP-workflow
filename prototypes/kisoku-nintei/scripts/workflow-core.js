@@ -135,12 +135,12 @@ const INSPECTOR_HINTS = {
   code: 'Python スクリプトで上流変数を加工し、後続ノードへ結果を渡します。入力パラメータ・戻り値の定義は本パネルで設定します。',
   codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」からパラメータを登録できます。',
   codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は {ノード変数名.result} へ格納されます。',
-  codeReturn: 'OFF の場合 result は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。',
+  codeReturn: 'OFF の場合、ユーザー定義の戻り値は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。',
   codeOutput: 'スクリプト戻り値の各項目名とデータ型を定義します。後続ノードでは {ノード変数名.項目名} 形式で参照できます。',
   codeParamName: 'スクリプト内で参照する引数の名前です。64 文字以内で指定します。',
   codeParamDataType: '引数または出力値のデータ型を選択します。',
-  codeParamSource: '上流ノードの出力変数は参照変数 JSON から自動で渡されます。ここでは固定値だけを追加します。',
-  codeParamReference: '上流ノードの出力変数は参照変数 JSON から自動で渡されます。',
+  codeParamSource: '参照パラメータは上流変数プール JSON を実行時に自動注入します。カスタムは固定値を直接入力します。',
+  codeParamReference: '上流変数プール JSON を実行時に自動注入します。',
   codeParamCustom: '固定値としてスクリプトへ渡す値を入力します。',
   codeParamRequired: '必須にすると、値が未設定の場合は実行時にエラーとして扱われます。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
@@ -2184,7 +2184,8 @@ const CODE_PARAM_DATA_TYPES = [
 ];
 
 const CODE_PARAM_SOURCES = [
-  { value: 'custom', label: '固定値' },
+  { value: 'reference', label: '参照パラメータ' },
+  { value: 'custom', label: 'カスタム' },
 ];
 
 /** @deprecated use CODE_PARAM_DATA_TYPES */
@@ -2201,12 +2202,12 @@ function getCodeParamDataTypeLabel(value) {
 }
 
 function getCodeParamSourceLabel(value) {
-  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '固定値';
+  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '参照パラメータ';
 }
 
 const DEFAULT_CODE_PYTHON = `def main(inputs: dict) -> dict:
     """
-    inputs: 上流ノードの出力変数と固定入力パラメータをまとめた dict
+    inputs: 参照パラメータとカスタム値をまとめた dict
     戻り値は {result} に格納されます
     """
     return inputs
@@ -2217,7 +2218,7 @@ function createCodeInputRow(index = 0) {
     id: newRuleId('cin'),
     name: `input_${index + 1}`,
     dataType: 'string',
-    source: 'custom',
+    source: 'reference',
     required: true,
     variable: '',
     customValue: '',
@@ -2236,7 +2237,7 @@ function createCodeParamDialogDraft(mode = 'input') {
     id: '',
     name: '',
     dataType: 'string',
-    source: 'custom',
+    source: 'reference',
     required: true,
     variable: '',
     customValue: '',
@@ -2244,14 +2245,15 @@ function createCodeParamDialogDraft(mode = 'input') {
 }
 
 function normalizeCodeInputRow(row, index = 0) {
+  const source = row?.source === 'custom' ? 'custom' : 'reference';
   return {
     id: row?.id || newRuleId('cin'),
     name: (row?.name || '').trim() || `input_${index + 1}`,
     dataType: migrateCodeDataType(row?.dataType || row?.type || 'string'),
-    source: 'custom',
+    source,
     required: row?.required !== false,
-    variable: '',
-    customValue: row?.customValue != null ? String(row.customValue) : '',
+    variable: source === 'reference' ? (row?.variable || '') : '',
+    customValue: source === 'custom' && row?.customValue != null ? String(row.customValue) : '',
   };
 }
 
@@ -2301,7 +2303,7 @@ function formatCodeInputRowDisplay(row) {
     const val = (row.customValue || '').trim();
     return val || '（カスタム値未設定）';
   }
-  return formatCodeInputVariableToken(row.variable);
+  return '';
 }
 
 function migrateHitlDecisionsInWorkflow(workflow) {
