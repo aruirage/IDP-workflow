@@ -666,7 +666,8 @@ const appOptions = {
 
     function translateUiAttribute(el, attr) {
       if (!el.hasAttribute(attr)) return;
-      const originalKey = `i18nOriginal${attr.charAt(0).toUpperCase()}${attr.slice(1)}`;
+      const safeAttr = attr.replace(/[^a-zA-Z0-9_]/g, '_');
+      const originalKey = `i18nOriginal${safeAttr.charAt(0).toUpperCase()}${safeAttr.slice(1)}`;
       if (!el.dataset[originalKey]) el.dataset[originalKey] = el.getAttribute(attr) || '';
       el.setAttribute(attr, uiLanguage.value === 'zh'
         ? translateUiString(el.dataset[originalKey])
@@ -2270,12 +2271,15 @@ const appOptions = {
       return lib?.label || getWorkflowNodeMeta(node?.type).title || 'ノード設定';
     });
 
-    const INSPECTOR_NODES_WITH_HEAD_HINT = new Set(['data_mapping', 'ai_verify']);
+    const INSPECTOR_NODES_WITH_HEAD_HINT = new Set(['data_mapping', 'ai_verify', 'verify']);
 
     const inspectorHeadHint = computed(() => {
       if (inspectorMode.value !== 'node') return '';
       if (!INSPECTOR_NODES_WITH_HEAD_HINT.has(inspectorPanel.value)) return '';
-      const hintKey = INSPECTOR_HEAD_HINT_KEYS[inspectorPanel.value];
+      const panelKey = inspectorPanel.value === 'verify' && selectedWorkflowNode.value?.type === 'ai_verify'
+        ? 'ai_verify'
+        : inspectorPanel.value;
+      const hintKey = INSPECTOR_HEAD_HINT_KEYS[panelKey];
       return hintKey ? (INSPECTOR_HINTS[hintKey] || '') : '';
     });
 
@@ -6301,6 +6305,11 @@ const appOptions = {
       return (node?.mappingRules || []).filter((rule) => rule.conflictCheckEnabled).length;
     });
 
+    function getEnabledDataMappingConflictRuleCount(node = null) {
+      const target = node || getActiveDataMappingNode();
+      return (target?.mappingRules || []).filter((rule) => rule.conflictCheckEnabled).length;
+    }
+
     function getMasterMatchInputSourceLabel(value) {
       return MASTER_MATCH_INPUT_SOURCES.find((opt) => opt.value === value)?.label || '標準フィールド';
     }
@@ -6975,7 +6984,7 @@ const appOptions = {
       if (key === 'required_documents') return form.scene?.documents?.filter((d) => d.submission === 'required').length || 0;
       if (key === 'text') return form.verify.text?.length || 0;
       if (key === 'data') return form.verify.dataRules?.length || 0;
-      if (key === 'mapping_conflict') return getEnabledDataMappingConflictRuleCount(getDataMappingNodeFromWorkflow());
+      if (key === 'mapping_conflict') return getEnabledDataMappingConflictRuleCount();
       if (key === 'signature_seal') return countSealDocTypes(form.verify.seal?.rules);
       return 0;
     }
@@ -6990,12 +6999,12 @@ const appOptions = {
     }
 
     function isAiVerifyModuleEnabled(node, key) {
-      if (!node || node.type !== 'ai_verify') return false;
+      if (!node || !['ai_verify', 'verify'].includes(node.type)) return false;
       return node.moduleEnabled?.[key] !== false;
     }
 
     function toggleAiVerifyModule(node, key) {
-      if (!node || node.type !== 'ai_verify') return;
+      if (!node || !['ai_verify', 'verify'].includes(node.type)) return;
       if (!node.moduleEnabled) node.moduleEnabled = {};
       node.moduleEnabled[key] = !isAiVerifyModuleEnabled(node, key);
       pushWorkflowHistory('AI検証モジュールを変更');

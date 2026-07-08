@@ -12077,6 +12077,26 @@ body.idp-inspector-resizing * {
   border-color: #84adff;
   background: #f5f8ff;
 }
+.verify-inspector .workflow-module-toggle-list {
+  gap: 0;
+}
+.verify-inspector .workflow-module-toggle-row {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 0;
+  min-height: 48px;
+}
+.verify-inspector .workflow-module-toggle-row + .workflow-module-toggle-row {
+  border-top: 1px solid #f2f4f7;
+}
+.verify-inspector .workflow-module-toggle-row.is-enabled {
+  border-color: #f2f4f7;
+  background: transparent;
+}
+.verify-inspector .workflow-module-toggle-row:hover {
+  background: #f9fafb;
+}
 .workflow-module-toggle-copy {
   min-width: 0;
 }

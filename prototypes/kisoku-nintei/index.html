@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=542" />
+  <link rel="stylesheet" href="style.css?v=543" />
 </head>
 <body>
   <div id="app">
@@ -1744,13 +1744,19 @@
                 </div>
 
                 <!-- AI検証 -->
-                <div v-if="inspectorPanel === 'ai_verify' && selectedWorkflowNode" class="inspector-panel-section verify-inspector">
-                  <inspector-module>
-                    <inspector-module-card title="AI検証設定">
-                      <template #action>
+                <div v-if="selectedWorkflowNode && ['ai_verify', 'verify'].includes(selectedWorkflowNode.type)" class="inspector-panel-section verify-inspector">
+                  <div class="inspector-module">
+                    <section class="inspector-section-block">
+                      <header class="inspector-section-block__head">
+                        <div class="inspector-section-block__head-text">
+                          <h4 class="inspector-section-block__title inspector-module-title">AI検証設定</h4>
+                        </div>
+                        <div class="inspector-section-block__action">
                         <el-button type="primary" link @click="switchModule('ai-verify-config')">設定ページへ →</el-button>
-                      </template>
-                    </inspector-module-card>
+                        </div>
+                      </header>
+                      <div class="inspector-section-block__body"></div>
+                    </section>
                     <section class="ai-verify-module-switch-panel">
                       <div class="ai-verify-module-switch-head">
                         <h4 class="inspector-section-block__title inspector-module-title">検証モジュール</h4>
@@ -1775,7 +1781,7 @@
                         </button>
                       </div>
                     </section>
-                  </inspector-module>
+                  </div>
                 </div>
 
                 <!-- 人工確認（ワークフローノード） -->
@@ -2687,6 +2693,6 @@
   <script src="scripts/workflow-core.js?v=515"></script>
   <script src="scripts/mock-data.js?v=501"></script>
   <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=529"></script>
+  <script src="main.js?v=535"></script>
 </body>
 </html>
