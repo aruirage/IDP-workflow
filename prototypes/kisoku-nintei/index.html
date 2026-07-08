@@ -529,6 +529,7 @@
                             :disabled="!sceneSetupDraft.fileSplitEnabled"
                             placeholder="例：ページ連続性、共通タイトル、フォルダ階層、ファイル名、バーコードなどを利用し、アップロードされたファイルを案件候補ごとに分割する。"
                             maxlength="800"
+                            :show-word-limit="false"
                           />
                           <div class="wf-setup-rule-actions">
                             <button
@@ -956,6 +957,13 @@
                         <div class="wf-node-terminal-inner">
                           <span class="wf-node-terminal-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                           <span class="wf-node-terminal-label">{{ getWorkflowNodeMeta(node.type).title }}</span>
+                          <button
+                            v-if="node.type === 'end' && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                            type="button"
+                            class="wf-node-action wf-node-action--terminal"
+                            title="削除"
+                            @click.stop="confirmRemoveSelectedWorkflowNode"
+                          >×</button>
                         </div>
                       </div>
                     </div>
@@ -1301,7 +1309,7 @@
                   </el-tooltip>
                 </div>
                 <el-button
-                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && selectedWorkflowNode.type !== 'start' && selectedWorkflowNode.type !== 'end' && !inspectorExpanded"
+                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && selectedWorkflowNode.type !== 'start' && !inspectorExpanded"
                   type="danger"
                   link
                   @click="confirmRemoveSelectedWorkflowNode"
@@ -2750,9 +2758,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=516"></script>
+  <script src="scripts/workflow-core.js?v=517"></script>
   <script src="scripts/mock-data.js?v=501"></script>
-  <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=536"></script>
+  <script src="scripts/scene-config.js?v=498"></script>
+  <script src="main.js?v=537"></script>
 </body>
 </html>

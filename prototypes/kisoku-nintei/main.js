@@ -4743,13 +4743,6 @@ const appOptions = {
         ElementPlus.ElMessage.warning('開始ノードは削除できません。');
         return;
       }
-      if (node.type === 'end') {
-        const endCount = (getActiveWf()?.nodes || []).filter((n) => n.type === 'end').length;
-        if (endCount <= 1) {
-          ElementPlus.ElMessage.warning('終了ノードは最低1つ必要です。');
-          return;
-        }
-      }
       const name = `${getWorkflowNodeMeta(node.type).title} · ${formatWfNodeLabel(node.label)}`;
       ElementPlus.ElMessageBox.confirm(
         `「${name}」を削除しますか？関連する接続も削除されます。`,

@@ -892,7 +892,7 @@ function sceneForm(sceneOrId) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildDefaultCaseWorkflow(),
+    case: buildMinimalCaseWorkflow(),
   };
   return data;
 }
@@ -918,7 +918,7 @@ function sceneFormByScene(scene) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildDefaultCaseWorkflow(),
+    case: buildMinimalCaseWorkflow(),
   };
   return data;
 }

@@ -3177,6 +3177,26 @@ function ensureDecisionElseContinuesFlow(workflow, nodeId, fallbackTargetId) {
   });
 }
 
+function buildMinimalCaseWorkflow() {
+  const start = normalizeStartNode({
+    id: 'wf-start',
+    type: 'start',
+    label: getWorkflowNodeMeta('start').title,
+    x: 40,
+    y: 200,
+    isStart: true,
+  });
+  const wf = {
+    nodes: [start],
+    edges: [],
+    startNodeId: start.id,
+    layoutVersion: 4,
+    templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+  };
+  layoutWorkflowGraph(wf);
+  return wf;
+}
+
 function buildDefaultCaseWorkflow() {
   const nodes = [];
   const edges = [];
@@ -3531,7 +3551,7 @@ function ensureFormWorkflows(form, { force = false } = {}) {
     form.workflows.case = normalizeWorkflow(form.workflows.case, 'case');
     return;
   }
-  form.workflows = { case: buildDefaultCaseWorkflow() };
+  form.workflows = { case: buildMinimalCaseWorkflow() };
 }
 
 function migrateRemoveLegacyIoNodes(workflow) {
@@ -3745,7 +3765,7 @@ function migrateMcpNodesToDataMapping(workflow) {
 function normalizeWorkflow(workflow, flowKey = 'case') {
   const w = cloneJson(workflow || {});
   if (!Array.isArray(w.nodes) || !w.nodes.length) {
-    return buildDefaultCaseWorkflow();
+    return buildMinimalCaseWorkflow();
   }
   if (!Array.isArray(w.edges)) w.edges = [];
   migrateRemoveLegacyIoNodes(w);

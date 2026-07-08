@@ -7848,6 +7848,12 @@ body.wf-connecting .wf-node-add-btn {
   color: var(--wf-node-accent, #344054);
   white-space: nowrap;
 }
+.wf-node-action--terminal {
+  width: 18px;
+  height: 18px;
+  font-size: 13px;
+  margin-left: 2px;
+}
 .wf-node--start .wf-node-port--in,
 .wf-node--end .wf-node-port--out { display: none; }
 
@@ -9449,8 +9455,9 @@ body.idp-inspector-resizing * {
 .wf-setup-rule-editor-box .file-split-rule-textarea .el-textarea__inner:focus {
   box-shadow: none;
 }
-.wf-setup-rule-editor-box .file-split-rule-textarea .el-input__count {
-  display: none;
+.wf-setup-rule-editor-box .file-split-rule-textarea .el-input__count,
+.wf-setup-rule-editor-box .file-split-rule-textarea.el-textarea .el-input__count {
+  display: none !important;
 }
 .inspector-switch-label {
   font-size: 13px;
