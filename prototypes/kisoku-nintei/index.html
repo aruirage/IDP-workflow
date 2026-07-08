@@ -519,40 +519,41 @@
                     </div>
                     <div class="wf-setup-rule-editor">
                       <div class="wf-setup-rule-editor-body">
-                        <el-input
-                          v-model="sceneSetupDraft.fileSplitRuleText"
-                          class="inspector-field-control file-split-rule-textarea"
-                          type="textarea"
-                          :autosize="{ minRows: 3, maxRows: 5 }"
-                          resize="vertical"
-                          :disabled="!sceneSetupDraft.fileSplitEnabled"
-                          placeholder="例：ページ連続性、共通タイトル、フォルダ階層、ファイル名、バーコードなどを利用し、アップロードされたファイルを案件候補ごとに分割する。"
-                          maxlength="800"
-                          show-word-limit
-                        />
-                        <div class="wf-setup-rule-actions">
-                          <button
-                            type="button"
-                            class="wf-rule-icon-btn wf-rule-icon-btn--ai"
-                            title="AIで表述を最適化"
+                        <div class="wf-setup-rule-editor-box">
+                          <el-input
+                            v-model="sceneSetupDraft.fileSplitRuleText"
+                            class="inspector-field-control file-split-rule-textarea"
+                            type="textarea"
+                            :autosize="{ minRows: 3, maxRows: 5 }"
+                            resize="vertical"
                             :disabled="!sceneSetupDraft.fileSplitEnabled"
-                            @click="optimizeSceneFileSplitRule"
-                          >
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                              <path d="M5 15l8.5-8.5M11.5 4.5l4 4M4 5.5l.7-1.7.8 1.7 1.7.7-1.7.8-.8 1.7L4 7l-1.7-.8L4 5.5ZM15 13l.5-1.2.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5L15 13Z" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            class="wf-rule-icon-btn wf-rule-icon-btn--clear"
-                            title="クリア"
-                            :disabled="!sceneSetupDraft.fileSplitEnabled || !sceneSetupDraft.fileSplitRuleText"
-                            @click="clearSceneFileSplitRule"
-                          >
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                              <path d="M6.5 7.5v7M10 7.5v7M13.5 7.5v7M4.5 5h11M8 3.5h4M5.5 5l.7 11h7.6l.7-11" />
-                            </svg>
-                          </button>
+                            placeholder="例：ページ連続性、共通タイトル、フォルダ階層、ファイル名、バーコードなどを利用し、アップロードされたファイルを案件候補ごとに分割する。"
+                            maxlength="800"
+                          />
+                          <div class="wf-setup-rule-actions">
+                            <button
+                              type="button"
+                              class="wf-rule-icon-btn wf-rule-icon-btn--ai"
+                              title="AIで表述を最適化"
+                              :disabled="!sceneSetupDraft.fileSplitEnabled"
+                              @click="optimizeSceneFileSplitRule"
+                            >
+                              <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M5 15l8.5-8.5M11.5 4.5l4 4M4 5.5l.7-1.7.8 1.7 1.7.7-1.7.8-.8 1.7L4 7l-1.7-.8L4 5.5ZM15 13l.5-1.2.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5L15 13Z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              class="wf-rule-icon-btn wf-rule-icon-btn--clear"
+                              title="クリア"
+                              :disabled="!sceneSetupDraft.fileSplitEnabled || !sceneSetupDraft.fileSplitRuleText"
+                              @click="clearSceneFileSplitRule"
+                            >
+                              <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M6.5 7.5v7M10 7.5v7M13.5 7.5v7M4.5 5h11M8 3.5h4M5.5 5l.7 11h7.6l.7-11" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -901,6 +902,29 @@
                   @click.stop="openWfNodePickerOnEdge(edge.edge, $event)"
                 >+</button>
                 <div
+                  v-if="wfNodePlacementPreview"
+                  class="wf-node wf-node-shell wf-node-placement-ghost"
+                  :class="'wf-node--' + wfNodePlacementPreview.type"
+                  :style="getWorkflowNodeStyle(wfNodePlacementPreview)"
+                >
+                  <div
+                    class="wf-node-card wf-node-card--accent"
+                    :class="{ 'wf-node-card--ifelse': wfNodePlacementPreview.type === 'decision' }"
+                    :style="getWorkflowNodeAccentStyle(wfNodePlacementPreview.type)"
+                  >
+                    <div class="wf-node-header">
+                      <span class="wf-node-icon" v-html="getWorkflowNodeIconSvg(wfNodePlacementPreview.type)"></span>
+                      <div class="wf-node-titles">
+                        <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(wfNodePlacementPreview) }}</span>
+                      </div>
+                    </div>
+                    <p
+                      v-if="getWorkflowNodeCanvasSummary(wfNodePlacementPreview)"
+                      class="wf-node-summary"
+                    >{{ getWorkflowNodeCanvasSummary(wfNodePlacementPreview) }}</p>
+                  </div>
+                </div>
+                <div
                   v-for="node in activeWorkflow.nodes"
                   :key="node.id"
                   class="wf-node wf-node-shell"
@@ -944,7 +968,7 @@
                   </template>
                   <template v-else-if="node.type === 'decision'">
                     <button
-                      v-if="showWfNodeAddInBtn(node)"
+                      v-if="isWorkflowTopologyEditable && !hasWorkflowIncomingEdge(node.id)"
                       type="button"
                       class="wf-node-add-btn wf-node-add-btn--in"
                       data-wf-port="in"
@@ -952,6 +976,13 @@
                       title="前にノードを追加 / ここに接続"
                       @click.stop="onWfNodeAddInClick(node, $event)"
                     >+</button>
+                    <span
+                      v-else
+                      class="wf-node-port wf-node-port--in"
+                      data-wf-port="in"
+                      :data-node-id="node.id"
+                      title="入力"
+                    ></span>
                     <div
                       class="wf-node-card wf-node-card--accent wf-node-card--ifelse"
                       :style="getWorkflowNodeAccentStyle(node.type)"
@@ -1159,6 +1190,16 @@
                     <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4.5h8M4 8h8M4 11.5h5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M3 3h10v10H3z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
                   </button>
                   <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="wf-canvas-tool-btn"
+                    :class="{ 'is-active': wfNodePicker.visible || wfNodePlacement.active }"
+                    :disabled="!isWorkflowTopologyEditable"
+                    title="ノードを追加"
+                    @click="openWfNodePickerFromToolbar($event)"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </button>
                   <button
                     type="button"
                     class="wf-canvas-tool-btn"
@@ -2094,7 +2135,7 @@
                           <tr>
                             <th class="col-no">No.</th>
                             <th class="col-check"></th>
-                            <th class="col-name">FIELD名</th>
+                            <th class="col-name">フィールド</th>
                             <th class="col-value">OCR抽出値</th>
                             <th class="col-match">照合結果</th>
                           </tr>

@@ -139,7 +139,7 @@ const appOptions = {
       ['OCR抽出値', 'OCR抽出值'],
       ['OCR結果確認', 'OCR结果确认'],
       ['照合結果', '照合结果'],
-      ['FIELD名', 'FIELD名'],
+      ['フィールド', 'フィールド'],
       ['テーブル', '表格'],
       ['全 ', '共 '],
       [' フィールド', ' 个字段'],
@@ -847,6 +847,13 @@ const appOptions = {
       screenY: 0,
       hoveredLogic: null,
     });
+    const wfNodePlacement = reactive({
+      active: false,
+      payload: null,
+      x: 120,
+      y: 120,
+    });
+    let wfNodePlacementMoveHandler = null;
     const REUSABLE_WORKFLOW_NODE_TYPES = new Set(['data_mapping', 'ai_verify']);
     const configReuseDialogVisible = ref(false);
     const configReuseDraft = reactive({
@@ -2828,6 +2835,7 @@ const appOptions = {
       selectedWorkflowEdgeKey.value = null;
       hoveredWorkflowEdgeKey.value = null;
       closeWfNodePicker();
+      closeWfNodePlacement();
       layoutWorkflowGraph(wf);
       pushWorkflowHistory('ノードを整列');
       nextTick(() => fitWorkflowToView());
@@ -2939,6 +2947,18 @@ const appOptions = {
     }
 
     function onWfViewportPointerDown(event) {
+      if (wfNodePlacement.active) {
+        if (
+          event.target.closest('.wf-node')
+          || event.target.closest('.wf-canvas-floating-actions')
+          || event.target.closest('.wf-node-picker')
+          || event.target.closest('.wf-canvas-toolbar')
+        ) return;
+        if (event.button !== 0) return;
+        event.preventDefault();
+        placeWorkflowNodeAtPointer(event.clientX, event.clientY);
+        return;
+      }
       if (event.target.closest('.wf-node') || event.target.closest('.idp-edge-path') || event.target.closest('.wf-node-picker') || event.target.closest('.wf-canvas-toolbar') || event.target.closest('.wf-canvas-floating-actions')) return;
       closeWfNodePicker();
       wfConnectSourceId.value = null;
@@ -3104,6 +3124,109 @@ const appOptions = {
       }
       if (!node) return;
       openWfNodePickerAt(node, 'after');
+    }
+
+    function openWfNodePickerFromToolbar(event) {
+      if (!assertWorkflowTopologyEditable()) return;
+      if (wfNodePicker.visible && wfNodePicker.side === 'canvas-place') {
+        closeWfNodePicker();
+        return;
+      }
+      closeWfNodePlacement();
+      const rect = resolveWfPickerAnchorRect(event);
+      const pickerWidth = 280;
+      const pickerHeight = 336;
+      wfNodePicker.fromNodeId = null;
+      wfNodePicker.toNodeId = null;
+      wfNodePicker.edgeKey = null;
+      wfNodePicker.edgeBranch = null;
+      wfNodePicker.side = 'canvas-place';
+      wfNodePicker.tab = wfNodePickerAvailableProcessGroups.value.length ? 'nodes' : 'logic';
+      wfNodePicker.hoveredLogic = null;
+      if (rect) {
+        wfNodePicker.screenX = Math.min(
+          window.innerWidth - pickerWidth - 8,
+          Math.max(8, rect.left + rect.width / 2 - pickerWidth / 2),
+        );
+        wfNodePicker.screenY = Math.max(8, rect.top - pickerHeight - 8);
+      } else {
+        wfNodePicker.screenX = Math.max(8, window.innerWidth - pickerWidth - 24);
+        wfNodePicker.screenY = Math.max(8, window.innerHeight - pickerHeight - 80);
+      }
+      wfNodePicker.visible = true;
+    }
+
+    function resolveWorkflowNodePlacementSize(payload) {
+      const wf = getActiveWf();
+      const ghost = buildWorkflowNodeFromPayload(payload, 0, 0, wf);
+      if (!ghost) return { w: 220, h: 76 };
+      const summary = getWorkflowNodeCanvasSummary(ghost);
+      return getWorkflowNodeDisplaySize(ghost, summary);
+    }
+
+    function updateWorkflowNodePlacement(clientX, clientY) {
+      if (!wfNodePlacement.active || !wfNodePlacement.payload) return;
+      const pos = screenToWorkflowCoords(clientX, clientY);
+      const size = resolveWorkflowNodePlacementSize(wfNodePlacement.payload);
+      wfNodePlacement.x = Math.max(8, pos.x - size.w / 2);
+      wfNodePlacement.y = Math.max(8, pos.y - size.h / 2);
+    }
+
+    function beginWorkflowNodePlacement(payload) {
+      const wf = getActiveWf();
+      const preview = buildWorkflowNodeFromPayload(payload, 0, 0, wf);
+      if (!preview) return;
+      closeWfNodePicker();
+      wfNodePlacement.payload = payload;
+      wfNodePlacement.active = true;
+      const el = wfCanvasViewportRef.value;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        updateWorkflowNodePlacement(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      }
+      document.body.classList.add('wf-node-placing');
+      wfNodePlacementMoveHandler = (ev) => updateWorkflowNodePlacement(ev.clientX, ev.clientY);
+      document.addEventListener('mousemove', wfNodePlacementMoveHandler);
+    }
+
+    function closeWfNodePlacement() {
+      if (wfNodePlacementMoveHandler) {
+        document.removeEventListener('mousemove', wfNodePlacementMoveHandler);
+        wfNodePlacementMoveHandler = null;
+      }
+      wfNodePlacement.active = false;
+      wfNodePlacement.payload = null;
+      document.body.classList.remove('wf-node-placing');
+    }
+
+    function getWfNodePlacementPreview() {
+      if (!wfNodePlacement.active || !wfNodePlacement.payload) return null;
+      const wf = getActiveWf();
+      return buildWorkflowNodeFromPayload(
+        wfNodePlacement.payload,
+        wfNodePlacement.x,
+        wfNodePlacement.y,
+        wf,
+      );
+    }
+
+    function placeWorkflowNodeAtPointer(clientX, clientY) {
+      if (!wfNodePlacement.active || !wfNodePlacement.payload) return;
+      const pos = screenToWorkflowCoords(clientX, clientY);
+      const size = resolveWorkflowNodePlacementSize(wfNodePlacement.payload);
+      const x = Math.max(8, pos.x - size.w / 2);
+      const y = Math.max(8, pos.y - size.h / 2);
+      const wf = getActiveWf();
+      const node = buildWorkflowNodeFromPayload(wfNodePlacement.payload, x, y, wf);
+      if (!node) {
+        closeWfNodePlacement();
+        return;
+      }
+      wf.nodes.push(node);
+      if (node.type === 'start') ensureWorkflowStartNode(wf);
+      closeWfNodePlacement();
+      selectWorkflowNode(node.id);
+      pushWorkflowHistory('ノードを追加');
     }
 
     function resolveWfPickerAnchorRect(anchor) {
@@ -3793,7 +3916,7 @@ const appOptions = {
 
     function pickWorkflowProcessNode(item) {
       if (!assertWorkflowTopologyEditable()) return;
-      if (!wfNodePicker.fromNodeId && !wfNodePicker.edgeKey) return;
+      if (wfNodePicker.side !== 'canvas-place' && !wfNodePicker.fromNodeId && !wfNodePicker.edgeKey) return;
       const resolved = typeof item === 'string' ? { type: item } : item;
       const payload = resolved.type === 'start' || resolved.type === 'end'
         ? { kind: 'terminal', type: resolved.type, label: resolved.label }
@@ -3806,13 +3929,21 @@ const appOptions = {
             defaultNotifyTemplate: resolved.defaultNotifyTemplate,
             label: resolved.label,
           };
+      if (wfNodePicker.side === 'canvas-place') {
+        beginWorkflowNodePlacement(payload);
+        return;
+      }
       createWorkflowNodeFromPickerPayload(payload);
     }
 
     function pickWorkflowLogicNode(conditionType) {
       if (!assertWorkflowTopologyEditable()) return;
-      if (!wfNodePicker.fromNodeId && !wfNodePicker.edgeKey) return;
+      if (wfNodePicker.side !== 'canvas-place' && !wfNodePicker.fromNodeId && !wfNodePicker.edgeKey) return;
       const payload = { kind: 'logic', conditionType };
+      if (wfNodePicker.side === 'canvas-place') {
+        beginWorkflowNodePlacement(payload);
+        return;
+      }
       if (wfNodePicker.side === 'on-edge') {
         const edge = (getActiveWf()?.edges || []).find((e) => workflowEdgeKey(e) === wfNodePicker.edgeKey);
         if (edge) insertWorkflowNodeOnEdge(edge, payload);
@@ -3875,6 +4006,8 @@ const appOptions = {
       if (!wfNodePicker.hoveredLogic) return null;
       return JUDGMENT_CONTEXT_OPTIONS.find((t) => t.value === wfNodePicker.hoveredLogic) || null;
     });
+
+    const wfNodePlacementPreview = computed(() => getWfNodePlacementPreview());
 
     function resetSceneSetupDraft() {
       sceneSetupDraft.sceneId = '';
@@ -4676,6 +4809,10 @@ const appOptions = {
       if (!mod && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         openWfNodePickerFromShortcut();
+      }
+      if (event.key === 'Escape' && wfNodePlacement.active) {
+        event.preventDefault();
+        closeWfNodePlacement();
       }
     }
 
@@ -8314,6 +8451,7 @@ const appOptions = {
       if (wfTemplateHintTimer) clearTimeout(wfTemplateHintTimer);
       if (uiTranslationObserver) uiTranslationObserver.disconnect();
       clearSceneSetupLinkCheckDisplay();
+      closeWfNodePlacement();
       document.removeEventListener('keydown', onWfKeyDown);
     });
     return {
@@ -8753,6 +8891,10 @@ const appOptions = {
       processingForm,
       FLOW_NODE_OPTIONS,
       wfNodePicker,
+      wfNodePlacement,
+      wfNodePlacementPreview,
+      getWfNodePlacementPreview,
+      closeWfNodePlacement,
       wfNodePickerAvailableProcessGroups,
       wfNodePickerProcessGroups,
       wfNodePickerLogicOptions,
@@ -8972,6 +9114,7 @@ const appOptions = {
       getWorkflowStartNode,
       getWorkflowMainChainOrderLabel,
       openWfNodePickerFromShortcut,
+      openWfNodePickerFromToolbar,
       addDecisionElifCase,
       removeDecisionCase,
       decisionCaseDragId,
