@@ -425,7 +425,27 @@
             </button>
           </div>
 
-          <div v-if="workflowSetupStep === 1" class="wf-setup-page">
+          <template v-if="workflowSetupStep === 1">
+          <div class="wf-toolbar">
+            <div class="wf-toolbar-left">
+              <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
+              <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-sep">/</span>
+              <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-scene">{{ currentScene?.name || sceneSetupDraft.name }}</span>
+            </div>
+            <div class="wf-toolbar-center"></div>
+            <div class="wf-toolbar-right">
+              <el-button @click="resetSceneSetup">リセット</el-button>
+              <el-button
+                type="warning"
+                class="wf-check-links-btn"
+                :disabled="!sceneSetupDraft.documents.length || !sceneSetupDraft.mainDocType"
+                @click="checkSceneDocLinks"
+              >関連を確認</el-button>
+              <el-button type="primary" @click="proceedToWorkflowStep">{{ sceneSetupConfirmLabel }}</el-button>
+            </div>
+          </div>
+
+          <div class="wf-setup-page">
             <div class="wf-setup-page-body">
               <div v-if="sceneReuseReviewVisible" class="reuse-review-banner">
                 <div class="reuse-review-banner-main">
@@ -795,19 +815,8 @@
                 </aside>
               </div>
             </div>
-            <div class="wf-setup-page-footer">
-              <div class="wf-setup-page-footer-actions">
-                <el-button @click="resetSceneSetup">リセット</el-button>
-                <el-button
-                  type="warning"
-                  class="wf-check-links-btn"
-                  :disabled="!sceneSetupDraft.documents.length || !sceneSetupDraft.mainDocType"
-                  @click="checkSceneDocLinks"
-                >関連を確認</el-button>
-              <el-button type="primary" @click="proceedToWorkflowStep">{{ sceneSetupConfirmLabel }}</el-button>
-              </div>
-            </div>
           </div>
+          </template>
 
           <template v-else-if="workflowSetupStep === 2">
           <div v-show="!inspectorExpanded" class="wf-toolbar">
@@ -820,8 +829,8 @@
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
               <el-button @click="resetNode">リセット</el-button>
-              <el-button @click="goToWorkflowSetupStep(3)">エクスポート設定へ</el-button>
-              <el-button @click="openWorkflowTestDialog">テスト</el-button>
+              <el-button @click="goToWorkflowSetupStep(3)">次へ</el-button>
+              <el-button type="warning" class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト</el-button>
               <el-button type="primary" @click="handleSave">保存</el-button>
             </div>
           </div>
@@ -1988,16 +1997,23 @@
           </div>
           </template>
 
-          <div v-else-if="workflowSetupStep === 3" class="wf-export-step-page">
-            <div class="export-task-header export-task-header--setup">
-              <button type="button" class="export-task-back" @click="goToWorkflowSetupStep(2)">‹ ワークフロー設定</button>
-              <strong>エクスポート設定</strong>
-              <span class="export-task-header-meta">{{ form.scene.name }}</span>
+          <template v-else-if="workflowSetupStep === 3">
+          <div class="wf-toolbar">
+            <div class="wf-toolbar-left">
+              <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
+              <span class="wf-toolbar-sep">/</span>
+              <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
               <span class="wf-publish-badge" :class="{ 'is-published': form.scene.publishStatus === 'published' }">{{ scenePublishBadge }}</span>
-              <el-button @click="handleSave">下書き保存</el-button>
+            </div>
+            <div class="wf-toolbar-center"></div>
+            <div class="wf-toolbar-right">
+              <el-button @click="goToWorkflowSetupStep(2)">前へ</el-button>
+              <el-button @click="handleSave">保存</el-button>
               <el-button type="primary" @click="publishWorkflowScene">公開</el-button>
             </div>
+          </div>
 
+          <div class="wf-export-step-page">
             <div class="export-config export-config--step">
               <div class="export-config-body">
                 <aside class="export-config-sidebar">
@@ -2172,6 +2188,7 @@
               </div>
             </div>
           </div>
+          </template>
         </div>
       </div>
       </div>

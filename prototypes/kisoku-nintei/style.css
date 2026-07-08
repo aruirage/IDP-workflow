@@ -6298,6 +6298,8 @@ code.export-config-meta-value {
 }
 .idp-workflow-module > .wf-setup-stepper { flex-shrink: 0; }
 .idp-workflow-module > .wf-toolbar { flex-shrink: 0; }
+.idp-workflow-module > .wf-setup-page { flex: 1; min-height: 0; }
+.idp-workflow-module > .wf-export-step-page { flex: 1; min-height: 0; }
 .idp-workflow-module > .idp-workspace { flex: 1; min-height: 0; }
 .idp-workflow-module > .wf-config-subpage {
   display: flex;
@@ -10080,21 +10082,6 @@ body.idp-inspector-resizing * {
   border-color: #fecdca;
   background: #fef3f2;
   color: #b42318;
-}
-.wf-setup-page-footer {
-  display: flex;
-  flex: 0 0 auto;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid #eaecf0;
-  background: #fff;
-}
-.wf-setup-page-footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 .scene-column-panel .inspector-section {
   margin-top: 16px;
