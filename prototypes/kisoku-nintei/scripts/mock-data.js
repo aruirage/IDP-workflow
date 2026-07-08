@@ -500,7 +500,7 @@ function buildMasterMatchPreviewNodes() {
   }));
 }
 
-/** 出力設定：左ナビ用（OCR 抽出 / 標準フィールド → 帳票タイプ） */
+/** 出力設定：左ナビ用（OCR 抽出 → 帳票タイプ / 標準フィールド） */
 function buildExportPreviewTree(docFields) {
   const docs = docFields || [];
   return {
@@ -527,14 +527,7 @@ function buildExportPreviewTree(docFields) {
         kind: 'folder',
         label: '標準フィールド',
         outputMode: 'standard',
-        children: docs.map((doc) => ({
-          id: `export-standard-doc:${doc.docType}`,
-          kind: 'doctype',
-          scope: 'doctype',
-          outputMode: 'standard',
-          docType: doc.docType,
-          label: getDocExportLabel(doc.docType),
-        })),
+        children: [],
       },
     ],
   };
@@ -1621,4 +1614,474 @@ function normalizeInputConfig(input) {
   if (!base.allowedFormats.length) base.allowedFormats = [...WORKFLOW_DEFAULTS.input.allowedFormats];
   delete base.receptionType;
   return base;
+}
+
+const WORKFLOW_TEST_DEFAULT_ZIP = {
+  name: 'surgery_claim_batch.zip',
+  sizeLabel: '6.8 MB',
+  fileCount: 4,
+  extractedFiles: [
+    { name: 'claim_pack.pdf', pages: 8, sizeLabel: '2.4 MB' },
+    { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '1.1 MB' },
+    { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB' },
+    { name: 'memo_page.tiff', pages: 2, sizeLabel: '2.4 MB' },
+  ],
+};
+
+const WORKFLOW_TEST_SYSTEM_STEPS = [
+  { id: 'sys-upload', label: 'アップロード', type: 'system', phase: 'upload' },
+  { id: 'sys-split', label: 'ファイル分割', type: 'system', phase: 'split' },
+  { id: 'sys-aggregate', label: '案件集約', type: 'system', phase: 'aggregate' },
+];
+
+function buildWorkflowTestSplitArtifacts(caseType = 'normal') {
+  if (caseType === 'abnormal') {
+    return {
+      status: 'warning',
+      statusLabel: '要確認',
+      summary: 'claim_pack.pdf の境界が不明確です。人工分割確認が必要です。',
+      groups: [
+        {
+          sourceFile: 'claim_pack.pdf',
+          splits: [
+            { id: 'split-1', label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', pages: '1-2', confidence: 0.96 },
+            { id: 'split-2', label: '未確定区間_p3.pdf', docType: '未判定', pages: '3', confidence: 0.41 },
+            { id: 'split-3', label: '診断書_p4-5.pdf', docType: '診断書', pages: '4-5', confidence: 0.93 },
+          ],
+        },
+        {
+          sourceFile: 'Medical Bill_11.JPG',
+          splits: [
+            { id: 'split-4', label: '診療明細書_001.jpg', docType: '診療明細書', pages: '1', confidence: 0.88 },
+          ],
+        },
+      ],
+    };
+  }
+  return {
+    status: 'success',
+    statusLabel: '成功',
+    summary: '4 原ファイルから 6 処理ファイルを生成しました。',
+    groups: [
+      {
+        sourceFile: 'claim_pack.pdf',
+        splits: [
+          { id: 'split-1', label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', pages: '1-2', confidence: 0.96 },
+          { id: 'split-2', label: '診断書_p3-4.pdf', docType: '診断書', pages: '3-4', confidence: 0.94 },
+          { id: 'split-3', label: '領収書_p5-6.pdf', docType: '診療明細書', pages: '5-6', confidence: 0.91 },
+        ],
+      },
+      {
+        sourceFile: 'Medical Bill_11.JPG',
+        splits: [
+          { id: 'split-4', label: '診療明細書_001.jpg', docType: '診療明細書', pages: '1', confidence: 0.88 },
+        ],
+      },
+      {
+        sourceFile: 'receipt_scan.png',
+        splits: [
+          { id: 'split-5', label: '領収書_入院費.png', docType: '診療明細書', pages: '1', confidence: 0.90 },
+        ],
+      },
+      {
+        sourceFile: 'memo_page.tiff',
+        splits: [
+          { id: 'split-6', label: '補足説明_p1-2.tiff', docType: 'その他', pages: '1-2', confidence: 0.72 },
+        ],
+      },
+    ],
+  };
+}
+
+function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
+  if (caseType === 'supplement') {
+    return {
+      status: 'warning',
+      statusLabel: '要確認',
+      summary: '1 案件を生成しました。関連帳票の不足候補があります。',
+      cases: [
+        {
+          id: 'case-1',
+          label: '高橋誠_手術請求',
+          caseNo: 'REQ-2025-0018890',
+          mainDocType: '保険金請求書',
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 真由美' },
+          ],
+          files: [
+            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
+            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
+            { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
+          ],
+          warnings: ['領収書・診療明細書が未紐付け（補填候補）'],
+        },
+      ],
+    };
+  }
+  if (caseType === 'abnormal') {
+    return {
+      status: 'warning',
+      statusLabel: '要確認',
+      summary: '案件候補が複数件。人工集約確認が必要です。',
+      cases: [
+        {
+          id: 'case-candidate-a',
+          label: '候補 A：高橋誠_手術請求',
+          caseNo: '—',
+          mainDocType: '保険金請求書',
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 真由美' },
+          ],
+          files: [
+            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
+            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
+          ],
+          warnings: ['候補案件（信頼度 0.78）'],
+        },
+        {
+          id: 'case-candidate-b',
+          label: '候補 B：同一証券・別請求',
+          caseNo: '—',
+          mainDocType: '保険金請求書',
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 誠' },
+          ],
+          files: [
+            { label: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
+          ],
+          warnings: ['契約者氏名が不一致'],
+        },
+      ],
+    };
+  }
+  return {
+    status: 'success',
+    statusLabel: '成功',
+    summary: '1 案件を生成し、6 処理ファイルを紐付けました。',
+    cases: [
+      {
+        id: 'case-1',
+        label: '高橋誠_手術請求',
+        caseNo: 'REQ-2025-0018890',
+        mainDocType: '保険金請求書',
+        matchKeys: [
+          { label: '証券番号', value: '02468135-008-002' },
+          { label: '被保険者氏名', value: '高橋 真由美' },
+        ],
+        files: [
+          { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
+          { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
+          { label: '領収書_p5-6.pdf', docType: '診療明細書', role: '関連帳票' },
+          { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
+          { label: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
+          { label: '補足説明_p1-2.tiff', docType: 'その他', role: '参考資料' },
+        ],
+        warnings: [],
+      },
+    ],
+  };
+}
+
+function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
+  const type = step?.type || '';
+  if (type === 'preprocess') {
+    return {
+      title: '前処理結果',
+      rows: [
+        { label: '成功ファイル', value: caseType === 'abnormal' ? '5 / 6' : '6 / 6' },
+        { label: '失敗ファイル', value: caseType === 'abnormal' ? '1（補足説明_p1-2.tiff）' : '0' },
+        { label: '回転補正', value: '4 件適用' },
+        { label: '透視補正', value: '2 件適用' },
+      ],
+      issues: caseType === 'abnormal' ? ['補足説明_p1-2.tiff：画像破損のため前処理失敗'] : [],
+    };
+  }
+  if (type === 'ocr') {
+    return {
+      title: 'OCR 抽出結果',
+      rows: [
+        { label: '抽出フィールド', value: '42 件' },
+        { label: '低信頼フィールド', value: caseType === 'abnormal' ? '3 件' : '0 件' },
+        { label: '帳票タイプ別', value: '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
+      ],
+      issues: caseType === 'abnormal'
+        ? ['診療明細書.医療機関名：信頼度 0.62（閾値 0.75）']
+        : [],
+    };
+  }
+  if (type === 'data_mapping') {
+    return {
+      title: 'データマッピング結果',
+      rows: [
+        { label: '標準フィールド', value: '11 件' },
+        { label: '競合フィールド', value: caseType === 'abnormal' ? '1 件' : '0 件' },
+        { label: '未マッピング', value: '0 件' },
+      ],
+      issues: caseType === 'abnormal'
+        ? ['claimAmount：保険金請求書 420,000 と診療明細合計 128,400 が不一致']
+        : [],
+    };
+  }
+  if (type === 'ai_verify') {
+    if (caseType === 'supplement') {
+      return {
+        title: 'AI 検証結果',
+        rows: [
+          { label: '総合判定', value: '要確認' },
+          { label: '必要書類', value: '領収書・診療明細書 不足候補' },
+          { label: 'データ検証', value: '2 / 3 通過' },
+        ],
+        issues: ['必要書類チェック：領収書・診療明細書が案件に未紐付け'],
+      };
+    }
+    if (caseType === 'abnormal') {
+      return {
+        title: 'AI 検証結果',
+        rows: [
+          { label: '総合判定', value: '不通過' },
+          { label: 'データ検証', value: '1 / 3 通過' },
+          { label: '署名・印鑑', value: '通過' },
+        ],
+        issues: [
+          'c2：{{保険金請求書.請求金額}} ≠ {{診療明細書.合計金額}}',
+          '必須フィールド：入院日が空値',
+        ],
+      };
+    }
+    return {
+      title: 'AI 検証結果',
+      rows: [
+        { label: '総合判定', value: '通過' },
+        { label: '検証モジュール', value: '6 / 6 実行' },
+        { label: 'データ検証', value: '3 / 3 通過' },
+        { label: 'マッピング競合', value: '0 件' },
+        { label: '必要書類', value: '充足' },
+      ],
+      issues: [],
+    };
+  }
+  if (type === 'hitl_gate') {
+    return {
+      title: '人工確認待ち',
+      rows: [
+        { label: '確認対象', value: step.label || '人工確認' },
+        { label: 'テスト状態', value: 'このノードで停止し、待確認内容を表示します' },
+      ],
+      issues: [],
+    };
+  }
+  if (type === 'notify') {
+    return {
+      title: '通知結果',
+      rows: [
+        { label: '送信先', value: 'reviewer@example.com' },
+        { label: '件名', value: '【テスト】案件処理完了通知' },
+        { label: '送信状態', value: '成功（テスト標識付き）' },
+      ],
+      issues: [],
+    };
+  }
+  if (type === 'end') {
+    return {
+      title: '出力結果',
+      rows: [
+        { label: 'テスト案件', value: 'REQ-2025-0018890' },
+        { label: '実行結果', value: 'Workflow 終了まで到達' },
+        { label: '出力フィールド', value: 'OCR 18 / 標準 11' },
+      ],
+      issues: [],
+    };
+  }
+  return null;
+}
+
+function workflowTestStepResultText(step, caseType) {
+  const label = step.label || '';
+  const type = step.type || '';
+  const phase = step.phase || '';
+  if (phase === 'upload') return 'ZIP を解凍し 4 原ファイルを取り込みました';
+  if (phase === 'split') {
+    if (caseType === 'abnormal') return '境界不明区間あり。人工分割確認が必要です';
+    return '4 原ファイルから 6 処理ファイルを生成しました';
+  }
+  if (phase === 'aggregate') {
+    if (caseType === 'abnormal') return '案件候補が複数件。人工集約確認が必要です';
+    if (caseType === 'supplement') return '1 案件を生成。関連帳票の不足候補あり';
+    return '1 案件 REQ-2025-0018890 に 6 ファイルを紐付けました';
+  }
+  const summaries = {
+    start: 'Workflow を起動しました',
+    preprocess: '画像補正・回転・画像分割を完了しました',
+    ocr: '帳票タイプ別に公式フィールドを抽出しました',
+    data_mapping: '標準フィールドへマッピングしました',
+    ai_verify: '必須フィールド・必要書類・各種検証を通過しました',
+    decision: '条件分岐を評価しました',
+    hitl_gate: '人工確認が必要なため、このノードで停止しました',
+    notify: '通知テンプレートを生成しました',
+    end: 'Workflow を終了しました',
+    mcp: '外部連携を完了しました',
+    code: 'コード実行を完了しました',
+  };
+  if (caseType === 'supplement' && type === 'ai_verify') return '不足書類を検出しました（補填候補）';
+  if (caseType === 'abnormal' && type === 'ai_verify') return '必須フィールド不一致を検出しました';
+  if (caseType === 'abnormal' && type === 'ocr') return '低信頼フィールドが閾値を下回りました';
+  return summaries[type] || `${label} を完了しました`;
+}
+
+function workflowTestStepErrorReason(step, caseType) {
+  if (caseType !== 'abnormal') return '';
+  if (step.type === 'ocr') return '抽出信頼度 0.62 < 閾値 0.75（医療機関名）';
+  if (step.type === 'ai_verify') return 'データ検証 c2：請求金額と診療明細合計が不一致';
+  return '';
+}
+
+function buildWorkflowTestSteps(workflow, caseType = 'normal') {
+  const wf = workflow || { nodes: [], edges: [] };
+  const chainIds = typeof getWorkflowMainChainIds === 'function'
+    ? getWorkflowMainChainIds(wf)
+    : (wf.nodes || []).map((node) => node.id);
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
+  const wfSteps = chainIds.map((id) => {
+    const node = nodeMap[id] || {};
+    return {
+      id,
+      label: node.label || (typeof getWorkflowNodeMeta === 'function'
+        ? getWorkflowNodeMeta(node.type).title
+        : node.type),
+      type: node.type || 'custom',
+    };
+  });
+  const allSteps = [...WORKFLOW_TEST_SYSTEM_STEPS, ...wfSteps];
+  const errorStepId = caseType === 'abnormal'
+    ? (allSteps.find((step) => step.type === 'ocr')?.id
+      || allSteps.find((step) => step.type === 'ai_verify')?.id
+      || allSteps[allSteps.length - 2]?.id)
+    : '';
+  const warningStepId = caseType === 'supplement'
+    ? allSteps.find((step) => step.type === 'ai_verify')?.id
+    : (caseType === 'abnormal' ? allSteps.find((step) => step.phase === 'aggregate')?.id : '');
+  const skippedTypes = new Set(caseType === 'normal' ? ['hitl_gate'] : []);
+  const waitingHumanTypes = new Set(['hitl_gate']);
+
+  return allSteps.map((step) => {
+    let status = 'success';
+    if (skippedTypes.has(step.type)) status = 'skipped';
+    if (step.id === warningStepId && caseType !== 'abnormal') status = 'warning';
+    if (step.id === warningStepId && caseType === 'abnormal' && step.phase === 'aggregate') status = 'warning';
+    if (step.id === errorStepId) status = 'error';
+    if (status === 'error' && errorStepId) {
+      const errorIndex = allSteps.findIndex((item) => item.id === errorStepId);
+      const stepIndex = allSteps.findIndex((item) => item.id === step.id);
+      if (stepIndex > errorIndex) status = 'pending';
+    }
+    return {
+      ...step,
+      status,
+      summary: status === 'pending' ? '未実行' : workflowTestStepResultText(step, caseType),
+      errorReason: status === 'error' ? workflowTestStepErrorReason(step, caseType) : '',
+      needsHuman: waitingHumanTypes.has(step.type) && status !== 'pending' && status !== 'skipped',
+    };
+  });
+}
+
+function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_TEST_DEFAULT_ZIP, diagnostics = null) {
+  const list = steps || [];
+  const passed = list.filter((step) => ['success', 'skipped', 'warning'].includes(step.status)).length;
+  const hasError = list.some((step) => step.status === 'error');
+  const hasDiagnosticError = diagnostics?.hasError === true;
+  const hasWarning = list.some((step) => step.status === 'warning');
+  let overallStatus = 'success';
+  let overallLabel = '成功';
+  if (hasError || hasDiagnosticError) {
+    overallStatus = 'error';
+    overallLabel = '失敗';
+  } else if (hasWarning || caseType === 'supplement') {
+    overallStatus = 'warning';
+    overallLabel = '要確認';
+  }
+  const aggregate = buildWorkflowTestAggregateArtifacts(caseType);
+  return {
+    overallStatus,
+    overallLabel,
+    durationSec: caseType === 'abnormal' ? 12.6 : (caseType === 'supplement' ? 16.2 : 18.4),
+    passedCount: passed,
+    totalCount: list.length,
+    uploadFileCount: upload.fileCount,
+    caseCount: aggregate.cases?.length || 0,
+  };
+}
+
+function buildWorkflowTestArtifacts(caseType = 'normal') {
+  return {
+    upload: { ...WORKFLOW_TEST_DEFAULT_ZIP },
+    split: buildWorkflowTestSplitArtifacts(caseType),
+    aggregate: buildWorkflowTestAggregateArtifacts(caseType),
+  };
+}
+
+const WORKFLOW_TEST_HITL_CONTEXT_RULES = {
+  preprocess: { label: '前処理確認', allowedTypes: ['preprocess'] },
+  ocr: { label: 'OCR結果確認', allowedTypes: ['ocr'] },
+  verification: { label: 'AI検証確認', allowedTypes: ['ai_verify'] },
+};
+
+function collectWorkflowTestHitlSourceTypes(workflow, hitlNodeId) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
+  const visited = new Set();
+  const sources = [];
+  const queue = (wf.edges || []).filter((edge) => edge.to === hitlNodeId).map((edge) => edge.from);
+  while (queue.length) {
+    const id = queue.shift();
+    if (!id || visited.has(id)) continue;
+    visited.add(id);
+    const node = nodeMap[id];
+    if (!node) continue;
+    if (node.type === 'decision') {
+      (wf.edges || []).filter((edge) => edge.to === id).forEach((edge) => queue.push(edge.from));
+      continue;
+    }
+    sources.push(node);
+  }
+  return sources;
+}
+
+function validateWorkflowTestHitlContext(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const hitlNodes = (wf.nodes || []).filter((node) => node.type === 'hitl_gate');
+  const issues = [];
+  hitlNodes.forEach((node) => {
+    const context = node.hitlContext || 'ocr';
+    const rule = WORKFLOW_TEST_HITL_CONTEXT_RULES[context] || WORKFLOW_TEST_HITL_CONTEXT_RULES.ocr;
+    const sources = collectWorkflowTestHitlSourceTypes(wf, node.id);
+    const matched = sources.some((source) => rule.allowedTypes.includes(source.type));
+    if (!matched) {
+      const sourceLabels = sources.length
+        ? sources.map((source) => source.label || source.type).join('、')
+        : '上流ノードなし';
+      issues.push(`${node.label || '人工確認'}：コンテキスト「${rule.label}」に対して、上流が ${sourceLabels} です。前処理/OCR/AI検証以外、または一致しない上流から人工確認へ接続されています。`);
+    }
+  });
+  return issues;
+}
+
+function buildWorkflowTestDiagnostics(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const nodeLabels = (wf.nodes || []).map((node) => node.label || node.type);
+  const hitlIssues = validateWorkflowTestHitlContext(wf);
+  return {
+    variableRefs: nodeLabels.length
+      ? '未生成ノードまたは存在しない帳票タイプ・フィールドへの変数参照は検出されませんでした。'
+      : 'Workflow ノードが未設定のため、変数参照チェックをスキップしました。',
+    branchChecks: (wf.edges || []).some((edge) => edge.branch)
+      ? 'IF/ELSE 分岐先・入力値・型不一致は検出されませんでした。'
+      : '条件分岐ノードがないため、分岐チェックをスキップしました。',
+    hitlContext: hitlIssues.length
+      ? hitlIssues.join('\n')
+      : '人工確認コンテキストと上流ノードの不一致は検出されませんでした。',
+    hasError: hitlIssues.length > 0,
+  };
 }

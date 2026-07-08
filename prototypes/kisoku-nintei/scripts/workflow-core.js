@@ -139,8 +139,8 @@ const INSPECTOR_HINTS = {
   codeOutput: 'スクリプト戻り値の各項目名とデータ型を定義します。後続ノードでは {ノード変数名.項目名} 形式で参照できます。',
   codeParamName: 'スクリプト内で参照する引数の名前です。64 文字以内で指定します。',
   codeParamDataType: '引数または出力値のデータ型を選択します。',
-  codeParamSource: '参照パラメータ：上流ノードの出力変数を使用します。カスタム：固定値を直接指定します。',
-  codeParamReference: '上流ノードの出力変数を選択します。',
+  codeParamSource: '上流ノードの出力変数は参照変数 JSON から自動で渡されます。ここでは固定値だけを追加します。',
+  codeParamReference: '上流ノードの出力変数は参照変数 JSON から自動で渡されます。',
   codeParamCustom: '固定値としてスクリプトへ渡す値を入力します。',
   codeParamRequired: '必須にすると、値が未設定の場合は実行時にエラーとして扱われます。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
@@ -518,7 +518,7 @@ const WORKFLOW_NODE_META = {
     icon: 'AI',
     title: 'AI検証',
     desc: '必須フィールド・必要書類・各種検証',
-    tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', '署名・印鑑検証'],
+    tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', 'データマッピング競合検証', '署名・印鑑検証'],
     input: 'Case Data Pool',
     output: 'Validation Result',
     accent: '#7c3aed',
@@ -695,6 +695,7 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'required_documents', label: '必要書類' },
   { key: 'text', label: 'テキスト検証' },
   { key: 'data', label: 'データ検証' },
+  { key: 'mapping_conflict', label: 'データマッピング競合検証' },
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
@@ -751,6 +752,8 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.requiredDocumentStatus', label: '必要書類状態', scope: '案件', type: 'Enum', description: '必要書類検証の聚合状態' },
     { id: 'case.textValidationStatus', label: 'テキスト検証状態', scope: '案件', type: 'Enum', description: 'テキスト検証の聚合状態' },
     { id: 'case.dataValidationStatus', label: 'データ検証状態', scope: '案件', type: 'Enum', description: 'データ検証の聚合状態' },
+    { id: 'case.mappingConflictStatus', label: 'マッピング競合検証状態', scope: '案件', type: 'Enum', description: 'データマッピング競合検証の集約状態' },
+    { id: 'case.mappingConflictCount', label: 'マッピング競合件数', scope: '案件', type: 'Number', description: '検出された標準フィールドと OCR フィールドの競合数' },
     { id: 'case.signatureSealStatus', label: '署名・印鑑検証状態', scope: '案件', type: 'Enum', description: '署名・印鑑検証の聚合状態' },
     { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', description: 'AI検証の詳細結果' },
     { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', description: '必要書類の不足明細' },
@@ -1908,13 +1911,13 @@ function getNotifyRecipientsLabel(channel) {
 
 function getNotifyRecipientsPlaceholder(channel) {
   if (channel === 'system') return '通知先を選択';
-  return 'example@company.co.jp';
+  return 'example@company.co.jp;team@example.co.jp';
 }
 
 function parseNotifySystemRecipients(value) {
   const raw = String(value || '').trim();
   if (!raw) return [];
-  return raw.split(/[,、/／|]/).map((part) => part.trim()).filter(Boolean).map((part) => {
+  return raw.split(/[;,;、/／|]/).map((part) => part.trim()).filter(Boolean).map((part) => {
     if (NOTIFY_RECIPIENT_OPTIONS.some((opt) => opt.value === part)) return part;
     const byLabel = NOTIFY_RECIPIENT_OPTIONS.find((opt) => opt.label === part);
     if (byLabel) return byLabel.value;
@@ -1959,7 +1962,9 @@ function validateNotifyRecipients(channel, value) {
     return { ok: true, message: '' };
   }
   if (channel === 'email') {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    const emails = v.split(/[;；]/).map((part) => part.trim()).filter(Boolean);
+    const emailPattern = /^[^\s@;；]+@[^\s@;；]+\.[^\s@;；]+$/;
+    if (!emails.length || emails.some((email) => !emailPattern.test(email))) {
       return { ok: false, message: 'メールアドレスの形式を確認してください' };
     }
   }
@@ -2179,8 +2184,7 @@ const CODE_PARAM_DATA_TYPES = [
 ];
 
 const CODE_PARAM_SOURCES = [
-  { value: 'reference', label: '参照パラメータ' },
-  { value: 'custom', label: 'カスタム' },
+  { value: 'custom', label: '固定値' },
 ];
 
 /** @deprecated use CODE_PARAM_DATA_TYPES */
@@ -2197,12 +2201,12 @@ function getCodeParamDataTypeLabel(value) {
 }
 
 function getCodeParamSourceLabel(value) {
-  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '参照パラメータ';
+  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '固定値';
 }
 
 const DEFAULT_CODE_PYTHON = `def main(inputs: dict) -> dict:
     """
-    inputs: 入力パラメータから渡される dict
+    inputs: 上流ノードの出力変数と固定入力パラメータをまとめた dict
     戻り値は {result} に格納されます
     """
     return inputs
@@ -2213,7 +2217,7 @@ function createCodeInputRow(index = 0) {
     id: newRuleId('cin'),
     name: `input_${index + 1}`,
     dataType: 'string',
-    source: 'reference',
+    source: 'custom',
     required: true,
     variable: '',
     customValue: '',
@@ -2232,7 +2236,7 @@ function createCodeParamDialogDraft(mode = 'input') {
     id: '',
     name: '',
     dataType: 'string',
-    source: 'reference',
+    source: 'custom',
     required: true,
     variable: '',
     customValue: '',
@@ -2244,9 +2248,9 @@ function normalizeCodeInputRow(row, index = 0) {
     id: row?.id || newRuleId('cin'),
     name: (row?.name || '').trim() || `input_${index + 1}`,
     dataType: migrateCodeDataType(row?.dataType || row?.type || 'string'),
-    source: row?.source === 'custom' ? 'custom' : 'reference',
+    source: 'custom',
     required: row?.required !== false,
-    variable: row?.variable || '',
+    variable: '',
     customValue: row?.customValue != null ? String(row.customValue) : '',
   };
 }

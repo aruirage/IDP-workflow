@@ -23,6 +23,9 @@
         <div class="user-area">
           <span class="user-avatar">Q</span>
           <span>qianjun</span>
+          <button type="button" class="language-toggle-btn" @click="toggleUiLanguage">
+            {{ uiLanguage === 'zh' ? '日本語' : '中文' }}
+          </button>
         </div>
       </header>
 
@@ -1668,7 +1671,16 @@
                 <!-- カスタム関数（Python） -->
                 <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="入力パラメータ" desc="Python 関数に渡す変数を定義します。">
+                    <inspector-module-card title="参照変数" desc="上流ノードの出力変数を JSON として Python 関数へ渡します。">
+                      <div class="code-variable-json-box">
+                        <div class="code-variable-json-head">
+                          <span>inputs</span>
+                          <span>{{ codeVariableOptions.length }} 変数</span>
+                        </div>
+                        <pre class="code-variable-json"><code>{{ codeVariableJsonText }}</code></pre>
+                      </div>
+                    </inspector-module-card>
+                    <inspector-module-card title="固定入力パラメータ" desc="必要な固定値だけ追加します。上流変数は上の JSON から参照します。">
                       <template #action>
                         <el-button type="primary" link @click="addCodeInputRow">+ 追加</el-button>
                       </template>
@@ -1686,7 +1698,7 @@
                           </div>
                         </li>
                       </ul>
-                      <p v-else class="verify-empty">入力パラメータがありません</p>
+                      <p v-else class="verify-empty">固定入力パラメータがありません</p>
                     </inspector-module-card>
                     <inspector-module-card title="Python スクリプト" desc="main(inputs) 関数を実装します。">
                       <div class="inspector-field">
@@ -1822,22 +1834,7 @@
                 <!-- 通知 -->
                 <div v-if="inspectorPanel === 'notify' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="通知設定" desc="通知種別・方式・宛先を指定します。">
-                      <div class="inspector-field">
-                        <label class="inspector-field-label">通知種別</label>
-                        <el-select
-                          :model-value="selectedWorkflowNode.template"
-                          class="inspector-field-control"
-                          @change="onNotifyTemplateChange"
-                        >
-                          <el-option
-                            v-for="opt in NOTIFY_TEMPLATES"
-                            :key="opt.value"
-                            :label="opt.label"
-                            :value="opt.value"
-                          />
-                        </el-select>
-                      </div>
+                    <inspector-module-card title="通知設定" desc="通知方式・宛先を指定します。">
                       <div class="inspector-field">
                         <label class="inspector-field-label">通知方式</label>
                         <el-select
@@ -1874,6 +1871,7 @@
                           :placeholder="getNotifyRecipientsPlaceholder(selectedWorkflowNode.channel)"
                           @blur="onNotifyRecipientsBlur"
                         />
+                        <span v-if="selectedWorkflowNode.channel === 'email'" class="inspector-field-help">複数指定する場合は ; で区切ります。</span>
                       </div>
                     </inspector-module-card>
                     <inspector-module-card title="メッセージ内容" desc="件名・本文に変数を挿入できます。実行時に案件データへ置換されます。">
@@ -1913,8 +1911,9 @@
                           clearable
                           size="small"
                           placement="bottom-start"
-                          :teleported="false"
-                          popper-class="inspector-ifelse-select-popper inspector-ifelse-cascader-popper idp-inspector-select-popper"
+                          :teleported="true"
+                          :popper-options="notifyVariablePopperOptions"
+                          popper-class="inspector-ifelse-select-popper inspector-ifelse-cascader-popper idp-inspector-select-popper notify-var-cascader-popper"
                           @change="onNotifyVariablePickChange"
                         >
                           <template #default="{ node, data }">
@@ -1985,34 +1984,12 @@
             </div>
 
             <div class="export-config export-config--step">
-              <div class="export-task-delivery-bar export-task-delivery-bar--api">
-                <div class="export-config-toolbar-left">
-                  <span class="export-task-bar-label">API出力</span>
-                  <el-switch v-model="form.output.apiExportEnabled" size="small" />
-                </div>
-                <div class="export-config-toolbar-right">
-                  <label class="export-inline-select">
-                    <span class="export-task-bar-label">出力形式</span>
-                    <div class="export-format-segment" role="group" aria-label="出力形式">
-                      <button
-                        v-for="fmt in outputFormats"
-                        :key="'task-output-format-' + fmt"
-                        type="button"
-                        class="export-format-btn"
-                        :class="{ 'is-active': form.output.fileFormat === fmt }"
-                        @click="setOutputFormat(fmt)"
-                      >{{ fmt }}</button>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
               <div class="export-config-body">
                 <aside class="export-config-sidebar">
                   <div class="export-config-sidebar-head">
                     <div class="export-config-sidebar-head-main">
                       <span>エクスポート対象</span>
-                      <span class="export-config-sidebar-hint">帳票タイプ単位で出力項目を設定</span>
+                      <span class="export-config-sidebar-hint">出力項目を設定</span>
                     </div>
                   </div>
                   <div class="export-preview-tree export-preview-tree--nav">
@@ -2056,7 +2033,7 @@
                 </aside>
 
                 <main class="export-config-detail">
-                  <template v-if="outputSelectedDocType">
+                  <template v-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
                     <div v-if="activeOutputDocFields" class="export-config-detail-head export-config-detail-head--compact">
                       <div class="export-config-detail-title">
                         <strong>{{ activeExportFileLabel }}</strong>
@@ -2171,7 +2148,7 @@
                     >帳票タイプに OCR 抽出フィールドが定義されていません</div>
                   </template>
 
-                  <div v-if="!outputSelectedDocType" class="export-config-empty">左側から帳票タイプを選択してください</div>
+                  <div v-if="!outputSelectedDocType && outputExportFieldMode !== 'standard'" class="export-config-empty">左側から帳票タイプを選択してください</div>
                 </main>
               </div>
             </div>
@@ -2184,68 +2161,230 @@
 
     <el-dialog
       v-model="workflowTestDialogVisible"
-      title="Workflowテスト"
-      width="760px"
+      title="Workflow テスト"
+      width="1240px"
       align-center
-      class="workflow-test-dialog"
+      class="wf-test-dialog"
+      destroy-on-close
     >
-      <div class="workflow-test-body">
-        <section class="workflow-test-upload">
-          <div class="workflow-test-upload-main">
-            <span class="workflow-test-upload-icon">↑</span>
-            <div>
-              <strong>{{ workflowTestFileName || 'テストファイルをアップロード' }}</strong>
-              <span>PDF / PNG / JPG / ZIP</span>
+      <p class="wf-test-dialog-subtitle">現在の Workflow 設定でテスト実行し、停止したノードと原因を確認します。</p>
+      <div class="wf-test-toolbar">
+        <div class="wf-test-toolbar-note">アップロードしたファイルを使い、画布上のノード順に実行します。</div>
+        <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
+          {{ workflowTestRunning ? '実行中…' : 'テスト実行' }}
+        </el-button>
+      </div>
+
+      <div class="wf-test-layout">
+        <aside class="wf-test-left">
+          <div class="wf-test-upload">
+            <input
+              id="wf-test-file-input"
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.zip,.tiff,.tif"
+              class="wf-test-file-input"
+              @change="onWorkflowTestFileSelected"
+            />
+            <button type="button" class="wf-test-upload-zone" @click="triggerWorkflowTestFilePick">
+              <span class="wf-test-upload-icon">⇧</span>
+              <strong>テスト ZIP をアップロード</strong>
+              <span>PDF / PNG / JPG / ZIP に対応 · クリックして選択</span>
+            </button>
+            <div v-if="workflowTestArtifacts" class="wf-test-upload-meta">
+              <span>{{ workflowTestArtifacts.upload.name }}</span>
+              <span>{{ workflowTestArtifacts.upload.sizeLabel }} · {{ workflowTestArtifacts.upload.fileCount }} 原ファイル</span>
             </div>
           </div>
-          <input
-            ref="workflowTestFileInput"
-            class="workflow-test-file-input"
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.zip"
-            @change="onWorkflowTestFileChange"
-          />
-          <el-button @click="triggerWorkflowTestFileSelect">ファイル選択</el-button>
-        </section>
 
-        <div class="workflow-test-option-row">
-          <span>不通過ケースとして実行</span>
-          <el-switch v-model="workflowTestForceFail" size="small" />
-        </div>
+          <div class="wf-test-artifact-scroll">
+            <template v-if="workflowTestRunning && workflowTestNodeDetail && workflowTestNodeDetail.isPreview">
+              <div class="wf-test-artifact-empty is-running">
+                <p>「{{ workflowTestSelectedStep?.label }}」を実行中…</p>
+              </div>
+            </template>
 
-        <section v-if="workflowTestResult" class="workflow-test-result">
-          <div class="workflow-test-result-head">
-            <strong>テスト結果</strong>
-            <span class="workflow-test-status" :class="'is-' + workflowTestResult.status">{{ workflowTestResult.statusLabel }}</span>
+            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'upload' && workflowTestArtifacts">
+              <section class="wf-test-artifact-section">
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <h5>アップロード結果</h5>
+                <p class="wf-test-artifact-summary">ZIP を解凍し、{{ workflowTestArtifacts.upload.fileCount }} 原ファイルを取り込みました。</p>
+                <table class="wf-test-artifact-table">
+                  <thead>
+                    <tr>
+                      <th>原ファイル</th>
+                      <th>ページ</th>
+                      <th>サイズ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="file in workflowTestArtifacts.upload.extractedFiles" :key="file.name">
+                      <td>{{ file.name }}</td>
+                      <td>{{ file.pages }}</td>
+                      <td>{{ file.sizeLabel }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+            </template>
+
+            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'split' && workflowTestArtifacts">
+              <section class="wf-test-artifact-section">
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <h5>ファイル分割結果</h5>
+                <p class="wf-test-artifact-summary">{{ workflowTestArtifacts.split.summary }}</p>
+                <div
+                  v-for="group in workflowTestArtifacts.split.groups"
+                  :key="group.sourceFile"
+                  class="wf-test-split-group"
+                >
+                  <div class="wf-test-split-source">{{ group.sourceFile }}</div>
+                  <table class="wf-test-artifact-table">
+                    <thead>
+                      <tr>
+                        <th>処理ファイル</th>
+                        <th>帳票タイプ</th>
+                        <th>ページ</th>
+                        <th>信頼度</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="split in group.splits" :key="split.id">
+                        <td>{{ split.label }}</td>
+                        <td>{{ getDocDisplayLabel(split.docType) }}</td>
+                        <td>{{ split.pages }}</td>
+                        <td>{{ split.confidence }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </template>
+
+            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'aggregate' && workflowTestArtifacts">
+              <section class="wf-test-artifact-section">
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <h5>案件集約結果</h5>
+                <p class="wf-test-artifact-summary">{{ workflowTestArtifacts.aggregate.summary }}</p>
+                <div
+                  v-for="caseItem in workflowTestArtifacts.aggregate.cases"
+                  :key="caseItem.id"
+                  class="wf-test-case-card"
+                >
+                  <div class="wf-test-case-card-head">
+                    <strong>{{ caseItem.label }}</strong>
+                    <span v-if="caseItem.caseNo !== '—'">{{ caseItem.caseNo }}</span>
+                  </div>
+                  <div class="wf-test-case-keys">
+                    <span v-for="key in caseItem.matchKeys" :key="caseItem.id + key.label">
+                      {{ key.label }}：{{ key.value }}
+                    </span>
+                  </div>
+                  <ul class="wf-test-case-files">
+                    <li v-for="file in caseItem.files" :key="caseItem.id + file.label">
+                      <span class="wf-test-case-file-role">{{ file.role }}</span>
+                      <span>{{ getDocDisplayLabel(file.docType) }} · {{ file.label }}</span>
+                    </li>
+                  </ul>
+                  <ul v-if="caseItem.warnings && caseItem.warnings.length" class="wf-test-case-warnings">
+                    <li v-for="(warning, index) in caseItem.warnings" :key="caseItem.id + '-warn-' + index">{{ warning }}</li>
+                  </ul>
+                </div>
+              </section>
+            </template>
+
+            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'node' && workflowTestNodeDetail.detail">
+              <section class="wf-test-artifact-section">
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <h5>{{ workflowTestNodeDetail.detail.title }}</h5>
+                <dl class="wf-test-detail-list">
+                  <div v-for="row in workflowTestNodeDetail.detail.rows" :key="row.label" class="wf-test-detail-row">
+                    <dt>{{ row.label }}</dt>
+                    <dd>{{ row.value }}</dd>
+                  </div>
+                </dl>
+                <ul v-if="workflowTestNodeDetail.detail.issues.length" class="wf-test-issue-list">
+                  <li v-for="(issue, index) in workflowTestNodeDetail.detail.issues" :key="'issue-' + index">{{ issue }}</li>
+                </ul>
+              </section>
+            </template>
+
+            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'generic'">
+              <section class="wf-test-artifact-section">
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <h5>{{ workflowTestNodeDetail.title }}</h5>
+                <p class="wf-test-artifact-summary">{{ workflowTestNodeDetail.summary }}</p>
+              </section>
+            </template>
+
+            <template v-else>
+              <div class="wf-test-artifact-empty">
+                <p>右側のノードをクリックすると、ここに処理結果を表示します。</p>
+              </div>
+            </template>
           </div>
-          <div class="workflow-test-summary">
-            <span>処理時間：{{ workflowTestResult.duration }}</span>
-            <span>通過ノード：{{ workflowTestResult.passed }}/{{ workflowTestResult.total }}</span>
+        </aside>
+
+        <section class="wf-test-right">
+          <div class="wf-test-result-head">
+            <div class="wf-test-result-title">
+              <h4>実行パイプライン</h4>
+              <span
+                v-if="workflowTestSummary"
+                class="wf-test-status-badge"
+                :class="'is-' + workflowTestSummary.overallStatus"
+              >{{ workflowTestSummary.overallLabel }}</span>
+              <span v-else-if="workflowTestRunning" class="wf-test-status-badge is-running">実行中</span>
+            </div>
+            <div v-if="workflowTestSummary" class="wf-test-result-meta">
+              <span>処理時間：{{ workflowTestSummary.durationSec }}s</span>
+              <span>通過：{{ workflowTestSummary.passedCount }}/{{ workflowTestSummary.totalCount }}</span>
+              <span>案件：{{ workflowTestSummary.caseCount }}</span>
+            </div>
+            <p v-else class="wf-test-result-hint">案件集約完了後、Workflow ノードを順に実行します</p>
           </div>
-          <div v-if="workflowTestResult.nextAction" class="workflow-test-next-action">
-            {{ workflowTestResult.nextAction }}
-          </div>
-          <div class="workflow-test-steps">
-            <div
-              v-for="row in workflowTestResult.steps"
-              :key="'workflow-test-step-' + row.name"
-              class="workflow-test-step"
+
+          <div class="wf-test-timeline">
+            <button
+              v-for="(step, index) in workflowTestStepRows"
+              :key="step.id"
+              type="button"
+              class="wf-test-timeline-node"
+              :class="[
+                'is-' + getWorkflowTestStepDisplayStatus(step),
+                { 'is-selected': workflowTestSelectedStep && workflowTestSelectedStep.id === step.id },
+              ]"
+              @click="selectWorkflowTestStep(step.id)"
             >
-              <span class="workflow-test-step-dot" :class="'is-' + row.status"></span>
-              <span class="workflow-test-step-name">{{ row.name }}</span>
-              <span class="workflow-test-step-detail">{{ row.detail }}</span>
+              <div class="wf-test-timeline-rail">
+                <span class="wf-test-timeline-dot" :class="'is-' + getWorkflowTestStepDisplayStatus(step)"></span>
+                <span v-if="index < workflowTestStepRows.length - 1" class="wf-test-timeline-line"></span>
+              </div>
+              <div class="wf-test-timeline-body">
+                <div class="wf-test-timeline-head">
+                  <strong>{{ step.label }}</strong>
+                  <span>{{ workflowTestStatusLabel(getWorkflowTestStepDisplayStatus(step)) }}</span>
+                </div>
+                <p class="wf-test-timeline-summary">{{ step.summary }}</p>
+                <p v-if="step.errorReason" class="wf-test-step-error">{{ step.errorReason }}</p>
+              </div>
+            </button>
+          </div>
+
+          <div v-if="workflowTestDiagnostics" class="wf-test-diagnostics">
+            <div
+              v-for="item in getWorkflowTestDiagnosticRows(workflowTestDiagnostics)"
+              :key="item.key"
+              class="wf-test-diagnostic-row"
+              :class="{ 'is-error': item.status === 'error' }"
+            >
+              <span class="wf-test-diagnostic-label">{{ item.label }}</span>
+              <span class="wf-test-diagnostic-text">{{ item.text }}</span>
             </div>
           </div>
         </section>
       </div>
       <template #footer>
         <el-button @click="workflowTestDialogVisible = false">閉じる</el-button>
-        <el-button
-          type="primary"
-          :loading="workflowTestRunning"
-          :disabled="!workflowTestFileName"
-          @click="runWorkflowTest"
-        >テスト実行</el-button>
       </template>
     </el-dialog>
 
@@ -2344,51 +2483,6 @@
       <template #footer>
         <el-button @click="configReuseDialogVisible = false">キャンセル</el-button>
         <el-button type="primary" :disabled="!configReuseDraft.sourceSceneId || !configReuseDraft.scopes.length" @click="copySceneFromConfigReuse">コピーして作成</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
-      v-model="nodeReuseDialogVisible"
-      :title="getReusableNodeTypeLabel(nodeReuseDraft.type) + ' を追加'"
-      width="760px"
-      align-center
-      class="reuse-dialog"
-    >
-      <div class="reuse-dialog-body">
-        <section class="reuse-dialog-section">
-          <h3 class="reuse-dialog-heading">ノード設定の作成方法</h3>
-          <div class="reuse-choice-grid">
-            <button type="button" class="reuse-choice-card" @click="createBlankNodeFromReuseDialog">
-              <span class="reuse-choice-title">空白で作成</span>
-              <span class="reuse-choice-desc">設定をコピーせず、ノードだけ追加します。</span>
-            </button>
-            <div class="reuse-choice-card reuse-choice-card--active">
-              <span class="reuse-choice-title">既存シーンからコピー</span>
-              <span class="reuse-choice-desc">同类型ノードの設定をコピーし、構造チェック結果を表示します。</span>
-            </div>
-          </div>
-        </section>
-        <section class="reuse-dialog-section">
-          <div class="reuse-field-row">
-            <label class="reuse-field-label">コピー元シーン</label>
-            <el-select v-model="nodeReuseDraft.sourceSceneId" class="reuse-field-control" placeholder="シーンを選択">
-              <el-option
-                v-for="scene in nodeReuseSceneOptions"
-                :key="'node-reuse-scene-' + scene.value"
-                :label="scene.label"
-                :value="scene.value"
-              />
-            </el-select>
-          </div>
-        </section>
-        <section class="reuse-dialog-section reuse-dialog-section--note">
-          <div class="reuse-review-title">コピー後の状態</div>
-          <p class="reuse-review-note">コピーされたノードは `要確認` として追加されます。システムは構造依存と参照欠落のみ提示し、業務上の妥当性は自動判断しません。</p>
-        </section>
-      </div>
-      <template #footer>
-        <el-button @click="clearNodeReusePending">キャンセル</el-button>
-        <el-button type="primary" :disabled="!nodeReuseDraft.sourceSceneId" @click="copyNodeFromReuseDialog">コピーして追加</el-button>
       </template>
     </el-dialog>
 
@@ -2563,43 +2657,6 @@
         </div>
         <template v-if="codeParamDialogMode === 'input'">
           <div class="inspector-field">
-            <inspector-field-label label="参照元" :hint="INSPECTOR_HINTS.codeParamSource"></inspector-field-label>
-            <el-select v-model="codeParamDialogDraft.source" class="inspector-field-control">
-              <el-option
-                v-for="opt in CODE_PARAM_SOURCES"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
-          </div>
-          <div v-if="codeParamDialogDraft.source === 'reference'" class="inspector-field">
-            <inspector-field-label label="参照パラメータ" :hint="INSPECTOR_HINTS.codeParamReference"></inspector-field-label>
-            <el-cascader
-              v-model="codeParamDialogDraft.variable"
-              class="inspector-field-control code-param-var-cascader"
-              placeholder="上流ノードの出力変数を選択"
-              :options="codeVariableCascaderOptions"
-              :props="{ value: 'id', label: 'text', children: 'items', emitPath: false }"
-              :show-all-levels="false"
-              separator=" › "
-              filterable
-              clearable
-              placement="bottom-start"
-              :teleported="false"
-              popper-class="inspector-ifelse-select-popper inspector-ifelse-cascader-popper idp-inspector-select-popper"
-            >
-              <template #default="{ data }">
-                <div class="inspector-ifelse-cascader-option" :title="data.description || data.text">
-                  <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                  <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                    {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
-                  </span>
-                </div>
-              </template>
-            </el-cascader>
-          </div>
-          <div v-if="codeParamDialogDraft.source !== 'reference'" class="inspector-field">
             <inspector-field-label label="カスタム値" :hint="INSPECTOR_HINTS.codeParamCustom"></inspector-field-label>
             <el-input
               v-model="codeParamDialogDraft.customValue"
@@ -2628,6 +2685,6 @@
   <script src="scripts/workflow-core.js?v=515"></script>
   <script src="scripts/mock-data.js?v=498"></script>
   <script src="scripts/scene-config.js?v=497"></script>
-  <script src="main.js?v=524"></script>
+  <script src="main.js?v=525"></script>
 </body>
 </html>
