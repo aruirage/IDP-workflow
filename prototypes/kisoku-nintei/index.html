@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=569" />
+  <link rel="stylesheet" href="style.css?v=564" />
 </head>
 <body>
   <div id="app">
@@ -1051,18 +1051,21 @@
                           :key="branch.key"
                           class="wf-ifelse-row wf-ifelse-row--hitl"
                         >
-                          <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
-                          <button
-                            v-show="isWorkflowTopologyEditable"
-                            type="button"
-                            class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline wf-hitl-branch-connect"
-                            :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
-                            :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
-                            @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
-                          >+</button>
+                          <span class="wf-ifelse-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
                         </div>
                       </div>
                     </div>
+                    <button
+                      v-for="branch in getHitlGateNodeVisibleBranches(node)"
+                      :key="'hitl-branch-' + branch.key"
+                      v-show="isWorkflowTopologyEditable"
+                      type="button"
+                      class="wf-node-add-btn wf-node-add-btn--branch"
+                      :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
+                      :style="getHitlGatePortStyle(node, branch.key)"
+                      :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
+                      @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
+                    >+</button>
                   </template>
                   <template v-else>
                     <button
@@ -2781,9 +2784,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=569"></script>
+  <script src="scripts/workflow-core.js?v=571"></script>
   <script src="scripts/mock-data.js?v=548"></script>
   <script src="scripts/scene-config.js?v=548"></script>
-  <script src="main.js?v=569"></script>
+  <script src="main.js?v=571"></script>
 </body>
 </html>

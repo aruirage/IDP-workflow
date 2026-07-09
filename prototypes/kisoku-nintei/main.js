@@ -1,4 +1,4 @@
-const MAIN_BUILD = '569-bezier-backflow-hitl-branches';
+const MAIN_BUILD = '566-hitl-gate-in-card';
 
 const appOptions = {
   setup() {
@@ -5284,16 +5284,6 @@ const appOptions = {
       return connectWorkflowEdge(fromId, targetId, wfConnectDrag.branch);
     }
 
-    function getHitlGatePortStyle(node, branch) {
-      const metrics = getHitlGateLayoutMetricsForNode(node);
-      const match = metrics.rows.find((b) => b.key === branch);
-      const yCenter = match?.yCenter ?? metrics.h / 2;
-      return {
-        top: `${Math.round(yCenter)}px`,
-        transform: 'translateY(-50%)',
-      };
-    }
-
     function getHitlGateNodeVisibleBranches(node) {
       return getHitlGateVisibleBranches(node);
     }
@@ -9120,7 +9110,6 @@ const appOptions = {
       getHitlGateNodeBranches,
       getHitlGateNodeVisibleBranches,
       getHitlGateBranchIndex,
-      getHitlGatePortStyle,
       getHitlGateBranchTargetId,
       getHitlGateBranchEdgeLabel,
       HITL_GATE_PRESETS,
