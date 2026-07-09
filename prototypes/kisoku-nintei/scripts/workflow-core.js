@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '345-case-file-variable-scope';
+const PROTOTYPE_BUILD = '562-hitl-gate-layout';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -55,7 +55,7 @@ const MODULE_PAGE_META = {
     subtitleConfigure: '設定モード：Workflow 固定・ノード内パラメータのみ変更',
     subtitleEdit: '編集モード：ノード追加・削除・接続を自由に変更',
     templateNote: '起始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。',
-    connectHint: '出力ポートをドラッグしてノード間を接続します。ノード前後または連線上の + でノードを追加・挿入できます。',
+    connectHint: '出力ポートをドラッグして任意ノードへ接続します。上流への回流も可能です。ノード前後または連線上の + でノードを追加・挿入できます。',
     flowKey: 'case',
   },
   'mcp-servers': {
@@ -67,11 +67,8 @@ const MODULE_PAGE_META = {
 /** Inspector セクションタイトル横 ? ツールチップ用（本文は編集欄に表示しない） */
 const INSPECTOR_HINTS = {
   edgeEdit: '接続線をクリックで選択（ハイライト）。Backspace / Delete で削除できます。出力ポートをドラッグして再接続できます。',
-  connect: '出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。',
+  connect: '出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。',
   scene: '業務シーン作成時、またはステップ1で関連帳票・案件集約・帳票間関連を設定します。',
-  hitlWaitBeforeConfirm: '前処理確認・OCR結果確認のみ設定可能。ON にすると、需人工確認のファイル到達後すぐ待办を出さず、固定 30 分間 pending を合并します。缓冲期内の新規ファイルは sliding 延長。案件列表は「処理中」、子标志は「等待人工缓冲」。',
-  hitlVerifyMergeDefault: 'AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。',
-  aiVerifyEntryWait: 'システム既定（設定不可）。以下イベントがすべて発生してから AI 検証を実行します。补件・跨批次の pending 汇总も含まれます。',
   inputSetting: '画面上アップロードまたは APIアップロードでファイルを受け付けます。APIアップロードを有効にした場合はエンドポイント URL を指定します。',
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
   preprocess: 'OCR 前に画像補正、画像回転、画像分割を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像並び替え：同一帳票タイプ内の画像を整列。',
@@ -120,9 +117,9 @@ const INSPECTOR_HINTS = {
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
-  hitlGate: '案件レベルの人工確認タスクを生成します。いつ人が必要か・誰に割り当てるかのみ設定し、承認・差戻し・補件判断は設定しません。',
+  hitlGate: '案件レベルの人工確認タスクを生成します。コンテキストと審査ロールを指定し、3 つの出口から下流を接続してください。',
   hitlContext: '確認タイプ：前処理確認 / OCR 結果確認 / AI 検証確認。同一タイプは Workflow 内で最大 1 件。',
-  hitlActions: '審査者が実行できる操作を選択します（最低 1 件）。',
+  hitlConnect: '3 つの出口（+）から下流ノードを接続してください。分岐はシステム固定です。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
@@ -153,24 +150,24 @@ const INSPECTOR_HINTS = {
   outputApi: 'エクスポート完了後、抽出結果を外部 API へ送信します。',
   caseLinkDocs: '主帳票を1件選択し、その他の帳票を関連帳票として扱います。',
   caseLinkAggregate: '主帳票と関連帳票の紐付けを管理します。',
-  docFieldLinks: '低信頼OCR字段は自動集約から除外し、未命中・多候補・競合は集約確認へ送ります。',
+  docFieldLinks: '任意の帳票間でフィールド関連を設定します。主帳票を介さない副帳票同士の関連も可能です。',
   docFieldNetwork: '主帳票を中央に配置し、主帳票のフィールドから関連帳票へ矢印を表示します。',
   sceneMatching: 'マッチング優先度を指定します。',
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 17;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 19;
 const WF_LAYOUT_PAD = { x: 48, y: 160 };
 const WF_BRANCH_LANE_GAP = 56;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
-  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
   'wf-n-supp', 'wf-n-error', 'wf-n-ok', 'wf-end',
 ];
 
 const DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
   'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
-  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
   'wf-n-supp', 'wf-n-error', 'wf-n-ok',
 ];
 
@@ -727,48 +724,6 @@ const CASE_WORKFLOW_START_TRIGGERS = [
     category: '補件',
     label: '補件アップロード（フォールバック）',
     detail: '案件詳細の補件入口から手動紐付け完了後に開始',
-  },
-];
-
-const AI_VERIFY_ENTRY_WAIT_EVENTS = [
-  {
-    id: 'ocr_completed',
-    category: '本批処理',
-    label: 'OCR 完了',
-    detail: '本批すべてのファイルで OCR 抽出が完了',
-  },
-  {
-    id: 'mapping_completed',
-    category: '本批処理',
-    label: 'Data Mapping 完了',
-    detail: '本批の標準フィールドマッピングが完了',
-  },
-  {
-    id: 'upstream_hitl_closed',
-    category: '上游人工',
-    label: '人工待办 close',
-    detail: '前処理 / OCR 人工確認待办がすべて close',
-  },
-  {
-    id: 'pending_aggregated',
-    category: '跨批次/补件',
-    label: 'pending 汇总完了',
-    detail: '跨批次并入・补件绑定の pending 项が汇总済み',
-  },
-];
-
-const HITL_VERIFY_MERGE_EVENTS = [
-  {
-    id: 'upstream_ready',
-    category: '执行前',
-    label: '上游汇总完了',
-    detail: '本批 OCR / Mapping 完了かつ上游人工待办 close 後',
-  },
-  {
-    id: 'open_dedupe',
-    category: '待办生成',
-    label: 'open 追加去重',
-    detail: '同一案件の open 待办へ追記し、新規待办は作らない',
   },
 ];
 
@@ -1437,12 +1392,6 @@ function normalizeHitlWaitConfig(node) {
   };
 }
 
-function supportsHitlWaitConfig(node) {
-  if (!isHitlGateNode(node)) return false;
-  const ctx = inferHitlContext(node);
-  return ctx === 'preprocess' || ctx === 'ocr';
-}
-
 function isHitlVerificationContext(node) {
   return isHitlGateNode(node) && inferHitlContext(node) === 'verification';
 }
@@ -1835,12 +1784,19 @@ const HITL_CONTEXT_OPTIONS = [
 const HITL_PRESET_OPTIONS = HITL_CONTEXT_OPTIONS;
 
 const HITL_ACTION_OPTIONS = [
-  { value: 'approve', label: '承認' },
-  { value: 'reject', label: '差戻し' },
-  { value: 'request_fix', label: '修正依頼' },
+  { value: 'approve', label: '完成' },
+  { value: 'request_supplement', label: '補件' },
+  { value: 'reject', label: '案件終止' },
 ];
 
-const HITL_DEFAULT_ACTIONS = ['approve', 'reject'];
+const HITL_DEFAULT_ACTIONS = HITL_ACTION_OPTIONS.map((o) => o.value);
+
+const HITL_LEGACY_ACTION_MAP = {
+  request_fix: 'approve',
+  pass: 'approve',
+  supplement: 'request_supplement',
+  exception: 'reject',
+};
 
 const HITL_CONTEXT_DEFAULT_ROLE = {
   preprocess: '案件担当者',
@@ -2262,9 +2218,96 @@ function getHitlGatePreset(node) {
   return getHitlContextMeta(hitlContext);
 }
 
+function normalizeHitlGateActionValue(action) {
+  const raw = String(action || '').trim();
+  if (HITL_ACTION_OPTIONS.some((o) => o.value === raw)) return raw;
+  return HITL_LEGACY_ACTION_MAP[raw] || '';
+}
+
 function normalizeHitlGateActions(actions) {
-  const list = Array.isArray(actions) ? actions.filter((a) => HITL_ACTION_OPTIONS.some((o) => o.value === a)) : [];
-  return list.length ? list : [...HITL_DEFAULT_ACTIONS];
+  const list = Array.isArray(actions)
+    ? actions.map(normalizeHitlGateActionValue).filter(Boolean)
+    : [];
+  const unique = HITL_DEFAULT_ACTIONS.filter((value) => list.includes(value));
+  return unique.length === HITL_DEFAULT_ACTIONS.length ? unique : [...HITL_DEFAULT_ACTIONS];
+}
+
+function getHitlGateActionLabel(action) {
+  return HITL_ACTION_OPTIONS.find((o) => o.value === action)?.label || action || '';
+}
+
+function getHitlGateBranchEdgeLabel(branch, node = null) {
+  return getHitlGateActionLabel(normalizeHitlGateActionValue(branch));
+}
+
+const HITL_GATE_LAYOUT = {
+  minW: 208,
+  headerH: 44,
+  summaryH: 22,
+  bodyPadTop: 0,
+  bodyPadBottom: 6,
+  rowGap: 4,
+  rowH: 28,
+  labelCharW: 14,
+};
+
+const HITL_GATE_BRANCH_LANE_W = 84;
+const HITL_GATE_BRANCH_GAP_W = 8;
+
+function getHitlGateNodeLayoutMetrics(node) {
+  const actions = normalizeHitlGateActions(node?.actions);
+  const { minW, headerH, summaryH, bodyPadBottom, rowGap, rowH } = HITL_GATE_LAYOUT;
+  const cardW = minW;
+  const cardH = headerH + summaryH + bodyPadBottom;
+  const branchesH = actions.length * rowH + Math.max(0, actions.length - 1) * rowGap;
+  const shellH = Math.max(cardH, branchesH);
+  const branchPadTop = Math.max(0, (shellH - branchesH) / 2);
+  const rows = actions.map((action, index) => {
+    const yCenter = Math.round(
+      branchPadTop + index * (rowH + rowGap) + rowH / 2,
+    );
+    return {
+      key: action,
+      index,
+      label: getHitlGateActionLabel(action),
+      yCenter,
+      rowH,
+      ratio: yCenter / shellH,
+    };
+  });
+  return {
+    w: cardW + HITL_GATE_BRANCH_GAP_W + HITL_GATE_BRANCH_LANE_W,
+    h: shellH,
+    cardW,
+    cardH,
+    headerH,
+    summaryH,
+    branchPadTop,
+    branchLaneW: HITL_GATE_BRANCH_LANE_W,
+    branchGapW: HITL_GATE_BRANCH_GAP_W,
+    branchesH,
+    rows,
+  };
+}
+
+function getHitlGateNodeBranches(node) {
+  return getHitlGateNodeLayoutMetrics(node).rows.map((row) => ({
+    key: row.key,
+    index: row.index,
+    label: row.label,
+    ratio: row.ratio,
+    yCenter: row.yCenter,
+  }));
+}
+
+function getHitlGateBranchIndex(node, branchKey) {
+  const branches = getHitlGateNodeBranches(node);
+  const match = branches.find((b) => b.key === branchKey);
+  return match?.index ?? branches.findIndex((b) => b.key === branchKey);
+}
+
+function isHitlGateBranchNode(node) {
+  return isHitlGateNode(node);
 }
 
 function normalizeHitlGateNode(node) {
@@ -2448,8 +2491,99 @@ function migrateHitlDecisionsInWorkflow(workflow) {
     const elseTarget = elseEdge?.to;
     workflow.nodes[idx] = normalizeHitlGateNode({ ...node, type: 'hitl_gate' });
     workflow.edges = (workflow.edges || []).filter((e) => e.from !== node.id);
-    if (elseTarget) workflow.edges.push({ from: node.id, to: elseTarget });
+    if (elseTarget) {
+      workflow.edges.push({
+        from: node.id,
+        to: elseTarget,
+        branch: 'approve',
+        label: getHitlGateBranchEdgeLabel('approve'),
+      });
+    }
   });
+}
+
+const HITL_RESULT_DECISION_BRANCH_MAP = {
+  if: 'approve',
+  'elif-edit': 'approve',
+  'elif-deficiency': 'request_supplement',
+  else: 'reject',
+};
+
+function migrateHitlResultDecisionNodes(workflow) {
+  if (!workflow?.nodes?.length) return;
+  const resultNode = (workflow.nodes || []).find((n) =>
+    n.id === 'wf-d-hitl-result' && n.type === 'decision');
+  if (!resultNode) return;
+
+  const hitlFinal = (workflow.nodes || []).find((n) => n.id === 'wf-hu-final' && isHitlGateNode(n));
+  if (!hitlFinal) return;
+
+  const resultEdges = (workflow.edges || []).filter((e) => e.from === resultNode.id);
+  workflow.edges = (workflow.edges || []).filter((e) =>
+    e.from !== resultNode.id && e.to !== resultNode.id);
+  workflow.nodes = workflow.nodes.filter((n) => n.id !== resultNode.id);
+
+  resultEdges.forEach((edge) => {
+    const action = HITL_RESULT_DECISION_BRANCH_MAP[edge.branch] || normalizeHitlGateActionValue(edge.branch);
+    if (!action) return;
+    if (workflow.edges.some((e) => e.from === hitlFinal.id && e.branch === action)) return;
+    workflow.edges.push({
+      from: hitlFinal.id,
+      to: edge.to,
+      branch: action,
+      label: getHitlGateBranchEdgeLabel(action, hitlFinal),
+    });
+  });
+}
+
+function migrateHitlGateMainEdges(workflow) {
+  if (!workflow?.nodes?.length) return;
+  (workflow.nodes || []).filter(isHitlGateNode).forEach((hitl) => {
+    const outEdges = (workflow.edges || []).filter((e) => e.from === hitl.id);
+    const mainEdges = outEdges.filter((e) => !e.branch);
+    if (mainEdges.length !== 1) return;
+    const target = mainEdges[0].to;
+    workflow.edges = workflow.edges.filter((e) => !(e.from === hitl.id && !e.branch));
+    if (workflow.edges.some((e) => e.from === hitl.id && e.branch === 'approve')) return;
+    workflow.edges.push({
+      from: hitl.id,
+      to: target,
+      branch: 'approve',
+      label: getHitlGateBranchEdgeLabel('approve', hitl),
+    });
+  });
+}
+
+function migrateHitlGateEdges(workflow) {
+  const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
+  (workflow?.edges || []).forEach((edge) => {
+    const from = nodeMap[edge.from];
+    if (!isHitlGateNode(from) || !edge.branch) return;
+    const action = normalizeHitlGateActionValue(edge.branch);
+    if (action) edge.branch = action;
+    edge.label = getHitlGateBranchEdgeLabel(edge.branch, from);
+  });
+}
+
+function sanitizeHitlGateEdges(workflow) {
+  if (!workflow?.edges?.length) return;
+  const nodeMap = Object.fromEntries((workflow.nodes || []).map((n) => [n.id, n]));
+  workflow.edges = workflow.edges.filter((edge) => {
+    const from = nodeMap[edge.from];
+    if (!isHitlGateNode(from)) return true;
+    if (!edge.branch) return false;
+    return normalizeHitlGateActions(from.actions).includes(edge.branch);
+  });
+  const seen = new Set();
+  workflow.edges = workflow.edges.filter((edge) => {
+    const from = nodeMap[edge.from];
+    if (!isHitlGateNode(from) || !edge.branch) return true;
+    const key = `${edge.from}|${edge.branch}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  migrateHitlGateEdges(workflow);
 }
 
 const DECISION_RESULT_VALUES = [
@@ -3426,7 +3560,6 @@ function buildDefaultCaseWorkflow() {
     label: '人工確認',
     hitlContext: 'preprocess',
     role: '入力オペレータ',
-    hitlWaitEnabled: true,
   });
   place({ id: 'wf-oc', type: 'ocr', label: 'OCR抽出' });
   place({ id: 'wf-d-ocr', type: 'decision', label: 'OCR条件判断', judgmentContext: 'custom' });
@@ -3436,7 +3569,6 @@ function buildDefaultCaseWorkflow() {
     label: '人工確認',
     hitlContext: 'ocr',
     role: '医療審査',
-    hitlWaitEnabled: true,
   });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
@@ -3448,7 +3580,6 @@ function buildDefaultCaseWorkflow() {
     hitlContext: 'verification',
     role: '給付審査',
   });
-  place({ id: 'wf-d-hitl-result', type: 'decision', label: '人工確認後条件', judgmentContext: 'custom' });
   place({ id: 'wf-n-supp', type: 'notify', label: '補件通知', template: 'deficiency' });
   place({ id: 'wf-n-error', type: 'notify', label: '異常通知', template: 'exception' });
   place({ id: 'wf-n-ok', type: 'notify', label: '処理完了通知', template: 'completed' });
@@ -3457,7 +3588,6 @@ function buildDefaultCaseWorkflow() {
   const ppVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-pp'), wf);
   const ocrVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-oc'), wf);
   const aiVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-ai'), wf);
-  const finalHitlVar = getWorkflowNodeVarName(nodes.find((n) => n.id === 'wf-hu-final'), wf);
   const dPre = nodes.find((n) => n.id === 'wf-d-pre');
   Object.assign(dPre, {
     judgmentContext: 'custom',
@@ -3529,50 +3659,29 @@ function buildDefaultCaseWorkflow() {
     elseLabel: '人工確認',
   });
 
-  const dHitlResult = nodes.find((n) => n.id === 'wf-d-hitl-result');
-  Object.assign(dHitlResult, {
-    judgmentContext: 'custom',
-    cases: [
-      createDecisionCase('if', {
-        id: 'if',
-        label: '確認通過',
-        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'approve')],
-      }),
-      createDecisionCase('elif', {
-        id: 'elif-edit',
-        label: '修正通過',
-        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'request_fix')],
-      }),
-      createDecisionCase('elif', {
-        id: 'elif-deficiency',
-        label: '補件',
-        conditions: [cond(`${finalHitlVar}.case.confirmAction`, 'is', 'request_supplement')],
-      }),
-    ],
-    elseLabel: '異常',
-  });
-
   edges.push(
     { from: 'wf-start', to: 'wf-pp' },
     { from: 'wf-pp', to: 'wf-d-pre' },
     { from: 'wf-d-pre', to: 'wf-oc', branch: 'if', label: '通過', visualHidden: true },
     { from: 'wf-d-pre', to: 'wf-hu-pre', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-pre', to: 'wf-oc' },
+    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '通過' },
+    { from: 'wf-hu-pre', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼' },
+    { from: 'wf-hu-pre', to: 'wf-n-error', branch: 'reject', label: '異常' },
     { from: 'wf-oc', to: 'wf-d-ocr' },
     { from: 'wf-d-ocr', to: 'wf-map', branch: 'if', label: '通過', visualHidden: true },
     { from: 'wf-d-ocr', to: 'wf-hu-ocr', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-ocr', to: 'wf-map' },
+    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '通過' },
+    { from: 'wf-hu-ocr', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼' },
+    { from: 'wf-hu-ocr', to: 'wf-n-error', branch: 'reject', label: '異常' },
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-n-ok', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'elif-deficiency', label: '補件' },
     { from: 'wf-d-final', to: 'wf-n-error', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-final', to: 'wf-d-hitl-result' },
-    { from: 'wf-d-hitl-result', to: 'wf-n-ok', branch: 'if', label: '確認通過' },
-    { from: 'wf-d-hitl-result', to: 'wf-n-ok', branch: 'elif-edit', label: '修正通過' },
-    { from: 'wf-d-hitl-result', to: 'wf-n-supp', branch: 'elif-deficiency', label: '補件' },
-    { from: 'wf-d-hitl-result', to: 'wf-n-error', branch: 'else', label: '異常' },
+    { from: 'wf-hu-final', to: 'wf-n-ok', branch: 'approve', label: '通過' },
+    { from: 'wf-hu-final', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼' },
+    { from: 'wf-hu-final', to: 'wf-n-error', branch: 'reject', label: '異常' },
     { from: 'wf-n-supp', to: 'wf-end' },
     { from: 'wf-n-error', to: 'wf-end' },
     { from: 'wf-n-ok', to: 'wf-end' },
@@ -3591,6 +3700,8 @@ function buildDefaultCaseWorkflow() {
   });
   migrateDecisionEdges(wf);
   sanitizeDecisionEdges(wf);
+  migrateHitlGateEdges(wf);
+  sanitizeHitlGateEdges(wf);
   ensureWorkflowStartNode(wf);
   layoutWorkflowGraph(wf);
 
@@ -3910,17 +4021,22 @@ function migrateMcpNodesToDataMapping(workflow) {
   });
 }
 
-function migrateDefaultHitlWaitFlags(workflow) {
+function migrateDefaultHumanBufferFlags(workflow) {
   if (!workflow?.nodes?.length || !hasCanonicalDefaultCaseWorkflowNodes(workflow)) return;
   workflow.nodes.forEach((node) => {
-    if (!isHitlGateNode(node)) return;
-    const ctx = inferHitlContext(node);
-    const isDefaultPre = node.id === 'wf-hu-pre' && ctx === 'preprocess';
-    const isDefaultOcr = node.id === 'wf-hu-ocr' && ctx === 'ocr';
-    if ((isDefaultPre || isDefaultOcr) && node.hitlWaitEnabled == null) {
-      node.hitlWaitEnabled = true;
+    if ((node.id === 'wf-pp' && node.type === 'preprocess')
+      || (node.id === 'wf-oc' && node.type === 'ocr')) {
+      delete node.hitlWaitEnabled;
+    }
+    if (isHitlGateNode(node) && (node.id === 'wf-hu-pre' || node.id === 'wf-hu-ocr')) {
+      delete node.hitlWaitEnabled;
     }
   });
+}
+
+/** @deprecated */
+function migrateDefaultHitlWaitFlags(workflow) {
+  migrateDefaultHumanBufferFlags(workflow);
 }
 
 function normalizeWorkflow(workflow, flowKey = 'case') {
@@ -3940,6 +4056,8 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
     w.edges = w.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
   }
   migrateHitlDecisionsInWorkflow(w);
+  migrateHitlResultDecisionNodes(w);
+  migrateHitlGateMainEdges(w);
   w.nodes = w.nodes.map((n) => {
     if (n.type === 'start') return normalizeStartNode(n);
     if (n.type === 'end') return normalizeEndNode(n);
@@ -3956,8 +4074,11 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
   migrateDecisionEdges(w);
   migrateDecisionFlowEdges(w);
   sanitizeDecisionEdges(w);
+  migrateHitlGateEdges(w);
+  sanitizeHitlGateEdges(w);
   migrateEnsureTerminalNodes(w);
   ensureWorkflowStartNode(w);
+  applyWorkflowEdgeRoutes(w);
   layoutWorkflowGraph(w);
   return w;
 }
@@ -4013,6 +4134,103 @@ function getWorkflowNodeOrder(workflow, nodeId) {
   const chain = getWorkflowMainChainIds(workflow);
   const idx = chain.indexOf(nodeId);
   return idx >= 0 ? idx + 1 : null;
+}
+
+function workflowEdgeKey(edge) {
+  return `${edge.from}|${edge.to}|${edge.branch || ''}`;
+}
+
+function workflowCanReach(workflow, fromId, toId, excludeEdge = null) {
+  if (!fromId || !toId || fromId === toId) return false;
+  const excludeKey = excludeEdge ? workflowEdgeKey(excludeEdge) : '';
+  const edges = (workflow?.edges || []).filter((e) => !excludeKey || workflowEdgeKey(e) !== excludeKey);
+  const visited = new Set();
+  const queue = [fromId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (id === toId) return true;
+    if (!id || visited.has(id)) continue;
+    visited.add(id);
+    edges.filter((e) => e.from === id).forEach((e) => queue.push(e.to));
+  }
+  return false;
+}
+
+function isWorkflowBackflowEdge(workflow, fromId, toId, excludeEdge = null) {
+  return workflowCanReach(workflow, toId, fromId, excludeEdge);
+}
+
+function getWorkflowCycleNodeIds(workflow) {
+  const nodeIds = (workflow?.nodes || []).map((n) => n.id);
+  const edges = workflow?.edges || [];
+  if (!nodeIds.length || !edges.length) return new Set();
+  const adj = Object.fromEntries(nodeIds.map((id) => [id, []]));
+  edges.forEach((edge) => {
+    if (adj[edge.from]) adj[edge.from].push(edge.to);
+  });
+  const index = {};
+  const lowlink = {};
+  const onStack = new Set();
+  const stack = [];
+  const cycleNodes = new Set();
+  let seq = 0;
+
+  function strongConnect(v) {
+    index[v] = seq;
+    lowlink[v] = seq;
+    seq += 1;
+    stack.push(v);
+    onStack.add(v);
+    (adj[v] || []).forEach((w) => {
+      if (index[w] === undefined) {
+        strongConnect(w);
+        lowlink[v] = Math.min(lowlink[v], lowlink[w]);
+      } else if (onStack.has(w)) {
+        lowlink[v] = Math.min(lowlink[v], index[w]);
+      }
+    });
+    if (lowlink[v] === index[v]) {
+      const comp = [];
+      let w;
+      do {
+        w = stack.pop();
+        onStack.delete(w);
+        comp.push(w);
+      } while (w !== v);
+      if (comp.length > 1) comp.forEach((id) => cycleNodes.add(id));
+    }
+  }
+
+  nodeIds.forEach((id) => {
+    if (index[id] === undefined) strongConnect(id);
+  });
+  return cycleNodes;
+}
+
+function workflowHasCycle(workflow) {
+  return getWorkflowCycleNodeIds(workflow).size > 0;
+}
+
+function isValidWorkflowConnect(from, to, branch) {
+  if (!from || !to || from.id === to.id) return false;
+  if (from.type === 'decision' && !branch) return false;
+  if (isHitlGateNode(from) && !branch) return false;
+  if (isHitlGateNode(from) && branch && !normalizeHitlGateActions(from.actions).includes(branch)) return false;
+  return true;
+}
+
+function normalizeWorkflowEdgeRoute(workflow, edge) {
+  if (!edge || !workflow) return edge;
+  if (isWorkflowBackflowEdge(workflow, edge.from, edge.to, edge)) {
+    edge.route = 'top';
+  } else if (edge.route === 'top') {
+    delete edge.route;
+  }
+  return edge;
+}
+
+function applyWorkflowEdgeRoutes(workflow) {
+  (workflow?.edges || []).forEach((edge) => normalizeWorkflowEdgeRoute(workflow, edge));
 }
 
 function swapAdjacentMainChainEdges(wf, firstId, secondId) {
@@ -4079,6 +4297,11 @@ function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
     return { w: metrics.w, h: metrics.h };
   }
 
+  if (isHitlGateNode(node)) {
+    const metrics = getHitlGateNodeLayoutMetrics(node);
+    return { w: metrics.w, h: metrics.h };
+  }
+
   const nodeW = WORKFLOW_NODE_SIZE.default.w;
   const tagTexts = tasks?.length ? tasks : (taskCount ? Array.from({ length: taskCount }, () => 'tag') : []);
   const HEADER_H = 44;
@@ -4115,6 +4338,9 @@ function estimateWorkflowNodeLayoutTasks(node) {
     if (node.elseLabel) tags.push(`ELSE:${node.elseLabel}`);
     return tags.length ? tags : ['条件判断'];
   }
+  if (isHitlGateNode(node)) {
+    return [node.label || '人工確認'];
+  }
   if (node.type === 'hitl_gate') return [node.label || '人工確認'];
   if (node.type === 'preprocess') return ['前処理'];
   if (node.type === 'ocr') return ['OCR抽出'];
@@ -4141,6 +4367,9 @@ function pickWorkflowMainChainEdge(workflow, fromId) {
       || edges.find((e) => e.branch && String(e.branch).startsWith('elif'))
       || edges.find((e) => !e.branch)
       || edges[0];
+  }
+  if (isHitlGateNode(from)) {
+    return edges.find((e) => e.branch === 'approve') || edges[0];
   }
   return edges.find((e) => !e.branch) || edges[0];
 }
@@ -4208,7 +4437,7 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
   const mainIds = [
     'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
-    'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-d-hitl-result',
+    'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
   ];
   const endId = 'wf-end';
   const laneGap = 142;
@@ -4228,7 +4457,7 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     node.y = y + Math.round((76 - Math.min(76, size.h)) / 2);
     x += size.w + stepGap;
   });
-  const resultDecision = byId['wf-d-hitl-result'];
+  const resultDecision = byId['wf-hu-final'];
   const resultSize = resultDecision
     ? (sizes.get(resultDecision.id) || getWorkflowNodeLayoutSize(resultDecision))
     : null;
@@ -4377,10 +4606,11 @@ function getWorkflowParallelFanOutChildren(workflow, parentId, endNodeId, nodeMa
 }
 
 function workflowEndFlowBranchPriority(branch) {
-  if (branch === 'if') return 0;
+  if (branch === 'if' || branch === 'approve') return 0;
   if (!branch) return 1;
   if (branch && String(branch).startsWith('elif')) return 2;
-  if (branch === 'else') return 3;
+  if (branch === 'request_supplement') return 2;
+  if (branch === 'else' || branch === 'reject') return 3;
   return 4;
 }
 
@@ -4540,6 +4770,35 @@ function buildWorkflowEndFlowPreview(workflow, endNodeId) {
       });
       stages.push({
         id: `stage-decision-${node.id}`,
+        kind: 'decision',
+        node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
+        branches,
+      });
+      while (i + 1 < pathNodes.length && activeChainIds.has(pathNodes[i + 1].id)) {
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+    if (isHitlGateNode(node)) {
+      const outEdges = (workflow?.edges || []).filter((e) => e.from === node.id && e.branch);
+      const activeEdge = pickWorkflowPathEdge(workflow, node.id, endNodeId);
+      const activeChainIds = new Set(
+        collectWorkflowForwardChain(workflow, activeEdge?.to, endNodeId).map((n) => n.id),
+      );
+      const branches = outEdges.map((edge) => {
+        const active = edge === activeEdge;
+        const branchNodes = collectWorkflowForwardChain(workflow, edge.to, endNodeId)
+          .map((n) => buildWorkflowEndFlowNodeItem(n, pathIds, endNodeId));
+        return {
+          id: `${node.id}-${edge.branch || edge.to}`,
+          label: edge.label || getHitlGateBranchEdgeLabel(edge.branch, node) || '分岐',
+          active,
+          nodes: branchNodes,
+        };
+      });
+      stages.push({
+        id: `stage-hitl-${node.id}`,
         kind: 'decision',
         node: buildWorkflowEndFlowNodeItem(node, pathIds, endNodeId),
         branches,

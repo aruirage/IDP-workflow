@@ -1,3 +1,5 @@
+const MAIN_BUILD = '567-backflow-edge-routing';
+
 const appOptions = {
   setup() {
     const uiLanguage = ref(localStorage.getItem('neosai-idp-ui-language') || 'ja');
@@ -197,7 +199,12 @@ const appOptions = {
       ['案件集約結果', '案件集约结果'],
       ['実行パイプライン', '执行链路'],
       ['処理時間', '处理时间'],
+      ['補件依頼', '要求补件'],
+      ['アクション分岐', '动作分支'],
+      ['3 つの出口（+）から下流ノードを接続してください。分岐はシステム固定です。', '请从 3 个出口（+）连接下游节点。分支由系统固定。'],
       ['通過', '通过'],
+      ['完成', '完成'],
+      ['案件終止', '案件终止'],
       ['案件', '案件'],
       ['原ファイル', '原文件'],
       ['処理ファイル', '处理文件'],
@@ -237,6 +244,7 @@ const appOptions = {
       ['コンテキスト', '上下文'],
       ['ゲート設定', '网关设定'],
       ['人工確認のコンテキストと審査ロールを指定します。', '指定人工确认的上下文和审核角色。'],
+      ['案件レベルの人工確認タスクを生成します。コンテキストと審査ロールを指定し、3 つの出口から下流を接続してください。', '生成案件级人工确认任务。请指定上下文和审核角色，并从 3 个出口连接下游。'],
       ['審査ロール', '审核角色'],
       ['前処理確認', '前处理确认'],
       ['AI検証確認', 'AI校验确认'],
@@ -608,7 +616,8 @@ const appOptions = {
       ['出力ポートをドラッグしてノード間を接続します。ノード前後または連線上の + でノードを追加・挿入できます。', '拖拽输出端口连接节点。可通过节点前后或连线上的 + 添加/插入节点。'],
       ['MCP サーバー管理', 'MCP 服务器管理'],
       ['Server 接続・Tool 定義・入力パラメータを集中管理。Workflow では Server / Tool の選択のみ行います。', '集中管理 Server 连接、Tool 定义和输入参数。Workflow 中只选择 Server / Tool。'],
-      ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到下游节点输入端口。可通过连线上的 + 在中途插入节点。'],
+      ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
+      ['出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。', '拖拽输出端口可连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
       ['ファイル分割は他製品の既存ルールをそのまま利用します。本 PRD では再定義しません。Step1 では設定しません。', '文件分割沿用其他产品已有规则，本 PRD 不重复定义，不在 Step1 配置。'],
       ['跨批次并入', '跨批次并入'],
       ['人工触点去重', '人工触点去重'],
@@ -650,12 +659,53 @@ const appOptions = {
       ['生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。', '生成的人工确认任务 ID、确认状态、确认操作、担当角色、人工修正摘要。'],
       ['人工確認タスク・缓冲等待状態・open 待办数・待確認ファイル/フィールド件数・確認結果・補件/異常判定。', '人工确认任务、缓冲等待状态、open 待办数、待确认文件/字段件数、确认结果、补件/异常判定。'],
       ['待办合并', '待办合并'],
+      ['以下の操作手順・关注点はプロトタイプの演示说明です。実装仕様は PRD を参照してください。', '以下操作步骤与关注点均为原型演示说明，实现规格请以 PRD 为准。'],
+      ['テスト不通过示例', '测试不通过示例'],
+      ['以下はプロトタイプで再現できる、または PRD で定義された未通過ケースです。成功パスは上のシナリオボタンを参照。', '以下为原型可演示或 PRD 定义的未通过情形；成功路径见上方场景按钮。'],
+      ['テスト実行で再現（シナリオを選択）', '测试执行可复现（选择场景）'],
+      ['公開前チェック（本テストでは未シミュレーション）', '发布前检查（本测试未模拟）'],
+      ['案件集約：複数候補', '案件集约：多候选'],
+      ['集約 warning', '集约 warning'],
+      ['同一識別キーで複数 Open Case 候補に命中。集約ステップ warning、人工確認で归并先を決定。', '同一识别键命中多个 Open Case 候选。集约步骤 warning，需人工确认归并目标。'],
+      ['OCR：低信頼フィールド', 'OCR：低置信字段'],
+      ['失敗・ワークフロー停止', '失败・工作流停止'],
+      ['抽出信頼度が閾値未満（例：医療機関名 0.62 < 0.75）。OCR ノード error、以降は未実行。', '抽出置信度低于阈值（例：医疗机构名 0.62 < 0.75）。OCR 节点 error，后续未执行。'],
+      ['AI検証：データ検証不一致', 'AI 检证：数据校验不一致'],
+      ['ルール c2 等で請求金額と診療明細合計が不一致。AI検証 error、終了ノード未到達。', '规则 c2 等导致请求金额与诊疗明细合计不一致。AI 检证 error，未到达终了节点。'],
+      ['終了ノード未到達', '未到达终了节点'],
+      ['error ノード以降は pending。総合結果は「失敗」または「終了未到達」。', 'error 节点之后为 pending。综合结果为「失败」或「未到达终了节点」。'],
+      ['補件：不足書類検出', '补件：不足资料检测'],
+      ['要確認（補件待ち）', '待确认（等待补件）'],
+      ['関連帳票未紐付け・AI検証で不足書類。案件 userStatus=補件待ち；終了は warning 付きで到達可。', '关联账票未绑定・AI 检证检出不足资料。案件 userStatus=等待补件；终了节点可带 warning 到达。'],
+      ['分岐悬空', '分支悬空'],
+      ['公開不可', '不可发布'],
+      ['IF/ELSE 分岐先が終了ノードに到達していない。', 'IF/ELSE 分支未到达终了节点。'],
+      ['画布有环', '画布有环'],
+      ['ノード接続に循環がある（回流は許可・公開可）。', '节点连接存在循环（允许回流，可发布）。'],
+      ['終了ノードなし', '无终了节点'],
+      ['Workflow に終了ノードが存在しない、または到達不能。', 'Workflow 不存在终了节点，或终了节点不可达。'],
+      ['完全性 NG 分岐が終了未到達', '完整性 NG 分支未到达终了'],
+      ['完全性チェック不備分岐が終了ノードに明示接続されていない。', '完整性检查不备分支未显式连接到终了节点。'],
+      ['人工確認コンテキスト不一致', '人工确认上下文不一致'],
+      ['人工確認の確認タイプと上流ノード種別が一致しない（例：OCR確認に前処理のみ接続）。', '人工确认的确认类型与上游节点类型不一致（例：OCR 确认仅连接前处理）。'],
+      ['変数参照・分岐型不一致', '变量引用・分支类型不一致'],
+      ['未生成ノード・存在しない帳票タイプ/フィールドへの変数参照、または IF/ELSE 入力値・型不一致。', '引用未生成节点・不存在的账票类型/字段，或 IF/ELSE 输入值・类型不一致。'],
+      ['低信頼分岐が人工確認未接続', '低置信分支未接人工确认'],
+      ['公開警告', '发布警告'],
+      ['OCR低信頼・Master要確認・検証違反分岐が人工確認に接続されていない。公開は可能だが警告。', 'OCR 低置信・Master 需确认・检证违规分支未接人工确认。可发布但会警告。'],
+      ['通知ノード未設定', '通知节点未配置'],
+      ['通知先・チャネルが未設定の通知ノードがある。', '存在未配置通知对象・渠道的通知节点。'],
+      ['試す：', '试用：'],
+      ['接続しました', '已连接'],
+      ['回流接続しました', '已创建回流连接'],
+      ['接続先ノードの入力ポートへドラッグしてください', '请拖拽到目标节点的输入端口'],
+      ['この接続は上流への回流です（点線表示）。公開・テスト実行はブロックされません。', '此连接为上游回流（虚线显示），不会阻止发布或测试执行。'],
+      ['案件集約完了後、開始ノードから到達可能な順に実行します（環状パス上のノードは初回到達順で表示）', '案件集约完成后，按从起始节点可达顺序执行（环路径上的节点按首次到达顺序展示）'],
+      ['環状パス上のノード（プロトタイプは初回到達順で表示）', '环路径上的节点（原型按首次到达顺序展示）'],
+      ['（環状パス上のノード）', '（环路径上的节点）'],
+      ['環状パスを', '检测到环路径，涉及'],
       ['缓冲等待（30 分钟）', '缓冲等待（30 分钟）'],
-      ['OFF = 即时出待办；ON = 多批 pending 合并后一条待办', 'OFF = 即时出待办；ON = 多批 pending 合并后一条待办'],
       ['系统默认（入口等待 + 去重合并）', '系统默认（入口等待 + 去重合并）'],
-      ['执行前提', '执行前提'],
-      ['入口等待', '入口等待'],
-      ['系统默认（不可关闭）', '系统默认（不可关闭）'],
       ['跨批次 + OCR缓冲', '跨批次 + OCR 缓冲'],
       ['跨批次 + 人工缓冲', '跨批次 + 人工缓冲'],
       ['预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。', '预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。'],
@@ -664,9 +714,6 @@ const appOptions = {
       ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。', '通知发送状态、通知类型、发送时间、收件人、失败原因、重复抑制标志。'],
       ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
       ['Workflow 入口。起動イベントはシステムが案件ルーティング結果に応じて自動設定します（読み取り専用）。', 'Workflow 入口。启动事件由系统根据案件路由结果自动设定（只读）。'],
-      ['前処理確認・OCR結果確認のみ設定可能。ON にすると、需人工確認のファイル到達後すぐ待办を出さず、固定 30 分間 pending を合并します。缓冲期内の新規ファイルは sliding 延長。案件列表は「処理中」、子标志は「等待人工缓冲」。', '仅前处理确认・OCR 结果确认可配置。开启后，需人工确认的文件到达后不立即出待办，固定 30 分钟合并 pending；缓冲期内新文件滑动延长；案件列表仍为「处理中」，子标志为「等待人工缓冲」。'],
-      ['AI検証確認は顧客設定不要。システム既定：AI検証開始前に upstream 汇总を待機し、人工待办は open 追記で去重合并。', 'AI 检证确认无需客户配置。系统默认：AI 检证开始前等待上游汇总，人工待办通过 open 追加去重合并。'],
-      ['システム既定（設定不可）。以下イベントがすべて発生してから AI 検証を実行します。补件・跨批次の pending 汇总も含まれます。', '系统默认（不可配置）。满足以下全部事件后再执行 AI 检证；跨批次/补件 pending 汇总亦包含在内。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
       ['无需配置；AI 检证入口等待汇总，人工待办 open 追加', '无需配置；AI 检证入口等待汇总，人工待办 open 追加'],
       ['等待条件', '等待条件'],
@@ -677,7 +724,7 @@ const appOptions = {
       ['補件（兜底入口）', '补件（兜底入口）'],
       ['1 回上传 → 1 案件 → Workflow 跑通', '1 次上传 → 1 案件 → Workflow 跑通'],
       ['第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）', '第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）'],
-      ['同上 + OCR 人工确认开缓冲 → 两批合并 1 条待办', '同上 + OCR 人工确认开缓冲 → 两批合并 1 条待办'],
+      ['同上 + OCR 人工确认缓冲 → 两批合并 1 条待办', '同上 + OCR 人工确认缓冲 → 两批合并 1 条待办'],
       ['post 池命中 → 补件绑定，从前处理重跑到 AI 检证', 'post 池命中 → 补件绑定，从前处理重跑到 AI 检证'],
       ['案件详情手动补件；缺资料警告', '案件详情手动补件；缺资料警告'],
       ['多候选集约 / OCR 低置信 / 校验失败', '多候选集约 / OCR 低置信 / 校验失败'],
@@ -691,7 +738,7 @@ const appOptions = {
       ['open 待办 1 件（バッチ2 分を追記、新規待办なし）', 'open 待办 1 件（追加批次2，不新建）'],
       ['同一 workflow 周期内 1 回のみ送信', '同一 workflow 周期内仅发送 1 次'],
       ['バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → 案件 A に并入。案件 B は未作成。', '批次1 新建案件 A（pre_ai_verify）。批次2 在 Open Case 池唯一命中 → 并入案件 A。未创建案件 B。'],
-      ['バッチ2 并入後、OCR 人工確認ノードで 30 分缓冲を有効化。两批 pending 项合并，缓冲结束只触发 1 条 OCR 待办。', '批次2 并入后，OCR 人工确认节点开启 30 分钟缓冲；两批 pending 合并，缓冲结束只触发 1 条 OCR 待办。'],
+      ['バッチ2 并入後、前処理・OCR 人工確認で 30 分缓冲。各触点 pending 项合并，缓冲结束各触发 1 条待办。', '批次2 并入后，前处理/OCR 人工确认 30 分钟缓冲；各触点 pending 合并，缓冲结束各触发 1 条待办。'],
       ['OCR 人工確認前等待', 'OCR 人工确认前等待'],
       ['OCR人工確認 + 30min', 'OCR 人工确认 + 30min'],
       ['缓冲期内 sliding 延长；列表仍显示处理中 + 等待人工缓冲', '缓冲期内滑动延长；列表仍显示处理中 + 等待人工缓冲'],
@@ -707,7 +754,7 @@ const appOptions = {
       ['バッチ1・バッチ2 を順次取り込み（計 4 原ファイル）', '依次导入批次1・批次2（共 4 个原文件）'],
       ['バッチ2 Open Case 并入 A；OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；OCR 人工确认缓冲 30 分钟合并 pending'],
       ['バッチ2 Open Case 并入 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；前处理/OCR 人工确认缓冲 30 分钟合并 pending'],
-      ['前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办', '前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办'],
+      ['前处理/OCR 人工确认缓冲 → 两批 pending 各合并 1 条待办', '前处理/OCR 人工确认缓冲 → 两批 pending 各合并 1 条待办'],
       ['前処理人工確認', '前处理人工确认'],
       ['前処理確認 + 30min', '前处理确认 + 30min'],
       ['バッチ2 Open Case 并入 A。案件 B 未作成', '批次2 Open Case 并入 A；未创建案件 B'],
@@ -1001,6 +1048,7 @@ const appOptions = {
     const wfConnectHoverTargetId = ref(null);
     let wfConnectSuppressClick = false;
     const wfConnectSourceId = ref(null);
+    const wfConnectSourceBranch = ref(null);
     const wfLibrarySearch = ref('');
     const wfNodePicker = reactive({
       visible: false,
@@ -1876,21 +1924,26 @@ const appOptions = {
       )
     );
     const sceneSetupAggregateRuleGroups = computed(() => {
-      const mainDocType = sceneSetupDraft.mainDocType;
-      if (!mainDocType) return [];
-      return (sceneSetupDraft.documents || [])
-        .filter((doc) => doc.type !== mainDocType)
-        .map((doc) => {
-          const links = (sceneSetupDraft.docFieldLinks || []).filter((link) =>
-            isSceneSetupLinkBetweenMainAndDoc(link, doc.type)
-          );
-          return {
-            docType: doc.type,
-            label: getDocDisplayLabel(doc.type),
-            links,
-            status: !links.length ? 'missing' : 'configured',
-          };
-        });
+      const links = sceneSetupDraft.docFieldLinks || [];
+      const pairMap = new Map();
+      links.forEach((link) => {
+        if (!link?.sourceDocType || !link?.targetDocType) return;
+        if (link.sourceDocType === link.targetDocType) return;
+        const pairKey = `${link.sourceDocType}|${link.targetDocType}`;
+        if (!pairMap.has(pairKey)) {
+          pairMap.set(pairKey, {
+            pairKey,
+            sourceDocType: link.sourceDocType,
+            targetDocType: link.targetDocType,
+            links: [],
+          });
+        }
+        pairMap.get(pairKey).links.push(link);
+      });
+      return [...pairMap.values()].map((group) => ({
+        ...group,
+        status: group.links.length ? 'configured' : 'missing',
+      }));
     });
     const sceneSetupAggregateInvalidGroups = computed(() =>
       sceneSetupAggregateRuleGroups.value.filter((group) =>
@@ -1922,23 +1975,15 @@ const appOptions = {
       pushWorkflowHistory('人工確認コンテキストを変更');
     }
 
-    function isHitlActionSelected(actionValue) {
-      const node = selectedWorkflowNode.value;
-      if (!node || !isHitlGateNode(node)) return false;
-      return normalizeHitlGateActions(node.actions).includes(actionValue);
+    function getHitlGateCanvasSummary(node) {
+      if (!node || !isHitlGateNode(node)) return t('人工確認');
+      const meta = getHitlGatePreset(node);
+      const parts = [meta?.label, node.role].filter(Boolean).map((item) => t(item));
+      return parts.join(' · ') || t('人工確認');
     }
 
-    function toggleHitlAction(actionValue) {
-      const node = selectedWorkflowNode.value;
-      if (!node || !isHitlGateNode(node)) return;
-      const current = normalizeHitlGateActions(node.actions);
-      if (current.includes(actionValue)) {
-        if (current.length <= 1) return;
-        node.actions = current.filter((a) => a !== actionValue);
-      } else {
-        node.actions = [...current, actionValue];
-      }
-      pushWorkflowHistory('処理アクションを変更');
+    function getHitlGateBranchCanvasLabel(branchKey) {
+      return t(getHitlGateActionLabel(branchKey));
     }
 
     function applyJudgmentContextToNode(node, contextValue, force = false) {
@@ -2773,7 +2818,16 @@ const appOptions = {
       const fromLabel = from ? getWorkflowNodeDisplayLabel(from) : edge.from;
       const toLabel = to ? getWorkflowNodeDisplayLabel(to) : edge.to;
       const branch = edge.branch ? `（${edge.label || edge.branch.toUpperCase()}）` : '';
-      return `${fromLabel} → ${toLabel}${branch}`;
+      const backflow = isWorkflowBackflowEdge(getActiveWf(), edge.from, edge.to)
+        ? ' · 回流'
+        : '';
+      return `${fromLabel} → ${toLabel}${branch}${backflow}`;
+    }
+
+    function isSelectedWorkflowEdgeBackflow() {
+      const edge = selectedWorkflowEdge.value;
+      if (!edge) return false;
+      return isWorkflowBackflowEdge(getActiveWf(), edge.from, edge.to);
     }
 
     function isDecisionConditionAuto(node) {
@@ -2789,16 +2843,29 @@ const appOptions = {
     }
 
     let workflowEdgePathsEvalCount = 0;
-    function buildWorkflowRoutedEdgePath(x1, y1, x2, y2, direction = 'top') {
-      const gap = Math.max(72, Math.min(120, Math.abs(x2 - x1) * 0.18));
+    const BACKFLOW_LANE_GAP = 56;
+    const BACKFLOW_LANE_STEP = 14;
+
+    function buildWorkflowRoutedEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0) {
       const laneY = direction === 'bottom'
-        ? Math.max(y1, y2) + 92
-        : Math.min(y1, y2) - 92;
+        ? Math.max(y1, y2) + BACKFLOW_LANE_GAP + laneOffset
+        : Math.min(y1, y2) - BACKFLOW_LANE_GAP - laneOffset;
+      const midX = (x1 + x2) / 2;
       return {
-        d: `M ${x1} ${y1} C ${x1 + gap} ${y1}, ${x1 + gap} ${laneY}, ${x1 + gap * 1.45} ${laneY} L ${x2 - gap * 1.45} ${laneY} C ${x2 - gap} ${laneY}, ${x2 - gap} ${y2}, ${x2} ${y2}`,
-        mid: { x: (x1 + x2) / 2, y: laneY },
-        labelAnchor: { x: (x1 + x2) / 2, y: laneY },
+        d: `M ${x1} ${y1} L ${x1} ${laneY} L ${x2} ${laneY} L ${x2} ${y2}`,
+        mid: { x: midX, y: laneY },
+        labelAnchor: { x: midX, y: laneY },
       };
+    }
+
+    function assignWorkflowBackflowLaneOffsets(drafts) {
+      const backflows = drafts.filter((draft) => draft.isBackflow);
+      if (!backflows.length) return;
+      backflows.sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2 || a.key.localeCompare(b.key));
+      const center = (backflows.length - 1) / 2;
+      backflows.forEach((draft, index) => {
+        draft.laneOffset = (index - center) * BACKFLOW_LANE_STEP;
+      });
     }
 
     const workflowEdgePaths = computed(() => {
@@ -2809,12 +2876,13 @@ const appOptions = {
       const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
       const PORT = 6;
 
-      return (getActiveWf()?.edges || []).map((edge) => {
+      const drafts = (getActiveWf()?.edges || []).map((edge) => {
         if (edge.visualHidden) return null;
         const from = nodeMap[edge.from];
         const to = nodeMap[edge.to];
         if (!from || !to) return null;
         if (from.type === 'decision' && !edge.branch) return null;
+        if (isHitlGateNode(from) && !edge.branch) return null;
         const fromSummary = getWorkflowNodeCanvasSummary(from);
         const toSummary = getWorkflowNodeCanvasSummary(to);
         const fromSize = getWorkflowNodeDisplaySize(from, fromSummary);
@@ -2822,7 +2890,7 @@ const appOptions = {
         const toCy = to.y + toSize.h / 2;
 
         let x1; let y1; let x2; let y2;
-        if (from.type === 'decision' && edge.branch) {
+        if ((from.type === 'decision' || isHitlGateNode(from)) && edge.branch) {
           const start = getWorkflowPortPosition(from, edge.branch);
           x1 = start.x;
           y1 = start.y;
@@ -2835,34 +2903,76 @@ const appOptions = {
           y2 = toCy;
         }
 
-        const shouldRoute = edge.route && Math.abs(x2 - x1) > 180;
-        const routed = shouldRoute ? buildWorkflowRoutedEdgePath(x1, y1, x2, y2, edge.route) : null;
-        const d = routed?.d || wfBezierPath(x1, y1, x2, y2);
-        const mid = routed?.mid || wfBezierPoint(x1, y1, x2, y2, 0.5);
-        const labelAnchor = routed?.labelAnchor || wfBezierPoint(x1, y1, x2, y2, from.type === 'decision' && edge.branch ? 0.32 : 0.42);
+        const isBackflow = isWorkflowBackflowEdge(getActiveWf(), edge.from, edge.to)
+          || x2 < x1 - 24;
+        const routeDirection = edge.route || 'top';
+        const shouldRoute = (edge.route === 'top' || isBackflow) && Math.abs(x2 - x1) > 40;
 
-        const branchLabel = from.type === 'decision' && edge.branch
-          ? getDecisionBranchEdgeLabel(edge.branch, from)
-          : (edge.label || '');
-        const label = branchLabel;
-        const labelClass = from.type === 'decision' && edge.branch === 'if'
-          ? 'idp-edge-label--yes'
-          : from.type === 'decision' && edge.branch === 'else'
-            ? 'idp-edge-label--no'
-            : '';
+        return {
+          x1,
+          y1,
+          x2,
+          y2,
+          edge,
+          isBackflow,
+          routeDirection,
+          shouldRoute,
+          laneOffset: 0,
+          key: workflowEdgeKey(edge),
+          from,
+          branchLabel: from.type === 'decision' && edge.branch
+            ? getDecisionBranchEdgeLabel(edge.branch, from)
+            : (isHitlGateNode(from) && edge.branch
+              ? ''
+              : (edge.label || '')),
+          labelClass: from.type === 'decision' && edge.branch === 'if'
+            ? 'idp-edge-label--yes'
+            : from.type === 'decision' && edge.branch === 'else'
+              ? 'idp-edge-label--no'
+              : isHitlGateNode(from) && edge.branch === 'approve'
+                ? 'idp-edge-label--yes'
+                : isHitlGateNode(from) && edge.branch === 'reject'
+                  ? 'idp-edge-label--no'
+                  : '',
+        };
+      }).filter(Boolean);
+
+      assignWorkflowBackflowLaneOffsets(drafts);
+
+      return drafts.map((draft) => {
+        const routed = draft.shouldRoute
+          ? buildWorkflowRoutedEdgePath(
+            draft.x1,
+            draft.y1,
+            draft.x2,
+            draft.y2,
+            draft.routeDirection,
+            draft.isBackflow ? draft.laneOffset : 0,
+          )
+          : null;
+        const d = routed?.d || wfBezierPath(draft.x1, draft.y1, draft.x2, draft.y2);
+        const mid = routed?.mid || wfBezierPoint(draft.x1, draft.y1, draft.x2, draft.y2, 0.5);
+        const labelAnchor = routed?.labelAnchor || wfBezierPoint(
+          draft.x1,
+          draft.y1,
+          draft.x2,
+          draft.y2,
+          (draft.from.type === 'decision' || isHitlGateNode(draft.from)) && draft.edge.branch ? 0.32 : 0.42,
+        );
 
         return {
           d,
-          label,
-          labelClass,
+          label: draft.branchLabel,
+          labelClass: draft.labelClass,
           lx: labelAnchor.x,
           ly: labelAnchor.y - 14,
           mx: mid.x,
           my: mid.y,
-          key: workflowEdgeKey(edge),
-          edge,
+          key: draft.key,
+          edge: draft.edge,
+          isBackflow: draft.isBackflow,
         };
-      }).filter(Boolean);
+      });
     });
 
     const wfCanvasStageStyle = computed(() => ({
@@ -3026,6 +3136,27 @@ const appOptions = {
       return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
     }
 
+    function getHitlGateLayoutMetricsForNode(node) {
+      if (!node) return getHitlGateNodeLayoutMetrics(node);
+      const metrics = getHitlGateNodeLayoutMetrics(node);
+      if (!wfCanvasNodesCollapsed.value) return metrics;
+      const preview = getHitlGateCanvasSummary(node);
+      const collapsed = {
+        w: Math.min(340, Math.max(metrics.cardW, 76 + preview.length * DECISION_NODE_LAYOUT.charW)),
+        h: 64,
+      };
+      const rows = (metrics.rows || []).map((row, idx, all) => {
+        const step = collapsed.h / Math.max(1, all.length + 1);
+        const yCenter = Math.round(step * (idx + 1));
+        return {
+          ...row,
+          yCenter,
+          ratio: yCenter / collapsed.h,
+        };
+      });
+      return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
+    }
+
     function getWorkflowNodeDisplaySize(node, summary = null) {
       const displayNode = wfCanvasNodesCollapsed.value && !isWorkflowTerminalNode(node)
         ? { ...node, __collapsed: true }
@@ -3035,6 +3166,9 @@ const appOptions = {
           return getCollapsedDecisionNodeSize(displayNode);
         }
         return getDecisionLayoutMetricsForNode(displayNode);
+      }
+      if (isHitlGateNode(displayNode)) {
+        return getHitlGateLayoutMetricsForNode(displayNode);
       }
       const resolved = summary ?? getWorkflowNodeCanvasSummary(node);
       const taskItems = workflowNodeSummaryTasks(resolved);
@@ -3066,7 +3200,7 @@ const appOptions = {
       const wf = getActiveWf();
       const startNode = getWorkflowStartNode(wf) || wf?.nodes?.find((n) => n.type === 'start') || wf?.nodes?.[0] || null;
       selectedWorkflowEdgeKey.value = null;
-      wfConnectSourceId.value = null;
+      exitWorkflowConnectMode();
       inspectorExpanded.value = false;
       selectedWorkflowNodeId.value = startNode?.id || null;
       inspectorMode.value = startNode ? 'node' : 'overview';
@@ -3097,7 +3231,7 @@ const appOptions = {
       }
       if (event.target.closest('.wf-node') || event.target.closest('.idp-edge-path') || event.target.closest('.wf-node-picker') || event.target.closest('.wf-canvas-toolbar') || event.target.closest('.wf-canvas-floating-actions')) return;
       closeWfNodePicker();
-      wfConnectSourceId.value = null;
+      cancelWorkflowConnectMode();
       if (wfConnectDrag.fromId) return;
       selectedWorkflowEdgeKey.value = null;
       selectedWorkflowNodeId.value = null;
@@ -3186,7 +3320,7 @@ const appOptions = {
 
     function showWfNodeAddBtn(node) {
       if (!isWorkflowTopologyEditable.value) return false;
-      return node && !isWorkflowTerminalNode(node) && node.type !== 'decision';
+      return node && !isWorkflowTerminalNode(node) && node.type !== 'decision' && !isHitlGateNode(node);
     }
 
     function showWfNodeAddInBtn(node) {
@@ -3398,11 +3532,13 @@ const appOptions = {
 
     function openWfNodePickerForDecisionBranch(node, branchKey, anchor) {
       if (!assertWorkflowTopologyEditable()) return;
-      if (!node || node.type !== 'decision') return;
-      const branches = getDecisionNodeBranches(node);
+      if (!node || (node.type !== 'decision' && !isHitlGateNode(node)) || !branchKey) return;
+      const branches = node.type === 'decision'
+        ? getDecisionNodeBranches(node)
+        : getHitlGateNodeBranches(node);
       const match = branches.find((b) => b.key === branchKey);
       const ratio = match?.ratio ?? 0.5;
-      const size = getWorkflowNodeSize(node);
+      const size = getWorkflowNodeDisplaySize(node);
       const screen = workflowCoordsToScreen(node.x + size.w + 8, node.y + size.h * ratio);
       wfNodePicker.fromNodeId = node.id;
       wfNodePicker.toNodeId = null;
@@ -3905,12 +4041,14 @@ const appOptions = {
       if (!assertWorkflowTopologyEditable()) return null;
       const wf = getActiveWf();
       const from = wf?.nodes?.find((n) => n.id === fromId);
-      if (!from || from.type !== 'decision' || !branchKey) return null;
+      if (!from || (from.type !== 'decision' && !isHitlGateNode(from)) || !branchKey) return null;
 
-      const branches = getDecisionNodeBranches(from);
+      const branches = from.type === 'decision'
+        ? getDecisionNodeBranches(from)
+        : getHitlGateNodeBranches(from);
       const match = branches.find((b) => b.key === branchKey);
       const ratio = match?.ratio ?? 0.5;
-      const fromSize = getWorkflowNodeSize(from);
+      const fromSize = getWorkflowNodeDisplaySize(from);
       const newNode = buildWorkflowNodeFromPayload(
         payload,
         from.x + fromSize.w + WF_NODE_GAP,
@@ -3923,6 +4061,9 @@ const appOptions = {
         getWorkflowNodeActiveTasks(newNode),
       );
       const existingEdge = wf.edges.find((e) => e.from === fromId && e.branch === branchKey);
+      const branchLabel = from.type === 'decision'
+        ? getDecisionBranchEdgeLabel(branchKey, from)
+        : getHitlGateBranchEdgeLabel(branchKey, from);
 
       if (existingEdge?.to) {
         shiftWorkflowNodesRight(existingEdge.to, newSize.w + WF_NODE_GAP);
@@ -3933,8 +4074,10 @@ const appOptions = {
           wf.edges.push({
             from: newNode.id,
             to: oldTargetId,
-            branch: 'else',
-            label: getDecisionBranchEdgeLabel('else', newNode),
+            branch: from.type === 'decision' ? 'else' : 'approve',
+            label: from.type === 'decision'
+              ? getDecisionBranchEdgeLabel('else', newNode)
+              : getHitlGateBranchEdgeLabel('approve', newNode),
           });
         } else {
           wf.edges.push({ from: newNode.id, to: oldTargetId });
@@ -3945,7 +4088,7 @@ const appOptions = {
           from: fromId,
           to: newNode.id,
           branch: branchKey,
-          label: getDecisionBranchEdgeLabel(branchKey, from),
+          label: branchLabel,
         });
       }
 
@@ -4740,82 +4883,93 @@ const appOptions = {
     }
 
     function isSceneSetupAggregateDetailOpen(group) {
-      if (!group?.docType) return false;
-      if (sceneSetupAggregateDetailOpen[group.docType] === true) return true;
-      if (sceneSetupAggregateDetailOpen[group.docType] === false) return false;
+      if (!group?.pairKey) return false;
+      if (sceneSetupAggregateDetailOpen[group.pairKey] === true) return true;
+      if (sceneSetupAggregateDetailOpen[group.pairKey] === false) return false;
       return group.status === 'missing';
     }
 
-    function toggleSceneSetupAggregateDetail(docType) {
-      if (!docType) return;
-      const group = sceneSetupAggregateRuleGroups.value.find((item) => item.docType === docType);
-      sceneSetupAggregateDetailOpen[docType] = !isSceneSetupAggregateDetailOpen(group);
+    function toggleSceneSetupAggregateDetail(pairKey) {
+      if (!pairKey) return;
+      const group = sceneSetupAggregateRuleGroups.value.find((item) => item.pairKey === pairKey);
+      sceneSetupAggregateDetailOpen[pairKey] = !isSceneSetupAggregateDetailOpen(group);
     }
 
-    function isSceneSetupLinkBetweenMainAndDoc(link, docType) {
-      const mainDocType = sceneSetupDraft.mainDocType;
-      if (!mainDocType || !docType || !link) return false;
-      return (link.sourceDocType === mainDocType && link.targetDocType === docType)
-        || (link.targetDocType === mainDocType && link.sourceDocType === docType);
-    }
-
-    function getSceneSetupLinkMainField(link) {
-      if (!link) return '';
-      return link.sourceDocType === sceneSetupDraft.mainDocType ? link.sourceField : link.targetField;
-    }
-
-    function getSceneSetupLinkRelatedField(link, docType) {
-      if (!link) return '';
-      return link.sourceDocType === docType ? link.sourceField : link.targetField;
-    }
-
-    function updateSceneSetupAggregateLink(link, docType, side, value) {
-      if (!link || !docType || !sceneSetupDraft.mainDocType) return;
-      link.sourceDocType = sceneSetupDraft.mainDocType;
-      link.targetDocType = docType;
-      if (side === 'main') link.sourceField = value;
-      if (side === 'related') link.targetField = value;
-      clearSceneSetupLinkCheckDisplay();
-    }
-
-    function updateSceneSetupAggregateGroupDoc(oldDocType, newDocType) {
-      if (!oldDocType || !newDocType || oldDocType === newDocType || newDocType === sceneSetupDraft.mainDocType) return;
-      if (isSceneSetupAggregateDocOptionDisabled(oldDocType, newDocType)) return;
-      const relatedFields = getSceneSetupFieldOptions(newDocType);
+    function updateSceneSetupAggregateGroupDoc(group, side, newDocType) {
+      if (!group || !newDocType) return;
+      const sourceDocType = side === 'source' ? newDocType : group.sourceDocType;
+      const targetDocType = side === 'target' ? newDocType : group.targetDocType;
+      if (!sourceDocType || !targetDocType || sourceDocType === targetDocType) return;
+      const sourceFields = getSceneSetupFieldOptions(sourceDocType);
+      const targetFields = getSceneSetupFieldOptions(targetDocType);
       (sceneSetupDraft.docFieldLinks || []).forEach((link) => {
-        if (!isSceneSetupLinkBetweenMainAndDoc(link, oldDocType)) return;
-        link.sourceDocType = sceneSetupDraft.mainDocType;
-        link.targetDocType = newDocType;
-        if (!relatedFields.includes(link.targetField)) {
-          link.targetField = relatedFields.includes(link.sourceField) ? link.sourceField : (relatedFields[0] || '');
+        if (link.sourceDocType !== group.sourceDocType || link.targetDocType !== group.targetDocType) return;
+        link.sourceDocType = sourceDocType;
+        link.targetDocType = targetDocType;
+        if (!sourceFields.includes(link.sourceField)) {
+          link.sourceField = sourceFields.includes(link.targetField) ? link.targetField : (sourceFields[0] || '');
+        }
+        if (!targetFields.includes(link.targetField)) {
+          link.targetField = targetFields.includes(link.sourceField) ? link.sourceField : (targetFields[0] || '');
         }
       });
-      sceneSetupAggregateDetailOpen[oldDocType] = false;
-      sceneSetupAggregateDetailOpen[newDocType] = true;
+      const oldKey = group.pairKey;
+      const newKey = `${sourceDocType}|${targetDocType}`;
+      if (sceneSetupAggregateDetailOpen[oldKey] != null) {
+        sceneSetupAggregateDetailOpen[newKey] = sceneSetupAggregateDetailOpen[oldKey];
+        delete sceneSetupAggregateDetailOpen[oldKey];
+      }
       clearSceneSetupLinkCheckDisplay();
     }
 
-    function isSceneSetupAggregateDocOptionDisabled(currentDocType, optionDocType) {
-      if (!optionDocType || optionDocType === currentDocType) return false;
-      if (optionDocType === sceneSetupDraft.mainDocType) return true;
-      return sceneSetupAggregateRuleGroups.value.some((group) =>
-        group.docType === optionDocType && group.docType !== currentDocType
-      );
+    function addSceneSetupAggregateGroup() {
+      const docs = sceneSetupDraft.documents || [];
+      if (docs.length < 2) {
+        ElementPlus.ElMessage.warning('帳票を2件以上追加してください');
+        return;
+      }
+      const existingPairs = new Set(sceneSetupAggregateRuleGroups.value.map((group) => group.pairKey));
+      for (let i = 0; i < docs.length; i += 1) {
+        for (let j = 0; j < docs.length; j += 1) {
+          if (i === j) continue;
+          const sourceDocType = docs[i].type;
+          const targetDocType = docs[j].type;
+          const pairKey = `${sourceDocType}|${targetDocType}`;
+          if (existingPairs.has(pairKey)) continue;
+          addSceneSetupAggregateLink({
+            pairKey,
+            sourceDocType,
+            targetDocType,
+            links: [],
+          });
+          return;
+        }
+      }
+      ElementPlus.ElMessage.info('登録可能な帳票間関連はすべて追加済みです');
     }
 
-    function addSceneSetupAggregateLink(docType) {
-      if (!sceneSetupDraft.mainDocType || !docType) return;
-      const mainFields = getSceneSetupFieldOptions(sceneSetupDraft.mainDocType);
-      const relatedFields = getSceneSetupFieldOptions(docType);
-      const shared = mainFields.find((field) => relatedFields.includes(field));
-      sceneSetupAggregateDetailOpen[docType] = true;
+    function addSceneSetupAggregateLink(group) {
+      if (!group?.sourceDocType || !group?.targetDocType) return;
+      const sourceFields = getSceneSetupFieldOptions(group.sourceDocType);
+      const targetFields = getSceneSetupFieldOptions(group.targetDocType);
+      const shared = sourceFields.find((field) => targetFields.includes(field));
+      sceneSetupAggregateDetailOpen[group.pairKey] = true;
       sceneSetupDraft.docFieldLinks.push({
-        id: `link-${sceneSetupDraft.mainDocType}-${docType}-${Date.now()}`,
-        sourceDocType: sceneSetupDraft.mainDocType,
-        sourceField: shared || mainFields[0] || '',
-        targetDocType: docType,
-        targetField: shared || relatedFields[0] || '',
+        id: `link-${group.sourceDocType}-${group.targetDocType}-${Date.now()}`,
+        sourceDocType: group.sourceDocType,
+        sourceField: shared || sourceFields[0] || '',
+        targetDocType: group.targetDocType,
+        targetField: shared || targetFields[0] || '',
       });
+      clearSceneSetupLinkCheckDisplay();
+    }
+
+    function updateSceneSetupAggregateLink(link, group, side, value) {
+      if (!link || !group) return;
+      link.sourceDocType = group.sourceDocType;
+      link.targetDocType = group.targetDocType;
+      if (side === 'source') link.sourceField = value;
+      if (side === 'target') link.targetField = value;
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -4902,6 +5056,11 @@ const appOptions = {
       if (event.key === 'Escape' && wfNodePlacement.active) {
         event.preventDefault();
         closeWfNodePlacement();
+        return;
+      }
+      if (event.key === 'Escape' && (wfConnectSourceId.value || wfConnectDrag.active)) {
+        event.preventDefault();
+        cancelWorkflowConnectMode();
       }
     }
 
@@ -4909,6 +5068,16 @@ const appOptions = {
       const summary = getWorkflowNodeCanvasSummary(node);
       const size = getWorkflowNodeDisplaySize(node, summary);
       const PORT = 6;
+      if (isHitlGateNode(node) && branch) {
+        const metrics = getHitlGateLayoutMetricsForNode(node);
+        const match = metrics.rows.find((b) => b.key === branch);
+        const yCenter = match?.yCenter ?? metrics.h / 2;
+        const cardW = metrics.cardW ?? size.w;
+        const gapW = metrics.branchGapW ?? 8;
+        const laneW = metrics.branchLaneW ?? 84;
+        const btnHalf = 14;
+        return { x: node.x + cardW + gapW + laneW - btnHalf, y: node.y + yCenter };
+      }
       if (node?.type === 'decision' && branch) {
         const metrics = getDecisionLayoutMetricsForNode(node);
         const match = metrics.rows.find((b) => b.key === branch);
@@ -4916,6 +5085,146 @@ const appOptions = {
         return { x: node.x + size.w + PORT, y: node.y + yCenter };
       }
       return { x: node.x + size.w + PORT, y: node.y + size.h / 2 };
+    }
+
+    function getWorkflowInputPortPosition(node) {
+      const summary = getWorkflowNodeCanvasSummary(node);
+      const size = getWorkflowNodeDisplaySize(node, summary);
+      const PORT = 6;
+      if (isHitlGateNode(node) && !wfCanvasNodesCollapsed.value) {
+        const metrics = getHitlGateLayoutMetricsForNode(node);
+        const cardH = metrics.cardH ?? size.h;
+        return { x: node.x - PORT, y: node.y + cardH / 2 };
+      }
+      return { x: node.x - PORT, y: node.y + size.h / 2 };
+    }
+
+    const WF_CONNECT_IN_HIT_RADIUS = 28;
+
+    function isNearWorkflowInputPort(node, workflowPos) {
+      if (!node || !workflowPos) return false;
+      const summary = getWorkflowNodeCanvasSummary(node);
+      const size = getWorkflowNodeDisplaySize(node, summary);
+      const inPos = getWorkflowInputPortPosition(node);
+      const dx = workflowPos.x - inPos.x;
+      const dy = workflowPos.y - inPos.y;
+      if (Math.hypot(dx, dy) <= WF_CONNECT_IN_HIT_RADIUS / wfViewport.scale) return true;
+      const left = node.x - WF_CONNECT_IN_HIT_RADIUS / wfViewport.scale;
+      const right = node.x + Math.min(size.w * 0.35, 48);
+      const top = node.y - 12;
+      const bottom = node.y + size.h + 12;
+      return workflowPos.x >= left
+        && workflowPos.x <= right
+        && workflowPos.y >= top
+        && workflowPos.y <= bottom;
+    }
+
+    function resolveValidWorkflowConnectTarget(candidateId, fromId, branch) {
+      if (!candidateId || !fromId || candidateId === fromId) return null;
+      const wf = getActiveWf();
+      const from = wf?.nodes?.find((n) => n.id === fromId);
+      const to = wf?.nodes?.find((n) => n.id === candidateId);
+      return isValidWorkflowConnect(from, to, branch) ? candidateId : null;
+    }
+
+    function getWorkflowConnectBranch() {
+      if (wfConnectDrag.fromId) return wfConnectDrag.branch;
+      return wfConnectSourceBranch.value;
+    }
+
+    function isWorkflowConnectTarget(nodeId) {
+      const fromId = wfConnectDrag.fromId || wfConnectSourceId.value;
+      if (!fromId || !nodeId || !isWorkflowTopologyEditable.value) return false;
+      if (!wfConnectSourceId.value && !wfConnectDrag.active) return false;
+      return !!resolveValidWorkflowConnectTarget(nodeId, fromId, getWorkflowConnectBranch());
+    }
+
+    function enterWorkflowConnectMode(fromId, branch = null) {
+      if (!assertWorkflowTopologyEditable() || !fromId) return;
+      closeWfNodePicker();
+      wfConnectSourceId.value = fromId;
+      wfConnectSourceBranch.value = branch;
+      wfConnectHoverTargetId.value = null;
+      document.body.classList.add('wf-connecting');
+      ElementPlus.ElMessage.info(t('接続先ノードの入力ポートへドラッグしてください'));
+    }
+
+    function exitWorkflowConnectMode() {
+      wfConnectSourceId.value = null;
+      wfConnectSourceBranch.value = null;
+      wfConnectHoverTargetId.value = null;
+      if (!wfConnectDrag.active) {
+        document.body.classList.remove('wf-connecting');
+      }
+    }
+
+    function cancelWorkflowConnectMode() {
+      wfConnectDrag.fromId = null;
+      wfConnectDrag.branch = null;
+      wfConnectDrag.active = false;
+      exitWorkflowConnectMode();
+    }
+
+    function findWorkflowConnectTarget(clientX, clientY, fromId, branch = null) {
+      const branchKey = branch ?? getWorkflowConnectBranch();
+      const hit = document.elementFromPoint(clientX, clientY);
+      const inPort = hit?.closest?.('[data-wf-port="in"]');
+      if (inPort) {
+        const targetId = inPort.getAttribute('data-node-id');
+        const validId = resolveValidWorkflowConnectTarget(targetId, fromId, branchKey);
+        if (validId) return validId;
+      }
+      const shell = hit?.closest?.('.wf-node-shell');
+      if (shell) {
+        const portEl = shell.querySelector('[data-wf-port="in"][data-node-id]');
+        const targetId = portEl?.getAttribute('data-node-id');
+        if (targetId && targetId !== fromId) {
+          const node = (getActiveWf()?.nodes || []).find((n) => n.id === targetId);
+          if (node && isNearWorkflowInputPort(node, screenToWorkflowCoords(clientX, clientY))) {
+            const validId = resolveValidWorkflowConnectTarget(targetId, fromId, branchKey);
+            if (validId) return validId;
+          }
+        }
+      }
+      const pos = screenToWorkflowCoords(clientX, clientY);
+      let bestId = null;
+      let bestDist = Infinity;
+      const hitRadius = WF_CONNECT_IN_HIT_RADIUS / wfViewport.scale;
+      (getActiveWf()?.nodes || []).forEach((node) => {
+        if (!node || node.id === fromId) return;
+        const inPos = getWorkflowInputPortPosition(node);
+        const dist = Math.hypot(pos.x - inPos.x, pos.y - inPos.y);
+        if (dist <= hitRadius && dist < bestDist) {
+          const validId = resolveValidWorkflowConnectTarget(node.id, fromId, branchKey);
+          if (validId) {
+            bestDist = dist;
+            bestId = validId;
+          }
+        }
+      });
+      return bestId;
+    }
+
+    function finishWorkflowConnect(clientX, clientY) {
+      const fromId = wfConnectDrag.fromId;
+      if (!fromId) return false;
+      const targetId = findWorkflowConnectTarget(clientX, clientY, fromId);
+      if (!targetId) return false;
+      return connectWorkflowEdge(fromId, targetId, wfConnectDrag.branch);
+    }
+
+    function getHitlGatePortStyle(node, branch) {
+      const metrics = getHitlGateLayoutMetricsForNode(node);
+      const match = metrics.rows.find((b) => b.key === branch);
+      const yCenter = match?.yCenter ?? metrics.h / 2;
+      return {
+        top: `${Math.round(yCenter)}px`,
+        transform: 'translateY(-50%)',
+      };
+    }
+
+    function getHitlGateNodeVisibleBranches(node) {
+      return getHitlGateVisibleBranches(node);
     }
 
     function getDecisionPortStyle(node, branch) {
@@ -4946,11 +5255,7 @@ const appOptions = {
       const hoverId = wfConnectHoverTargetId.value;
       if (hoverId && hoverId !== wfConnectDrag.fromId) {
         const target = (getActiveWf()?.nodes || []).find((n) => n.id === hoverId);
-        if (target) {
-          const tasks = getWorkflowNodeActiveTasks(target);
-          const size = getWorkflowNodeSize(target, tasks.length, tasks);
-          end = { x: target.x - 6, y: target.y + size.h / 2 };
-        }
+        if (target) end = getWorkflowInputPortPosition(target);
       }
       return wfBezierPath(start.x, start.y, end.x, end.y);
     });
@@ -5035,7 +5340,7 @@ const appOptions = {
 
     function selectWorkflowNode(id) {
       selectedWorkflowEdgeKey.value = null;
-      wfConnectSourceId.value = null;
+      exitWorkflowConnectMode();
       inspectorExpanded.value = false;
       restoreSceneSidebarAfterEditor();
       const pickedNode = getActiveWf()?.nodes?.find((n) => n.id === id);
@@ -5070,19 +5375,22 @@ const appOptions = {
       if (!wf || !nodeId) return;
       wf.edges = wf.edges.filter((e) => !(e.from === nodeId && !e.branch));
       if (targetNodeId) {
-        wf.edges.push({ from: nodeId, to: targetNodeId });
+        const edge = { from: nodeId, to: targetNodeId };
+        wf.edges.push(edge);
+        normalizeWorkflowEdgeRoute(wf, edge);
       }
       pushWorkflowHistory('接続先を変更');
     }
 
     function isConnectModeSource(nodeId) {
-      return isWorkflowTopologyEditable.value && wfConnectSourceId.value === nodeId;
+      if (!isWorkflowTopologyEditable.value || !nodeId) return false;
+      return wfConnectSourceId.value === nodeId || wfConnectDrag.fromId === nodeId;
     }
 
     function selectWorkflowEdge(edge) {
       if (!edge) return;
       closeWfNodePicker();
-      wfConnectSourceId.value = null;
+      exitWorkflowConnectMode();
       selectedWorkflowEdgeKey.value = workflowEdgeKey(edge);
       selectedWorkflowNodeId.value = null;
       syncCurrentNodeFromWorkflow(null);
@@ -5106,26 +5414,34 @@ const appOptions = {
       const wf = getActiveWf();
       const from = wf.nodes.find((n) => n.id === fromId);
       const to = wf.nodes.find((n) => n.id === toId);
-      if (!from || !to || fromId === toId) return false;
-      if (from.type === 'decision') {
-        if (!branch) return false;
+      if (!isValidWorkflowConnect(from, to, branch)) return false;
+      const isBackflow = isWorkflowBackflowEdge(wf, fromId, toId);
+      let edge;
+      if (from.type === 'decision' || isHitlGateNode(from)) {
         wf.edges = wf.edges.filter((e) => !(e.from === fromId && e.branch === branch));
-        wf.edges.push({
+        edge = {
           from: fromId,
           to: toId,
           branch,
-          label: getDecisionBranchEdgeLabel(branch, from),
-        });
+          label: from.type === 'decision'
+            ? getDecisionBranchEdgeLabel(branch, from)
+            : getHitlGateBranchEdgeLabel(branch, from),
+        };
+        wf.edges.push(edge);
       } else {
         wf.edges = wf.edges.filter((e) => !(e.from === fromId && !e.branch));
-        wf.edges.push({ from: fromId, to: toId });
+        edge = { from: fromId, to: toId };
+        wf.edges.push(edge);
       }
+      normalizeWorkflowEdgeRoute(wf, edge);
+      connectWorkflowEdge.lastBackflow = isBackflow || isWorkflowBackflowEdge(wf, fromId, toId);
       return true;
     }
+    connectWorkflowEdge.lastBackflow = false;
 
     function onWfNodeAddOutClick(node, event) {
       if (wfConnectSuppressClick) return;
-      openWfNodePicker(node, event, 'after');
+      enterWorkflowConnectMode(node.id, null);
     }
 
     function onWfNodeAddInClick(node, event) {
@@ -5142,9 +5458,14 @@ const appOptions = {
       const startX = event.clientX;
       const startY = event.clientY;
       let dragging = false;
+      const connectBranch = branch ?? wfConnectSourceBranch.value;
+
+      if (role === 'out' && wfConnectSourceId.value && wfConnectSourceId.value !== node.id) {
+        exitWorkflowConnectMode();
+      }
 
       wfConnectDrag.fromId = node.id;
-      wfConnectDrag.branch = branch;
+      wfConnectDrag.branch = connectBranch;
       wfConnectDrag.clientX = startX;
       wfConnectDrag.clientY = startY;
       wfConnectDrag.active = false;
@@ -5156,26 +5477,25 @@ const appOptions = {
         if (!dragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
           dragging = true;
           wfConnectDrag.active = true;
+          wfConnectSourceId.value = node.id;
+          wfConnectSourceBranch.value = connectBranch;
           document.body.classList.add('wf-connecting');
         }
         if (!dragging) return;
         wfConnectDrag.clientX = ev.clientX;
         wfConnectDrag.clientY = ev.clientY;
-        const hit = document.elementFromPoint(ev.clientX, ev.clientY);
-        const inPort = hit?.closest?.('[data-wf-port="in"]');
-        const targetId = inPort?.getAttribute('data-node-id');
-        wfConnectHoverTargetId.value = targetId && targetId !== node.id ? targetId : null;
+        const targetId = findWorkflowConnectTarget(ev.clientX, ev.clientY, node.id, connectBranch);
+        wfConnectHoverTargetId.value = targetId || null;
       };
 
       const onUp = (ev) => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        document.body.classList.remove('wf-connecting');
         wfConnectDrag.active = false;
 
         if (!dragging) {
-          if (role === 'branch') openWfNodePickerForDecisionBranch(node, branch, anchorEl);
-          else if (role === 'out') openWfNodePicker(node, anchorEl, 'after');
+          if (role === 'branch') openWfNodePickerForBranchNode(node, branch, anchorEl);
+          else if (role === 'out') enterWorkflowConnectMode(node.id, null);
           wfConnectSuppressClick = true;
           setTimeout(() => { wfConnectSuppressClick = false; }, 0);
           wfConnectDrag.fromId = null;
@@ -5184,18 +5504,17 @@ const appOptions = {
           return;
         }
 
-        const hit = document.elementFromPoint(ev.clientX, ev.clientY);
-        const inPort = hit?.closest?.('[data-wf-port="in"]');
-        const targetId = inPort?.getAttribute('data-node-id');
-        if (targetId && wfConnectDrag.fromId && connectWorkflowEdge(wfConnectDrag.fromId, targetId, wfConnectDrag.branch)) {
+        document.body.classList.remove('wf-connecting');
+        if (finishWorkflowConnect(ev.clientX, ev.clientY)) {
           pushWorkflowHistory('接続を追加');
-          ElementPlus.ElMessage.success('接続しました');
+          ElementPlus.ElMessage.success(connectWorkflowEdge.lastBackflow ? '回流接続しました' : '接続しました');
           wfConnectSuppressClick = true;
           setTimeout(() => { wfConnectSuppressClick = false; }, 0);
         }
         wfConnectDrag.fromId = null;
         wfConnectDrag.branch = null;
         wfConnectHoverTargetId.value = null;
+        exitWorkflowConnectMode();
       };
 
       document.addEventListener('mousemove', onMove);
@@ -5697,16 +6016,25 @@ const appOptions = {
       return 'ELIF';
     }
 
-    function formatHitlActionsLabel(actions) {
-      const list = normalizeHitlGateActions(actions);
-      return list.map((v) => HITL_ACTION_OPTIONS.find((o) => o.value === v)?.label || v).join('/');
-    }
-
     function getDecisionBranchTarget(nodeId, branch) {
       const edge = (getActiveWf()?.edges || []).find((e) => e.from === nodeId && e.branch === branch);
       if (!edge) return '—';
       const target = (getActiveWf()?.nodes || []).find((n) => n.id === edge.to);
       return target?.label?.replace(/\n/g, ' ') || edge.to;
+    }
+
+    function getHitlGateBranchTargetId(nodeId, branch) {
+      const edge = (getActiveWf()?.edges || []).find((e) => e.from === nodeId && e.branch === branch && !e.visualHidden);
+      return edge?.to || '';
+    }
+
+    function getHitlGateVisibleBranches(node) {
+      if (!node?.id) return getHitlGateNodeBranches(node);
+      const wf = getActiveWf();
+      return getHitlGateNodeBranches(node).filter((branch) => {
+        const edge = (wf?.edges || []).find((e) => e.from === node.id && e.branch === branch.key);
+        return !edge?.visualHidden;
+      });
     }
 
     function getDecisionBranchTargetId(nodeId, branch) {
@@ -5897,7 +6225,11 @@ const appOptions = {
         }
         case 'hitl_gate': {
           const meta = getHitlGatePreset(node);
-          return joinWorkflowSummary(reusePrefix, meta?.label || '人工確認', node.role);
+          return joinWorkflowSummary(
+            reusePrefix,
+            meta?.label || '人工確認',
+            node.role,
+          );
         }
         case 'notify': {
           const normalized = normalizeNotifyNode(node, getActiveWf());
@@ -5946,12 +6278,16 @@ const appOptions = {
     function getWorkflowNodeStyle(node) {
       const summary = getWorkflowNodeCanvasSummary(node);
       const size = getWorkflowNodeDisplaySize(node, summary);
-      return {
+      const style = {
         left: `${node.x}px`,
         top: `${node.y}px`,
         width: `${size.w}px`,
         minHeight: `${size.h}px`,
       };
+      if (node?.type === 'decision' || isHitlGateNode(node)) {
+        style.height = `${size.h}px`;
+      }
+      return style;
     }
 
     function sealRuleDocTypes(rule) {
@@ -8406,26 +8742,6 @@ const appOptions = {
       if (!artifacts || uiLanguage.value !== 'zh') return artifacts;
       return translateDeep(artifacts);
     });
-    const localizedWorkflowTestCaseOptions = computed(() => {
-      if (uiLanguage.value !== 'zh') return WORKFLOW_TEST_CASE_OPTIONS;
-      return WORKFLOW_TEST_CASE_OPTIONS.map((opt) => ({
-        ...opt,
-        label: t(opt.label),
-        desc: t(opt.desc),
-      }));
-    });
-    const workflowTestCaseScenario = computed(() => {
-      const raw = getWorkflowTestCaseScenario(workflowTestDraft.caseType);
-      if (uiLanguage.value !== 'zh') return raw;
-      return {
-        ...raw,
-        title: t(raw.title),
-        intro: t(raw.intro),
-        badge: raw.badge ? t(raw.badge) : raw.badge,
-        steps: (raw.steps || []).map((line) => t(line)),
-        lookFor: raw.lookFor ? t(raw.lookFor) : raw.lookFor,
-      };
-    });
     const workflowTestSelectedStep = computed(() =>
       workflowTestStepRows.value.find((step) => step.id === workflowTestDraft.selectedStepId)
       || workflowTestStepRows.value[0]
@@ -8492,26 +8808,6 @@ const appOptions = {
       if (!workflowTestDraft.selectedStepId && steps[0]) {
         workflowTestDraft.selectedStepId = steps[0].id;
       }
-    }
-
-    function setWorkflowTestCaseType(caseType) {
-      workflowTestDraft.caseType = caseType;
-      if (caseType === 'hitl_wait') {
-        const wf = getActiveWf();
-        (wf?.nodes || []).forEach((node) => {
-          if (!isHitlGateNode(node)) return;
-          const ctx = inferHitlContext(node);
-          if (ctx !== 'preprocess' && ctx !== 'ocr') return;
-          Object.assign(node, normalizeHitlGateNode({
-            ...node,
-            hitlWaitEnabled: true,
-          }));
-        });
-      }
-      workflowTestDraft.hasRun = false;
-      workflowTestDraft.runningStepId = '';
-      refreshWorkflowTestRun();
-      resetWorkflowTestProgress();
     }
 
     function selectWorkflowTestStep(stepId) {
@@ -8675,11 +8971,6 @@ const appOptions = {
       openWorkflowTestDialog,
       triggerWorkflowTestFilePick,
       onWorkflowTestFileSelected,
-      setWorkflowTestCaseType,
-      WORKFLOW_TEST_CASE_OPTIONS,
-      localizedWorkflowTestCaseOptions,
-      workflowTestCaseScenario,
-      supportsHitlWaitConfig,
       isHitlVerificationContext,
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
@@ -8741,9 +9032,8 @@ const appOptions = {
       onCodeFieldChange,
       formatCodeInputVariableToken,
       normalizeCodeNode,
-      formatHitlActionsLabel,
-      isHitlActionSelected,
-      toggleHitlAction,
+      getHitlGateCanvasSummary,
+      getHitlGateBranchCanvasLabel,
       judgmentAllowsElif,
       decisionVariableOptionGroups,
       decisionVariableCascaderOptions,
@@ -8757,6 +9047,12 @@ const appOptions = {
       getHitlContextMeta,
       getHitlGatePreset,
       isHitlGateNode,
+      getHitlGateNodeBranches,
+      getHitlGateNodeVisibleBranches,
+      getHitlGateBranchIndex,
+      getHitlGatePortStyle,
+      getHitlGateBranchTargetId,
+      getHitlGateBranchEdgeLabel,
       HITL_GATE_PRESETS,
       CONDITION_NODE_PRESETS,
       GATEWAY_JUDGMENT_TYPES,
@@ -8877,11 +9173,9 @@ const appOptions = {
       addDocFieldLink,
       removeDocFieldLink,
       autoMatchDocFieldLinks,
-      getSceneSetupLinkMainField,
-      getSceneSetupLinkRelatedField,
       updateSceneSetupAggregateLink,
       updateSceneSetupAggregateGroupDoc,
-      isSceneSetupAggregateDocOptionDisabled,
+      addSceneSetupAggregateGroup,
       addSceneSetupAggregateLink,
       removeSceneSetupAggregateLink,
       isSceneSetupAggregateDetailOpen,
@@ -9038,7 +9332,10 @@ const appOptions = {
       flashWorkflowTemplateHint,
       isWorkflowTopologyEditable,
       wfConnectSourceId,
+      wfConnectSourceBranch,
       isConnectModeSource,
+      isWorkflowConnectTarget,
+      cancelWorkflowConnectMode,
       getNodeMainOutTargetId,
       setNodeMainOutTarget,
       getDecisionPreset,
@@ -9128,8 +9425,6 @@ const appOptions = {
       formatWorkflowOutputVarToken,
       WORKFLOW_NODE_OUTPUT_VAR_DEFS,
       CASE_WORKFLOW_START_TRIGGERS,
-      AI_VERIFY_ENTRY_WAIT_EVENTS,
-      HITL_VERIFY_MERGE_EVENTS,
       inspectorMode,
       workflowEdgePaths,
       selectWorkflowNode,
@@ -9342,6 +9637,7 @@ const appOptions = {
       openWfNodePickerOnEdge,
       workflowNodeOptions,
       getWorkflowEdgeSummary,
+      isSelectedWorkflowEdgeBackflow,
       selectWorkflowEdge,
       removeSelectedWorkflowEdge,
       onWfConnectHandleDown,

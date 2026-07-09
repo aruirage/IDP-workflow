@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=544" />
+  <link rel="stylesheet" href="style.css?v=567" />
 </head>
 <body>
   <div id="app">
@@ -587,34 +587,45 @@
                     <div v-if="sceneSetupAggregateRuleGroups.length" class="case-aggregate-rule-list">
                       <div
                         v-for="group in sceneSetupAggregateRuleGroups"
-                        :key="'agg-' + group.docType"
+                        :key="'agg-' + group.pairKey"
                         class="case-aggregate-rule-card"
                         :class="{ 'is-missing': group.status === 'missing' }"
                       >
                         <div class="case-aggregate-rule-head">
                           <div class="case-aggregate-rule-main">
                             <div class="case-aggregate-rule-title case-aggregate-rule-title-edit">
-                              <span class="case-aggregate-title-text">
-                                {{ getDocDisplayLabel(sceneSetupDraft.mainDocType) || '主帳票未選択' }}
-                              </span>
-                              <span class="case-aggregate-title-arrow">→</span>
                               <el-select
-                                :model-value="group.docType"
+                                :model-value="group.sourceDocType"
                                 class="case-aggregate-title-select"
                                 size="small"
-                                @change="updateSceneSetupAggregateGroupDoc(group.docType, $event)"
+                                @change="updateSceneSetupAggregateGroupDoc(group, 'source', $event)"
                               >
                                 <el-option
-                                  v-for="doc in sceneSetupDraft.documents.filter((item) => item.type !== sceneSetupDraft.mainDocType)"
-                                  :key="'agg-title-related-' + group.docType + '-' + doc.type"
+                                  v-for="doc in sceneSetupDraft.documents"
+                                  :key="'agg-src-' + group.pairKey + '-' + doc.type"
                                   :label="getDocDisplayLabel(doc.type)"
                                   :value="doc.type"
-                                  :disabled="isSceneSetupAggregateDocOptionDisabled(group.docType, doc.type)"
+                                  :disabled="doc.type === group.targetDocType"
+                                />
+                              </el-select>
+                              <span class="case-aggregate-title-arrow">→</span>
+                              <el-select
+                                :model-value="group.targetDocType"
+                                class="case-aggregate-title-select"
+                                size="small"
+                                @change="updateSceneSetupAggregateGroupDoc(group, 'target', $event)"
+                              >
+                                <el-option
+                                  v-for="doc in sceneSetupDraft.documents"
+                                  :key="'agg-tgt-' + group.pairKey + '-' + doc.type"
+                                  :label="getDocDisplayLabel(doc.type)"
+                                  :value="doc.type"
+                                  :disabled="doc.type === group.sourceDocType"
                                 />
                               </el-select>
                             </div>
                             <div class="case-aggregate-rule-meta">
-                              <span>{{ group.links.length }} 件の関連キー</span>
+                              <span>{{ group.links.length }} 件の関連フィールド</span>
                               <span v-if="group.status === 'missing'" class="case-aggregate-rule-warn">未設定</span>
                             </div>
                           </div>
@@ -622,7 +633,7 @@
                             <button
                               type="button"
                               class="case-aggregate-detail-toggle"
-                              @click="toggleSceneSetupAggregateDetail(group.docType)"
+                              @click="toggleSceneSetupAggregateDetail(group.pairKey)"
                             >
                               {{ isSceneSetupAggregateDetailOpen(group) ? '詳細を閉じる' : '詳細' }}
                             </button>
@@ -632,39 +643,39 @@
                         <template v-if="isSceneSetupAggregateDetailOpen(group)">
                           <div v-if="group.links.length" class="case-aggregate-link-table">
                             <div class="case-aggregate-link-row case-aggregate-link-row--head">
-                              <span>主帳票キー</span>
+                              <span>フィールド</span>
                               <span></span>
-                              <span>関連帳票キー</span>
+                              <span>フィールド</span>
                               <span></span>
                             </div>
                             <div
                               v-for="(link, i) in group.links"
-                              :key="link.id || group.docType + '-' + i"
+                              :key="link.id || group.pairKey + '-' + i"
                               class="case-aggregate-link-row"
                             >
                               <el-select
-                                :model-value="getSceneSetupLinkMainField(link)"
+                                :model-value="link.sourceField"
                                 class="case-aggregate-field-select"
-                                placeholder="主帳票フィールド"
-                                @change="updateSceneSetupAggregateLink(link, group.docType, 'main', $event)"
+                                placeholder="フィールド"
+                                @change="updateSceneSetupAggregateLink(link, group, 'source', $event)"
                               >
                                 <el-option
-                                  v-for="f in getSceneSetupFieldOptions(sceneSetupDraft.mainDocType)"
-                                  :key="'main-' + group.docType + '-' + f"
+                                  v-for="f in getSceneSetupFieldOptions(group.sourceDocType)"
+                                  :key="'src-' + group.pairKey + '-' + f"
                                   :label="f"
                                   :value="f"
                                 />
                               </el-select>
                               <span class="case-aggregate-link-arrow" aria-hidden="true">↔</span>
                               <el-select
-                                :model-value="getSceneSetupLinkRelatedField(link, group.docType)"
+                                :model-value="link.targetField"
                                 class="case-aggregate-field-select"
-                                placeholder="関連帳票フィールド"
-                                @change="updateSceneSetupAggregateLink(link, group.docType, 'related', $event)"
+                                placeholder="フィールド"
+                                @change="updateSceneSetupAggregateLink(link, group, 'target', $event)"
                               >
                                 <el-option
-                                  v-for="f in getSceneSetupFieldOptions(group.docType)"
-                                  :key="'rel-' + group.docType + '-' + f"
+                                  v-for="f in getSceneSetupFieldOptions(group.targetDocType)"
+                                  :key="'tgt-' + group.pairKey + '-' + f"
                                   :label="f"
                                   :value="f"
                                 />
@@ -672,12 +683,13 @@
                               <button type="button" class="wf-doc-link-remove" title="削除" @click="removeSceneSetupAggregateLink(link)">×</button>
                             </div>
                           </div>
-                          <p v-else class="verify-empty">この関連帳票の主副キーを追加してください</p>
-                          <button type="button" class="wf-doc-link-add" @click="addSceneSetupAggregateLink(group.docType)">+ 関連キーを追加</button>
+                          <p v-else class="verify-empty">この帳票間関連のフィールドを追加してください</p>
+                          <button type="button" class="wf-doc-link-add" @click="addSceneSetupAggregateLink(group)">+ 関連フィールドを追加</button>
                         </template>
                       </div>
+                      <button type="button" class="wf-doc-link-add case-aggregate-pair-add" @click="addSceneSetupAggregateGroup">+ 帳票間関連を追加</button>
                     </div>
-                    <p v-else class="verify-empty">主帳票と関連帳票を追加すると案件集約ルールを設定できます</p>
+                    <p v-else class="verify-empty">帳票を2件以上追加すると案件集約ルールを設定できます</p>
                   </div>
 
                 </div>
@@ -828,7 +840,7 @@
                     :key="'edge-' + idx"
                     :d="edge.d"
                     class="idp-edge-path"
-                    :class="{ 'is-selected': selectedWorkflowEdgeKey === edge.key, 'is-hovered': hoveredWorkflowEdgeKey === edge.key }"
+                    :class="{ 'is-selected': selectedWorkflowEdgeKey === edge.key, 'is-hovered': hoveredWorkflowEdgeKey === edge.key, 'is-backflow': edge.isBackflow }"
                     :marker-end="selectedWorkflowEdgeKey === edge.key ? 'url(#idp-arrow-selected)' : 'url(#idp-arrow)'"
                   />
                   <path
@@ -857,7 +869,7 @@
                 >
                   <div
                     class="wf-node-card wf-node-card--accent"
-                    :class="{ 'wf-node-card--ifelse': wfNodePlacementPreview.type === 'decision' }"
+                    :class="{ 'wf-node-card--ifelse': wfNodePlacementPreview.type === 'decision' || wfNodePlacementPreview.type === 'hitl_gate' }"
                     :style="getWorkflowNodeAccentStyle(wfNodePlacementPreview.type)"
                   >
                     <div class="wf-node-header">
@@ -881,6 +893,9 @@
                     {
                       'is-selected': node.id === selectedWorkflowNodeId,
                       'is-readonly': !isWorkflowTopologyEditable,
+                      'wf-node--connect-target': isWorkflowConnectTarget(node.id),
+                      'wf-node--connect-source': isConnectModeSource(node.id),
+                      'is-connect-target-hover': wfConnectHoverTargetId === node.id,
                     }
                   ]"
                   :style="getWorkflowNodeStyle(node)"
@@ -888,13 +903,20 @@
                   @mousedown.stop="onWfNodePointerDown($event, node)"
                 >
                   <span
-                    v-if="node.type !== 'start' && !showWfNodeAddInBtn(node)"
+                    v-if="node.type !== 'start' && node.type !== 'decision' && !isHitlGateNode(node) && !showWfNodeAddInBtn(node)"
                     class="wf-node-port wf-node-port--in"
                     data-wf-port="in"
                     :data-node-id="node.id"
                     title="入力"
                   ></span>
                   <template v-if="node.type === 'start' || node.type === 'end'">
+                    <span
+                      v-if="node.type === 'start'"
+                      class="wf-node-port wf-node-port--in"
+                      data-wf-port="in"
+                      :data-node-id="node.id"
+                      title="入力 / 回流接続先"
+                    ></span>
                     <div class="wf-node-start-wrap">
                       <div
                         class="wf-node-card wf-node-card--terminal"
@@ -914,10 +936,18 @@
                         </div>
                       </div>
                     </div>
+                    <button
+                      v-if="node.type === 'start' && isWorkflowTopologyEditable"
+                      type="button"
+                      class="wf-node-add-btn wf-node-add-btn--out"
+                      title="後にノードを追加 / ドラッグして接続"
+                      @click.stop="onWfNodeAddOutClick(node, $event)"
+                      @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
+                    >+</button>
                     <span
-                      v-if="node.type !== 'end'"
+                      v-else-if="node.type === 'end'"
                       class="wf-node-port wf-node-port--out"
-                      title="出力をドラッグして接続"
+                      :title="'出力をドラッグして回流接続'"
                       @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
                     ></span>
                   </template>
@@ -1010,6 +1040,67 @@
                       :title="branch.label + ' 分岐にノードを接続'"
                       @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
                     >+</button>
+                  </template>
+                  <template v-else-if="isHitlGateNode(node)">
+                    <button
+                      v-if="isWorkflowTopologyEditable && !hasWorkflowIncomingEdge(node.id)"
+                      type="button"
+                      class="wf-node-add-btn wf-node-add-btn--in"
+                      data-wf-port="in"
+                      :data-node-id="node.id"
+                      title="前にノードを追加 / ここに接続"
+                      @click.stop="onWfNodeAddInClick(node, $event)"
+                    >+</button>
+                    <span
+                      v-else
+                      class="wf-node-port wf-node-port--in"
+                      data-wf-port="in"
+                      :data-node-id="node.id"
+                      title="入力"
+                    ></span>
+                    <div
+                      class="wf-node-card wf-node-card--accent"
+                      :style="getWorkflowNodeAccentStyle(node.type)"
+                    >
+                      <div class="wf-node-header">
+                        <span class="wf-node-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
+                        <div class="wf-node-titles">
+                          <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
+                        </div>
+                        <button
+                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                          type="button"
+                          class="wf-node-action"
+                          title="削除"
+                          @click.stop="confirmRemoveSelectedWorkflowNode"
+                        >×</button>
+                      </div>
+                      <p
+                        class="wf-node-summary wf-node-summary--hitl"
+                        :title="getHitlGateCanvasSummary(node)"
+                      >{{ getHitlGateCanvasSummary(node) }}</p>
+                    </div>
+                    <div
+                      v-show="!wfCanvasNodesCollapsed"
+                      class="wf-hitl-gate-branches"
+                      aria-hidden="true"
+                    >
+                      <div
+                        v-for="branch in getHitlGateNodeVisibleBranches(node)"
+                        :key="branch.key"
+                        class="wf-hitl-branch-row"
+                      >
+                        <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
+                        <button
+                          v-show="isWorkflowTopologyEditable"
+                          type="button"
+                          class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline"
+                          :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
+                          :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
+                          @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
+                        >+</button>
+                      </div>
+                    </div>
                   </template>
                   <template v-else>
                     <button
@@ -1349,6 +1440,7 @@
                   <inspector-module>
                     <inspector-module-card title="接続情報" desc="接続線の選択・削除・再接続の操作です。">
                       <p class="inspector-edge-summary">{{ getWorkflowEdgeSummary(selectedWorkflowEdge) }}</p>
+                      <p v-if="isSelectedWorkflowEdgeBackflow()" class="inspector-field-hint">{{ t('この接続は上流への回流です。公開・テスト実行はブロックされません。') }}</p>
                     </inspector-module-card>
                     <inspector-module-card title="操作">
                       <p class="inspector-field-hint">接続線をクリックで選択（ハイライト）。Backspace / Delete で削除。出力ポートをドラッグして再接続できます。</p>
@@ -1783,25 +1875,13 @@
                         </button>
                       </div>
                     </section>
-                    <inspector-module-card title="実行前提" :desc="localizedInspectorHints.aiVerifyEntryWait">
-                      <div class="wf-start-readonly-list wf-entry-event-list">
-                        <div
-                          v-for="event in AI_VERIFY_ENTRY_WAIT_EVENTS"
-                          :key="event.id"
-                          class="wf-start-readonly-item"
-                        >
-                          <span class="wf-start-readonly-label">{{ t(event.category) }}</span>
-                          <span class="wf-start-readonly-value" :title="t(event.detail)">{{ t(event.label) }}</span>
-                        </div>
-                      </div>
-                    </inspector-module-card>
                   </div>
                 </div>
 
                 <!-- 人工確認（ワークフローノード） -->
                 <div v-if="inspectorPanel === 'hitl_gate' && selectedWorkflowNode" class="inspector-panel-section hitl-gate-inspector">
                   <inspector-module>
-                    <inspector-module-card title="ゲート設定" desc="人工確認のコンテキストと審査ロールを指定します。">
+                    <inspector-module-card title="ゲート設定" :desc="localizedInspectorHints.hitlGate">
                       <div class="inspector-field">
                         <label class="inspector-field-label">コンテキスト</label>
                         <el-select
@@ -1824,33 +1904,6 @@
                           <el-option v-for="r in hitlRoleOptions" :key="r.value" :label="r.label" :value="r.value" />
                         </el-select>
                       </div>
-                    </inspector-module-card>
-                    <inspector-module-card
-                      v-if="isHitlVerificationContext(selectedWorkflowNode)"
-                      title="待办合并"
-                      :desc="localizedInspectorHints.hitlVerifyMergeDefault"
-                    >
-                      <div class="wf-start-readonly-list wf-entry-event-list">
-                        <div
-                          v-for="event in HITL_VERIFY_MERGE_EVENTS"
-                          :key="event.id"
-                          class="wf-start-readonly-item"
-                        >
-                          <span class="wf-start-readonly-label">{{ t(event.category) }}</span>
-                          <span class="wf-start-readonly-value" :title="t(event.detail)">{{ t(event.label) }}</span>
-                        </div>
-                      </div>
-                    </inspector-module-card>
-                    <inspector-module-card
-                      v-else-if="supportsHitlWaitConfig(selectedWorkflowNode)"
-                      title="待办合并"
-                      :hint="localizedInspectorHints.hitlWaitBeforeConfirm"
-                    >
-                      <div class="inspector-switch-row">
-                        <inspector-field-label label="缓冲等待（30 分钟）" :hint="localizedInspectorHints.hitlWaitBeforeConfirm"></inspector-field-label>
-                        <el-switch v-model="selectedWorkflowNode.hitlWaitEnabled" size="small" />
-                      </div>
-                      <p class="inspector-field-help">OFF = 即时出待办；ON = 多批 pending 合并后一条待办</p>
                     </inspector-module-card>
                   </inspector-module>
                 </div>
@@ -2235,33 +2288,7 @@
       class="wf-test-dialog"
       destroy-on-close
     >
-      <p class="wf-test-dialog-subtitle">{{ t('预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。') }}</p>
-      <section v-if="workflowTestCaseScenario" class="wf-test-scenario-guide">
-        <div class="wf-test-scenario-guide-head">
-          <strong>{{ workflowTestCaseScenario.title }}</strong>
-          <span v-if="workflowTestCaseScenario.badge" class="wf-test-scenario-badge">{{ workflowTestCaseScenario.badge }}</span>
-        </div>
-        <p class="wf-test-scenario-intro">{{ workflowTestCaseScenario.intro }}</p>
-        <ol class="wf-test-scenario-steps">
-          <li v-for="(line, index) in workflowTestCaseScenario.steps" :key="'wf-scenario-' + index">{{ line }}</li>
-        </ol>
-        <p v-if="workflowTestCaseScenario.lookFor" class="wf-test-scenario-lookfor"><span>关注点</span>{{ workflowTestCaseScenario.lookFor }}</p>
-      </section>
       <div class="wf-test-toolbar">
-        <div class="wf-test-toolbar-left">
-          <div class="wf-test-toolbar-note">アップロードしたファイルを使い、画布上のノード順に実行します。</div>
-          <div class="wf-test-case-types">
-            <button
-              v-for="option in WORKFLOW_TEST_CASE_OPTIONS"
-              :key="option.value"
-              type="button"
-              class="wf-test-case-type-btn"
-              :class="{ 'is-active': workflowTestDraft.caseType === option.value }"
-              :title="option.desc"
-              @click="setWorkflowTestCaseType(option.value)"
-            >{{ option.label }}</button>
-          </div>
-        </div>
         <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
           {{ workflowTestRunning ? '実行中…' : 'テスト実行' }}
         </el-button>
@@ -2449,7 +2476,7 @@
               <span>通過：{{ workflowTestSummary.passedCount }}/{{ workflowTestSummary.totalCount }}</span>
               <span>案件：{{ workflowTestSummary.caseCount }}</span>
             </div>
-            <p v-else class="wf-test-result-hint">案件集約完了後、Workflow ノードを順に実行します</p>
+            <p v-else class="wf-test-result-hint">{{ t('案件集約完了後、開始ノードから到達可能な順に実行します（環状パス上のノードは初回到達順で表示）') }}</p>
           </div>
 
           <div ref="workflowTestTimelineRef" class="wf-test-timeline">
@@ -2792,9 +2819,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=524"></script>
-  <script src="scripts/mock-data.js?v=503"></script>
-  <script src="scripts/scene-config.js?v=499"></script>
-  <script src="main.js?v=541"></script>
+  <script src="scripts/workflow-core.js?v=567"></script>
+  <script src="scripts/mock-data.js?v=548"></script>
+  <script src="scripts/scene-config.js?v=548"></script>
+  <script src="main.js?v=567"></script>
 </body>
 </html>
