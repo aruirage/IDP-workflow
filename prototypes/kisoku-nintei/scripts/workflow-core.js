@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '568-hitl-branch-ports-right-edge';
+const PROTOTYPE_BUILD = '569-bezier-backflow-hitl-branches';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -9,29 +9,6 @@ const WF_ZOOM_STEP = 1.12;
 const NODE_ORDER = ['scene', 'input', 'image', 'ocr', 'master', 'verify', 'hitl', 'output'];
 
 const WF_NODE_GAP = 72;
-
-/** 左侧菜单：与 IDP 业务规则模块保持一致的一级/二级导航 */
-const APP_NAV_GROUPS = [
-  { id: 'upload', label: '新規アップロード', icon: '⇧', placeholder: true },
-  { id: 'cases', label: '案件一覧', icon: '□', placeholder: true },
-  { id: 'tasks', label: 'マイタスク', icon: '☰', placeholder: true },
-  {
-    id: 'doc-settings',
-    label: '業務ルール設定',
-    icon: '⚙',
-    menu: true,
-    children: [
-      { id: 'fixed-doc', label: '帳票タイプ設定', icon: '▣' },
-      { id: 'case-workflow', label: '案件シーン設定', icon: '⌁' },
-      { id: 'master-match-config', label: 'マスタデータ設定', icon: '▦' },
-      { id: 'data-mapping-config', label: 'データマッピング設定', icon: '↔' },
-      { id: 'ai-verify-config', label: 'AI検証設定', icon: '✓' },
-      { id: 'model-settings', label: 'モデル設定', icon: 'CPU', placeholder: true },
-      { id: 'api-settings', label: 'API設定', icon: '↗', placeholder: true },
-    ],
-  },
-  { id: 'processing-records', label: '処理記録', icon: '▤', placeholder: true },
-];
 
 const MODULE_PAGE_META = {
   'fixed-doc': {
@@ -119,7 +96,6 @@ const INSPECTOR_HINTS = {
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
   hitlGate: '案件レベルの人工確認タスクを生成します。コンテキストと審査ロールを指定し、3 つの出口から下流を接続してください。',
   hitlContext: '確認タイプ：前処理確認 / OCR 結果確認 / AI 検証確認。同一タイプは Workflow 内で最大 1 件。',
-  hitlConnect: '3 つの出口（+）から下流ノードを接続してください。分岐はシステム固定です。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
@@ -1556,11 +1532,13 @@ function isWorkflowTerminalNode(node) {
 }
 
 function wfBezierControls(x1, y1, x2, y2) {
-  const dx = Math.max(48, Math.abs(x2 - x1) * 0.45);
+  const dx = Math.abs(x2 - x1);
+  const dy = Math.abs(y2 - y1);
+  const curve = Math.max(56, Math.min(220, dx * 0.5 + dy * 0.12));
   return {
-    c1x: x1 + dx,
+    c1x: x1 + curve,
     c1y: y1,
-    c2x: x2 - dx,
+    c2x: x2 - curve,
     c2y: y2,
   };
 }
@@ -2241,7 +2219,7 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 }
 
 const HITL_GATE_LAYOUT = {
-  minW: 208,
+  minW: 224,
   headerH: 44,
   summaryH: 18,
   bodyPadTop: 4,
@@ -2253,30 +2231,25 @@ const HITL_GATE_LAYOUT = {
 
 function getHitlGateNodeLayoutMetrics(node) {
   const actions = normalizeHitlGateActions(node?.actions);
-  const { minW, headerH, summaryH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW } = HITL_GATE_LAYOUT;
-  let maxLabelLen = 0;
-  actions.forEach((action) => {
-    maxLabelLen = Math.max(maxLabelLen, getHitlGateActionLabel(action).length);
-  });
-  const cardW = Math.max(minW, 72 + maxLabelLen * labelCharW);
-  let y = headerH + summaryH + bodyPadTop;
+  const { minW, headerH, summaryH, bodyPadTop, bodyPadBottom, rowGap, rowH } = HITL_GATE_LAYOUT;
+  const cardW = minW;
+  const branchCount = actions.length;
+  const branchesBodyH = branchCount > 0
+    ? bodyPadTop + branchCount * rowH + Math.max(0, branchCount - 1) * rowGap
+    : 0;
+  const cardH = headerH + summaryH + branchesBodyH + bodyPadBottom;
   const rows = actions.map((action, index) => {
-    const yCenter = Math.round(y + rowH / 2);
-    const row = {
+    const yCenter = Math.round(
+      headerH + summaryH + bodyPadTop + index * (rowH + rowGap) + rowH / 2,
+    );
+    return {
       key: action,
       index,
       label: getHitlGateActionLabel(action),
       yCenter,
       rowH,
-      ratio: 0,
+      ratio: yCenter / cardH,
     };
-    y += rowH + (index < actions.length - 1 ? rowGap : 0);
-    return row;
-  });
-  y += bodyPadBottom;
-  const cardH = Math.round(y);
-  rows.forEach((row) => {
-    row.ratio = row.yCenter / cardH;
   });
   return {
     w: cardW,
@@ -2285,6 +2258,7 @@ function getHitlGateNodeLayoutMetrics(node) {
     cardH,
     headerH,
     summaryH,
+    branchesBodyH,
     rows,
   };
 }

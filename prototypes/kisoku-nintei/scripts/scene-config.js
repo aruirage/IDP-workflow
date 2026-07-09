@@ -269,16 +269,27 @@ function getSharedFieldsAcrossDocs(docTypes) {
 function computeSceneLinkStats(documents, mainDocTypes, docFieldLinks) {
   const docTypes = (documents || []).map((d) => d.type);
   const mainSet = new Set((mainDocTypes || []).filter((t) => docTypes.includes(t)));
-  const linkedToMain = new Set();
+  const adj = Object.fromEntries(docTypes.map((t) => [t, new Set()]));
   (docFieldLinks || []).forEach((link) => {
-    const srcIsMain = mainSet.has(link.sourceDocType);
-    const tgtIsMain = mainSet.has(link.targetDocType);
-    if (srcIsMain && link.targetDocType && !tgtIsMain) linkedToMain.add(link.targetDocType);
-    if (tgtIsMain && link.sourceDocType && !srcIsMain) linkedToMain.add(link.sourceDocType);
+    if (!adj[link.sourceDocType] || !adj[link.targetDocType]) return;
+    if (link.sourceDocType === link.targetDocType) return;
+    adj[link.sourceDocType].add(link.targetDocType);
+    adj[link.targetDocType].add(link.sourceDocType);
   });
+  const reachable = new Set(mainSet);
+  const queue = [...mainSet];
+  while (queue.length) {
+    const cur = queue.shift();
+    adj[cur]?.forEach((next) => {
+      if (!reachable.has(next)) {
+        reachable.add(next);
+        queue.push(next);
+      }
+    });
+  }
   const nonMainDocs = docTypes.filter((t) => !mainSet.has(t));
-  const linkedCount = linkedToMain.size;
-  const unlinkedDocs = nonMainDocs.filter((t) => !linkedToMain.has(t));
+  const linkedCount = nonMainDocs.filter((t) => reachable.has(t)).length;
+  const unlinkedDocs = nonMainDocs.filter((t) => !reachable.has(t));
   return {
     mainDocCount: mainSet.size,
     linkedCount,
@@ -394,8 +405,41 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       satType = link.sourceDocType;
       satField = link.sourceField;
     } else {
-      // 主帳票を介さない関連は描画しない（主帳票が唯一の起点）
-      return null;
+      const srcNode = nodeMap[link.sourceDocType];
+      const tgtNode = nodeMap[link.targetDocType];
+      if (!srcNode || !tgtNode) return null;
+      const srcY = fieldY(srcNode, link.sourceField);
+      const tgtY = fieldY(tgtNode, link.targetField);
+      if (srcY == null || tgtY == null) return null;
+      markLinked(link.sourceDocType, link.sourceField);
+      markLinked(link.targetDocType, link.targetField);
+      let x1;
+      let y1;
+      let x2;
+      let y2;
+      if (srcNode.side === 'left' && tgtNode.side === 'right') {
+        x1 = srcNode.left + srcNode.width;
+        y1 = srcY;
+        x2 = tgtNode.left;
+        y2 = tgtY;
+      } else if (srcNode.side === 'right' && tgtNode.side === 'left') {
+        x1 = srcNode.left;
+        y1 = srcY;
+        x2 = tgtNode.left + tgtNode.width;
+        y2 = tgtY;
+      } else if (srcNode.side === tgtNode.side) {
+        x1 = srcNode.left + (srcNode.side === 'left' ? srcNode.width : 0);
+        y1 = srcY;
+        x2 = tgtNode.left + (tgtNode.side === 'left' ? tgtNode.width : 0);
+        y2 = tgtY;
+      } else {
+        return null;
+      }
+      return {
+        id: link.id || `edge-${index}`,
+        path: buildNetEdgePath(x1, y1, x2, y2),
+        label: `${link.sourceField} → ${link.targetField}`,
+      };
     }
 
     const satNode = nodeMap[satType];
@@ -435,8 +479,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
     n.linkedFields = linkedFieldMap[n.docType] ? [...linkedFieldMap[n.docType]] : [];
     if (!n.isHub) {
       n.isUnlinked = !(links || []).some(
-        (l) => (l.sourceDocType === n.docType && l.targetDocType === mainType)
-          || (l.targetDocType === n.docType && l.sourceDocType === mainType),
+        (l) => l.sourceDocType === n.docType || l.targetDocType === n.docType,
       );
     }
   });

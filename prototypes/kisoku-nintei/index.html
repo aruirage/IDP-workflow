@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=568" />
+  <link rel="stylesheet" href="style.css?v=569" />
 </head>
 <body>
   <div id="app">
@@ -30,46 +30,6 @@
       </header>
 
       <div class="body-row idp-body" :class="{ 'is-editor-surface': inspectorExpanded && currentModule === 'case-workflow' }">
-        <aside class="app-nav-col" :class="{ 'is-collapsed': appNavCollapsed }">
-          <div class="app-nav-tags-row">
-            <button type="button" class="app-nav-toggle" :title="appNavCollapsed ? '展開' : '折りたたむ'" @click="appNavCollapsed = !appNavCollapsed">≡</button>
-          </div>
-          <nav v-show="!appNavCollapsed" class="app-nav-body">
-            <template v-for="group in APP_NAV_GROUPS" :key="group.id">
-              <div v-if="group.menu" class="app-nav-group">
-                <button type="button" class="app-nav-item app-nav-item--parent" :class="{ 'is-active': docSettingsMenuOpen || isDocSettingsModuleActive }" @click="toggleDocSettingsMenu">
-                  <span class="app-nav-icon">{{ group.icon }}</span>
-                  <span class="app-nav-label">{{ group.label }}</span>
-                  <span class="app-nav-chevron">{{ docSettingsMenuOpen ? '▾' : '▸' }}</span>
-                </button>
-                <div v-show="docSettingsMenuOpen" class="app-nav-sub">
-                  <button
-                    v-for="child in group.children"
-                    :key="child.id"
-                    type="button"
-                    class="app-nav-sub-item"
-                    :class="{ 'is-active': currentModule === child.id, 'is-disabled': child.placeholder }"
-                    @click="switchModule(child.id)"
-                  >
-                    <span v-if="child.icon" class="app-nav-icon app-nav-icon--sub">{{ child.icon }}</span>
-                    <span class="app-nav-label">{{ child.label }}</span>
-                  </button>
-                </div>
-              </div>
-              <button
-                v-else
-                type="button"
-                class="app-nav-item"
-                :class="{ 'is-disabled': group.placeholder }"
-                @click="switchModule(group.id)"
-              >
-                <span class="app-nav-icon">{{ group.icon }}</span>
-                <span class="app-nav-label">{{ group.label }}</span>
-              </button>
-            </template>
-          </nav>
-        </aside>
-
         <div v-show="currentModule === 'case-workflow'" class="scene-list-col" :class="{ 'is-collapsed': sceneSidebarCollapsed }">
           <div v-show="sceneSidebarCollapsed" class="scene-tags-row">
             <button type="button" class="scene-collapse-btn" :title="sceneSidebarCollapsed ? '展開' : '折りたたむ'" @click="toggleSceneSidebar">
@@ -939,11 +899,17 @@
                     <button
                       v-if="node.type === 'start' && isWorkflowTopologyEditable"
                       type="button"
-                      class="wf-node-add-btn wf-node-add-btn--out"
+                      class="wf-node-add-btn wf-node-add-btn--out wf-node-add-btn--start-connect"
                       title="後にノードを追加 / ドラッグして接続"
                       @click.stop="onWfNodeAddOutClick(node, $event)"
                       @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
                     >+</button>
+                    <span
+                      v-if="node.type === 'start'"
+                      class="wf-node-port wf-node-port--out wf-node-port--start-drag"
+                      title="出力をドラッグして接続"
+                      @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
+                    ></span>
                     <span
                       v-else-if="node.type === 'end'"
                       class="wf-node-port wf-node-port--out"
@@ -1059,7 +1025,7 @@
                       title="入力"
                     ></span>
                     <div
-                      class="wf-node-card wf-node-card--accent"
+                      class="wf-node-card wf-node-card--accent wf-node-card--ifelse"
                       :style="getWorkflowNodeAccentStyle(node.type)"
                     >
                       <div class="wf-node-header">
@@ -1079,26 +1045,22 @@
                         class="wf-node-summary wf-node-summary--hitl"
                         :title="getHitlGateCanvasSummary(node)"
                       >{{ getHitlGateCanvasSummary(node) }}</p>
-                    </div>
-                    <div
-                      v-show="!wfCanvasNodesCollapsed"
-                      class="wf-hitl-gate-branches"
-                      aria-hidden="true"
-                    >
-                      <div
-                        v-for="branch in getHitlGateNodeVisibleBranches(node)"
-                        :key="branch.key"
-                        class="wf-hitl-branch-row"
-                      >
-                        <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
-                        <button
-                          v-show="isWorkflowTopologyEditable"
-                          type="button"
-                          class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline"
-                          :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
-                          :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
-                          @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
-                        >+</button>
+                      <div v-show="!wfCanvasNodesCollapsed" class="wf-ifelse-body wf-ifelse-body--hitl">
+                        <div
+                          v-for="branch in getHitlGateNodeVisibleBranches(node)"
+                          :key="branch.key"
+                          class="wf-ifelse-row wf-ifelse-row--hitl"
+                        >
+                          <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
+                          <button
+                            v-show="isWorkflowTopologyEditable"
+                            type="button"
+                            class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline wf-hitl-branch-connect"
+                            :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
+                            :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
+                            @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
+                          >+</button>
+                        </div>
                       </div>
                     </div>
                   </template>
@@ -2819,9 +2781,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=565"></script>
+  <script src="scripts/workflow-core.js?v=569"></script>
   <script src="scripts/mock-data.js?v=548"></script>
   <script src="scripts/scene-config.js?v=548"></script>
-  <script src="main.js?v=565"></script>
+  <script src="main.js?v=569"></script>
 </body>
 </html>

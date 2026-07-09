@@ -1,4 +1,4 @@
-const MAIN_BUILD = '568-hitl-branch-ports-right-edge';
+const MAIN_BUILD = '569-bezier-backflow-hitl-branches';
 
 const appOptions = {
   setup() {
@@ -1036,8 +1036,6 @@ const appOptions = {
     }));
     const currentModule = ref('case-workflow');
     const fixedDocSettingsTarget = ref('');
-    const appNavCollapsed = ref(true);
-    const docSettingsMenuOpen = ref(true);
     const selectedMasterDataSourceId = ref('dict:icd10');
     const selectedWorkflowNodeId = ref(null);
     const selectedDataMappingRuleId = ref(null);
@@ -1166,10 +1164,6 @@ const appOptions = {
         vectorStatus: index === 2 ? '失敗' : '完了',
       }));
     });
-    const isDocSettingsModuleActive = computed(() => {
-      const group = APP_NAV_GROUPS.find((g) => g.menu);
-      return (group?.children || []).some((child) => child.id === currentModule.value);
-    });
     const wfTemplateHintVisible = ref(false);
     let wfTemplateHintTimer = null;
     const isWorkflowTopologyEditable = computed(() => true);
@@ -1217,12 +1211,6 @@ const appOptions = {
     const inspectorExpandable = computed(() => false);
 
     function switchModule(moduleId) {
-      const navItem = APP_NAV_GROUPS.flatMap((g) => (g.children ? g.children : [g]))
-        .find((item) => item.id === moduleId);
-      if (navItem?.placeholder) {
-        ElementPlus.ElMessage.info('この機能は準備中です');
-        return;
-      }
       if (!MODULE_PAGE_META[moduleId]) return;
       if (currentModule.value === moduleId) return;
       inspectorExpanded.value = false;
@@ -1309,12 +1297,7 @@ const appOptions = {
 
     function openFixedDocSettings(typeId) {
       if (typeId) fixedDocSettingsTarget.value = typeId;
-      docSettingsMenuOpen.value = true;
       switchModule('fixed-doc');
-    }
-
-    function toggleDocSettingsMenu() {
-      docSettingsMenuOpen.value = !docSettingsMenuOpen.value;
     }
 
     const textEditingId = ref(null);
@@ -2843,28 +2826,109 @@ const appOptions = {
     }
 
     let workflowEdgePathsEvalCount = 0;
-    const BACKFLOW_LANE_GAP = 56;
-    const BACKFLOW_LANE_STEP = 14;
+    const WF_EDGE_ROUTE_GAP = 64;
+    const WF_EDGE_ROUTE_STEP = 22;
+    const WF_EDGE_ROUTE_PAD = 18;
+    const WF_EDGE_COLLISION_SAMPLES = 22;
 
-    function buildWorkflowRoutedEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0) {
-      const laneY = direction === 'bottom'
-        ? Math.max(y1, y2) + BACKFLOW_LANE_GAP + laneOffset
-        : Math.min(y1, y2) - BACKFLOW_LANE_GAP - laneOffset;
-      const midX = (x1 + x2) / 2;
+    function getWorkflowEdgeNodeRect(node) {
+      const summary = getWorkflowNodeCanvasSummary(node);
+      const size = getWorkflowNodeDisplaySize(node, summary);
       return {
-        d: `M ${x1} ${y1} L ${x1} ${laneY} L ${x2} ${laneY} L ${x2} ${y2}`,
+        left: node.x - WF_EDGE_ROUTE_PAD,
+        right: node.x + size.w + WF_EDGE_ROUTE_PAD,
+        top: node.y - WF_EDGE_ROUTE_PAD,
+        bottom: node.y + size.h + WF_EDGE_ROUTE_PAD,
+      };
+    }
+
+    function workflowPointInRect(point, rect) {
+      return point.x >= rect.left
+        && point.x <= rect.right
+        && point.y >= rect.top
+        && point.y <= rect.bottom;
+    }
+
+    function workflowEdgeIntersectsNode(draft, nodes) {
+      const minX = Math.min(draft.x1, draft.x2) - WF_EDGE_ROUTE_PAD;
+      const maxX = Math.max(draft.x1, draft.x2) + WF_EDGE_ROUTE_PAD;
+      const candidates = nodes
+        .filter((node) => node.id !== draft.edge.from && node.id !== draft.edge.to)
+        .map((node) => ({ node, rect: getWorkflowEdgeNodeRect(node) }))
+        .filter(({ rect }) => rect.right >= minX && rect.left <= maxX);
+      if (!candidates.length) return false;
+      for (let i = 1; i < WF_EDGE_COLLISION_SAMPLES; i += 1) {
+        const point = wfBezierPoint(draft.x1, draft.y1, draft.x2, draft.y2, i / WF_EDGE_COLLISION_SAMPLES);
+        if (candidates.some(({ rect }) => workflowPointInRect(point, rect))) return true;
+      }
+      return false;
+    }
+
+    function getWorkflowEdgeClearance(nodes, xMin, xMax, excludedNodeIds = new Set()) {
+      let minTop = Infinity;
+      let maxBottom = -Infinity;
+      nodes.forEach((node) => {
+        if (excludedNodeIds.has(node.id)) return;
+        const rect = getWorkflowEdgeNodeRect(node);
+        if (rect.right < xMin - WF_EDGE_ROUTE_PAD || rect.left > xMax + WF_EDGE_ROUTE_PAD) return;
+        minTop = Math.min(minTop, rect.top);
+        maxBottom = Math.max(maxBottom, rect.bottom);
+      });
+      return {
+        minTop: Number.isFinite(minTop) ? minTop : 0,
+        maxBottom: Number.isFinite(maxBottom) ? maxBottom : 0,
+      };
+    }
+
+    function getWorkflowEdgeRouteDirection(draft) {
+      const explicit = draft.edge.route === 'bottom' || draft.edge.route === 'top'
+        ? draft.edge.route
+        : '';
+      if (explicit) return explicit;
+      if (draft.isBackflow || draft.x2 < draft.x1) return 'top';
+      if (draft.y2 > draft.y1 + 28) return 'bottom';
+      if (draft.y2 < draft.y1 - 28) return 'top';
+      const branch = String(draft.edge.branch || '');
+      if (branch === 'reject' || branch === 'request_supplement' || branch === 'else' || branch.startsWith('elif')) {
+        return 'bottom';
+      }
+      return 'top';
+    }
+
+    function buildWorkflowAvoidingEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0, clearance = null) {
+      const dx = Math.abs(x2 - x1);
+      const dy = Math.abs(y2 - y1);
+      const handle = Math.max(44, Math.min(160, dx * 0.22 + dy * 0.08));
+      const topBase = Math.min(clearance?.minTop ?? Math.min(y1, y2), y1, y2);
+      const bottomBase = Math.max(clearance?.maxBottom ?? Math.max(y1, y2), y1, y2);
+      const laneY = direction === 'bottom'
+        ? bottomBase + WF_EDGE_ROUTE_GAP + laneOffset
+        : Math.max(24, topBase - WF_EDGE_ROUTE_GAP - laneOffset);
+      const midX = (x1 + x2) / 2;
+      const d = [
+        `M ${x1} ${y1}`,
+        `C ${x1 + handle} ${y1}, ${x1 + handle} ${laneY}, ${midX} ${laneY}`,
+        `C ${x2 - handle} ${laneY}, ${x2 - handle} ${y2}, ${x2} ${y2}`,
+      ].join(' ');
+      return {
+        d,
         mid: { x: midX, y: laneY },
         labelAnchor: { x: midX, y: laneY },
       };
     }
 
-    function assignWorkflowBackflowLaneOffsets(drafts) {
-      const backflows = drafts.filter((draft) => draft.isBackflow);
-      if (!backflows.length) return;
-      backflows.sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2 || a.key.localeCompare(b.key));
-      const center = (backflows.length - 1) / 2;
-      backflows.forEach((draft, index) => {
-        draft.laneOffset = (index - center) * BACKFLOW_LANE_STEP;
+    function assignWorkflowRouteLaneOffsets(drafts) {
+      ['top', 'bottom'].forEach((direction) => {
+        const routed = drafts
+          .filter((draft) => draft.shouldRoute && draft.routeDirection === direction)
+          .sort((a, b) => {
+            const spanA = Math.abs(a.x2 - a.x1);
+            const spanB = Math.abs(b.x2 - b.x1);
+            return spanA - spanB || a.x1 - b.x1 || a.y1 - b.y1 || a.key.localeCompare(b.key);
+          });
+        routed.forEach((draft, index) => {
+          draft.laneOffset = index * WF_EDGE_ROUTE_STEP;
+        });
       });
     }
 
@@ -2905,18 +2969,15 @@ const appOptions = {
 
         const isBackflow = isWorkflowBackflowEdge(getActiveWf(), edge.from, edge.to)
           || x2 < x1 - 24;
-        const routeDirection = edge.route || 'top';
-        const shouldRoute = (edge.route === 'top' || isBackflow) && Math.abs(x2 - x1) > 40;
-
-        return {
+        const draft = {
           x1,
           y1,
           x2,
           y2,
           edge,
           isBackflow,
-          routeDirection,
-          shouldRoute,
+          routeDirection: 'top',
+          shouldRoute: false,
           laneOffset: 0,
           key: workflowEdgeKey(edge),
           from,
@@ -2935,19 +2996,34 @@ const appOptions = {
                   ? 'idp-edge-label--no'
                   : '',
         };
+        const span = Math.abs(x2 - x1);
+        draft.shouldRoute = (span > 40 && (isBackflow || x2 < x1))
+          || workflowEdgeIntersectsNode(draft, nodes)
+          || (!!edge.branch && span > 260);
+        draft.routeDirection = getWorkflowEdgeRouteDirection(draft);
+        return draft;
       }).filter(Boolean);
 
-      assignWorkflowBackflowLaneOffsets(drafts);
+      assignWorkflowRouteLaneOffsets(drafts);
 
       return drafts.map((draft) => {
+        const clearance = draft.shouldRoute
+          ? getWorkflowEdgeClearance(
+            nodes,
+            Math.min(draft.x1, draft.x2),
+            Math.max(draft.x1, draft.x2),
+            new Set([draft.edge.from, draft.edge.to]),
+          )
+          : null;
         const routed = draft.shouldRoute
-          ? buildWorkflowRoutedEdgePath(
+          ? buildWorkflowAvoidingEdgePath(
             draft.x1,
             draft.y1,
             draft.x2,
             draft.y2,
             draft.routeDirection,
-            draft.isBackflow ? draft.laneOffset : 0,
+            draft.laneOffset,
+            clearance,
           )
           : null;
         const d = routed?.d || wfBezierPath(draft.x1, draft.y1, draft.x2, draft.y2);
@@ -5072,11 +5148,7 @@ const appOptions = {
         const metrics = getHitlGateLayoutMetricsForNode(node);
         const match = metrics.rows.find((b) => b.key === branch);
         const yCenter = match?.yCenter ?? metrics.h / 2;
-        const cardW = metrics.cardW ?? size.w;
-        const gapW = metrics.branchGapW ?? 8;
-        const laneW = metrics.branchLaneW ?? 84;
-        const btnHalf = 14;
-        return { x: node.x + cardW + gapW + laneW - btnHalf, y: node.y + yCenter };
+        return { x: node.x + size.w + PORT, y: node.y + yCenter };
       }
       if (node?.type === 'decision' && branch) {
         const metrics = getDecisionLayoutMetricsForNode(node);
@@ -5093,8 +5165,7 @@ const appOptions = {
       const PORT = 6;
       if (isHitlGateNode(node) && !wfCanvasNodesCollapsed.value) {
         const metrics = getHitlGateLayoutMetricsForNode(node);
-        const cardH = metrics.cardH ?? size.h;
-        return { x: node.x - PORT, y: node.y + cardH / 2 };
+        return { x: node.x - PORT, y: node.y + metrics.h / 2 };
       }
       return { x: node.x - PORT, y: node.y + size.h / 2 };
     }
@@ -5287,7 +5358,6 @@ const appOptions = {
     }
 
     function enterWorkflowCanvasView() {
-      appNavCollapsed.value = true;
       sceneSidebarCollapsed.value = true;
       selectWorkflowStartNodeForDefault();
     }
@@ -6286,11 +6356,6 @@ const appOptions = {
       };
       if (node?.type === 'decision' || isHitlGateNode(node)) {
         style.height = `${size.h}px`;
-      }
-      if (isHitlGateNode(node)) {
-        const metrics = getHitlGateLayoutMetricsForNode(node);
-        style['--wf-hitl-card-w'] = `${metrics.cardW}px`;
-        style['--wf-hitl-in-port-top'] = `${Math.round((metrics.cardH || size.h) / 2)}px`;
       }
       return style;
     }
@@ -9316,7 +9381,6 @@ const appOptions = {
       aiAssistDataRule,
       sceneDocTypes,
       dataRuleCount,
-      APP_NAV_GROUPS,
       currentModule,
       inspectorExpanded,
       inspectorExpandable,
@@ -9331,7 +9395,6 @@ const appOptions = {
       selectedMasterDataSource,
       selectedMasterDataColumns,
       selectedMasterDataRows,
-      isDocSettingsModuleActive,
       INSPECTOR_HINTS,
       wfTemplateHintVisible,
       flashWorkflowTemplateHint,
@@ -9371,9 +9434,6 @@ const appOptions = {
       getDataMappingRuleSourceLabels,
       getDataMappingConflictLabel,
       activeWorkflow,
-      appNavCollapsed,
-      docSettingsMenuOpen,
-      toggleDocSettingsMenu,
       processingForm,
       FLOW_NODE_OPTIONS,
       wfNodePicker,

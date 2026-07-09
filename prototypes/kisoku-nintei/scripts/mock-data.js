@@ -1654,88 +1654,6 @@ function withCaseRoutingMeta(caseItem, {
   };
 }
 
-const WORKFLOW_TEST_CASE_OPTIONS = [
-  { value: 'normal', label: '通常（単批次）', desc: '1 回上传 → 1 案件 → Workflow 跑通' },
-  { value: 'multi_batch', label: '跨批次并入', desc: '第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）' },
-  { value: 'hitl_wait', label: '跨批次 + 人工缓冲', desc: '前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办' },
-  { value: 'auto_supplement', label: '自动补件绑定', desc: 'post 池命中 → 补件绑定，从前处理重跑到 AI 检证' },
-  { value: 'supplement', label: '補件（兜底入口）', desc: '案件详情手动补件；缺资料警告' },
-  { value: 'abnormal', label: '異常', desc: '多候选集约 / OCR 低置信 / 校验失败' },
-];
-
-const WORKFLOW_TEST_CASE_SCENARIOS = {
-  normal: {
-    title: '通常（单批次）',
-    intro: '模拟一次主上传：分割（系统）→ 集约 → 按当前画布顺序执行 Workflow。',
-    steps: [
-      '选择本场景 → 点击「测试执行」（无需上传真实 ZIP，使用预制 4 文件数据）',
-      '右侧时间轴逐步高亮；左侧显示当前步骤详情',
-      '点击「上传」「案件集约」看文件与案件卡片',
-      '点击各 Workflow 节点看模拟执行摘要，直至「终了」',
-    ],
-    lookFor: '整体是否到达终了节点；各节点 summary 是否正常。',
-  },
-  multi_batch: {
-    title: '跨批次并入',
-    badge: 'Open Case 池',
-    intro: '批次 1 新建案件 A；批次 2 同识别字段主上传 → 并入 A，不新建 B。',
-    steps: [
-      '测试执行后，点「上传」→ 左侧见バッチ1/バッチ2 两批文件',
-      '点「案件集约」→ 见 cross-batch 卡片 +「人工触点去重」区',
-      '点 OCR 人工确认节点 → summary 为「open 待办 1 件（批次2 追记）」',
-      '点通知节点 → 「同一 workflow 周期内 1 回のみ送信」',
-    ],
-    lookFor: '仅 1 个案件 A；OCR 待办追加而非新建；通知只发一次。',
-  },
-  hitl_wait: {
-    title: '跨批次 + 人工缓冲',
-    badge: '缓冲 30 分钟',
-    intro: '在跨批次基础上，前处理/OCR 人工确认均开启「缓冲等待」：各触点 pending 合并，缓冲结束各出 1 条待办。',
-    steps: [
-      '选本场景会自动打开前处理・OCR 两个人工确认节点的缓冲开关',
-      '测试执行 → 点「案件集约」→ 案件卡片显示「等待人工缓冲」徽章',
-      '点前处理/OCR 人工确认节点 →「30 分钟缓冲中；列表显示处理中 + 等待人工缓冲」',
-      '集约区「人工触点去重」列出前处理/OCR 缓冲 sliding 延长与合并结果',
-    ],
-    lookFor: '用户可见状态仍为处理中；缓冲子标志；前处理/OCR 各 open 待办 1 件（两批合并）。',
-  },
-  auto_supplement: {
-    title: '自动补件绑定',
-    badge: '补件候选池',
-    intro: '案件 A 已在 post_ai_verify；批次 2 主上传同字段 → 自动补件，不新建、不重跑集约。',
-    steps: [
-      '点「上传」→ 仅バッチ2 有新文件',
-      '点「案件集约」→ 补件候选池卡片 +「从前处理重跑到 AI 检证」',
-      '点前处理/OCR 节点 → 仅补件文件执行（既存ファイル再実行なし）',
-      'AI 检证节点 → 查看执行前提事件列表（Inspector 只读）',
-    ],
-    lookFor: '路由阶段 post_ai_verify；补件文件标记；AI 检证不重复跑旧文件。',
-  },
-  supplement: {
-    title: '补件（兜底入口）',
-    intro: '案件详情手动补件路径；AI 检证检出缺资料，状态「等待补件」。',
-    steps: [
-      '测试执行 → 点「案件集约」→ 警告「領収書・診療明細書が未紐付け」',
-      '点 AI 检证 →「不足書類を検出」',
-    ],
-    lookFor: '案件 userStatus = 等待补件；终了可能带 warning。',
-  },
-  abnormal: {
-    title: '异常',
-    intro: '集约多候选 + OCR 低置信 + 数据校验不一致，测试在 error 节点停止。',
-    steps: [
-      '测试执行 → 集约步骤 warning（多候选）',
-      'OCR 或 AI 检证节点 status = error，左侧见 errorReason',
-      'error 之后步骤为 pending（未実行）',
-    ],
-    lookFor: '失败节点与原因定位；终了未到達。',
-  },
-};
-
-function getWorkflowTestCaseScenario(caseType = 'normal') {
-  return WORKFLOW_TEST_CASE_SCENARIOS[caseType] || WORKFLOW_TEST_CASE_SCENARIOS.normal;
-}
-
 function buildWorkflowTestUploadArtifacts(caseType = 'normal') {
   if (caseType === 'multi_batch' || caseType === 'hitl_wait') {
     return {
@@ -1844,7 +1762,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
     return {
       status: 'success',
       statusLabel: '成功',
-      summary: 'バッチ2 并入後、前処理・OCR 人工確認ノードで 30 分缓冲を有効化。各触点 pending 项合并，缓冲结束各触发 1 条待办。',
+      summary: 'バッチ2 并入後、前処理・OCR 人工確認で 30 分缓冲。各触点 pending 项合并，缓冲结束各触发 1 条待办。',
       crossBatch: {
         batch1: { label: 'バッチ1', action: '案件 A を新規作成' },
         batch2: { label: 'バッチ2', action: 'Open Case 池 → 案件 A に并入', matchedCaseId: 'case-1' },
@@ -2138,6 +2056,15 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
   return null;
 }
 
+function getWorkflowTestHitlBranchLabel(workflow, nodeId) {
+  const wf = workflow || { edges: [] };
+  const edges = (wf.edges || []).filter((edge) => edge.from === nodeId && edge.branch && !edge.visualHidden);
+  if (!edges.length) return '';
+  const branch = edges.find((edge) => edge.branch === 'approve') || edges[0];
+  const label = branch.label || getHitlGateBranchEdgeLabel(branch.branch);
+  return label ? `分岐: ${label}` : '';
+}
+
 function workflowTestStepResultText(step, caseType) {
   const label = step.label || '';
   const type = step.type || '';
@@ -2214,6 +2141,9 @@ function getWorkflowTestReachableNodeIds(workflow) {
 function buildWorkflowTestSteps(workflow, caseType = 'normal') {
   const wf = workflow || { nodes: [], edges: [] };
   const chainIds = getWorkflowTestReachableNodeIds(wf);
+  const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
+    ? getWorkflowCycleNodeIds(wf)
+    : new Set();
   const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
   const orderedChainIds = [
     ...chainIds.filter((id) => nodeMap[id]?.type !== 'end'),
@@ -2256,7 +2186,18 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
     return {
       ...step,
       status,
-      summary: status === 'pending' ? '未実行' : workflowTestStepResultText(step, caseType),
+      onCycle: cycleNodeIds.has(step.id),
+      summary: (() => {
+        let text = status === 'pending' ? '未実行' : workflowTestStepResultText(step, caseType);
+        if (step.type === 'hitl_gate' && status !== 'pending') {
+          const branchLabel = getWorkflowTestHitlBranchLabel(wf, step.id);
+          if (branchLabel) text = `${text}（${branchLabel}）`;
+        }
+        if (cycleNodeIds.has(step.id) && status !== 'pending') {
+          text += '（環状パス上のノード）';
+        }
+        return text;
+      })(),
       errorReason: hitlIssues[step.id] || (status === 'error' ? workflowTestStepErrorReason(step, caseType) : ''),
       needsHuman: false,
     };
@@ -2359,13 +2300,25 @@ function buildWorkflowTestDiagnostics(workflow) {
   const wf = workflow || { nodes: [], edges: [] };
   const nodeLabels = (wf.nodes || []).map((node) => node.label || node.type);
   const hitlIssues = validateWorkflowTestHitlContext(wf);
+  const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
+    ? getWorkflowCycleNodeIds(wf)
+    : new Set();
   return {
     variableRefs: nodeLabels.length
       ? '未生成ノードまたは存在しない帳票タイプ・フィールドへの変数参照は検出されませんでした。'
       : 'Workflow ノードが未設定のため、変数参照チェックをスキップしました。',
-    branchChecks: (wf.edges || []).some((edge) => edge.branch)
-      ? 'IF/ELSE 分岐先・入力値・型不一致は検出されませんでした。'
-      : '条件分岐ノードがないため、分岐チェックをスキップしました。',
+    branchChecks: (() => {
+      const parts = [];
+      if ((wf.edges || []).some((edge) => edge.branch)) {
+        parts.push('IF/ELSE 分岐先・入力値・型不一致は検出されませんでした。');
+      } else {
+        parts.push('条件分岐ノードがないため、分岐チェックをスキップしました。');
+      }
+      if (cycleNodeIds.size) {
+        parts.push(`環状パスを ${cycleNodeIds.size} ノードで検出しました（回流は許可・公開可）。`);
+      }
+      return parts.join('\n');
+    })(),
     hitlContext: hitlIssues.length
       ? hitlIssues.map((issue) => issue.message).join('\n')
       : '人工確認コンテキストと上流ノードの不一致は検出されませんでした。',
