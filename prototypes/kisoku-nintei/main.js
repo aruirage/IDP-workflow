@@ -1,4 +1,4 @@
-const MAIN_BUILD = '567-backflow-edge-routing';
+const MAIN_BUILD = '568-hitl-branch-ports-right-edge';
 
 const appOptions = {
   setup() {
@@ -6286,6 +6286,11 @@ const appOptions = {
       };
       if (node?.type === 'decision' || isHitlGateNode(node)) {
         style.height = `${size.h}px`;
+      }
+      if (isHitlGateNode(node)) {
+        const metrics = getHitlGateLayoutMetricsForNode(node);
+        style['--wf-hitl-card-w'] = `${metrics.cardW}px`;
+        style['--wf-hitl-in-port-top'] = `${Math.round((metrics.cardH || size.h) / 2)}px`;
       }
       return style;
     }

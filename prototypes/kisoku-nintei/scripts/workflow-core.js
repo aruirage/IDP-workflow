@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '562-hitl-gate-layout';
+const PROTOTYPE_BUILD = '568-hitl-branch-ports-right-edge';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -2243,49 +2243,48 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 const HITL_GATE_LAYOUT = {
   minW: 208,
   headerH: 44,
-  summaryH: 22,
-  bodyPadTop: 0,
+  summaryH: 18,
+  bodyPadTop: 4,
   bodyPadBottom: 6,
   rowGap: 4,
   rowH: 28,
   labelCharW: 14,
 };
 
-const HITL_GATE_BRANCH_LANE_W = 84;
-const HITL_GATE_BRANCH_GAP_W = 8;
-
 function getHitlGateNodeLayoutMetrics(node) {
   const actions = normalizeHitlGateActions(node?.actions);
-  const { minW, headerH, summaryH, bodyPadBottom, rowGap, rowH } = HITL_GATE_LAYOUT;
-  const cardW = minW;
-  const cardH = headerH + summaryH + bodyPadBottom;
-  const branchesH = actions.length * rowH + Math.max(0, actions.length - 1) * rowGap;
-  const shellH = Math.max(cardH, branchesH);
-  const branchPadTop = Math.max(0, (shellH - branchesH) / 2);
+  const { minW, headerH, summaryH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW } = HITL_GATE_LAYOUT;
+  let maxLabelLen = 0;
+  actions.forEach((action) => {
+    maxLabelLen = Math.max(maxLabelLen, getHitlGateActionLabel(action).length);
+  });
+  const cardW = Math.max(minW, 72 + maxLabelLen * labelCharW);
+  let y = headerH + summaryH + bodyPadTop;
   const rows = actions.map((action, index) => {
-    const yCenter = Math.round(
-      branchPadTop + index * (rowH + rowGap) + rowH / 2,
-    );
-    return {
+    const yCenter = Math.round(y + rowH / 2);
+    const row = {
       key: action,
       index,
       label: getHitlGateActionLabel(action),
       yCenter,
       rowH,
-      ratio: yCenter / shellH,
+      ratio: 0,
     };
+    y += rowH + (index < actions.length - 1 ? rowGap : 0);
+    return row;
+  });
+  y += bodyPadBottom;
+  const cardH = Math.round(y);
+  rows.forEach((row) => {
+    row.ratio = row.yCenter / cardH;
   });
   return {
-    w: cardW + HITL_GATE_BRANCH_GAP_W + HITL_GATE_BRANCH_LANE_W,
-    h: shellH,
+    w: cardW,
+    h: cardH,
     cardW,
     cardH,
     headerH,
     summaryH,
-    branchPadTop,
-    branchLaneW: HITL_GATE_BRANCH_LANE_W,
-    branchGapW: HITL_GATE_BRANCH_GAP_W,
-    branchesH,
     rows,
   };
 }
