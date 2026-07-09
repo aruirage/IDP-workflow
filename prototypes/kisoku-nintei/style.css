@@ -4037,10 +4037,118 @@ code.export-config-meta-value {
 }
 .wf-test-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+.wf-test-toolbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.wf-test-case-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wf-test-case-type-btn {
+  border: 1px solid var(--el-border-color);
+  background: #fff;
+  color: var(--el-text-color-regular);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.wf-test-case-type-btn.is-active {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+.wf-test-cross-batch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.wf-test-cross-batch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  border: 1px solid #e5ebf3;
+  font-size: 12px;
+}
+.wf-test-cross-batch-card.is-merge {
+  border-color: #b7d7ff;
+  background: #eef5ff;
+}
+.wf-test-cross-batch-card strong {
+  font-size: 13px;
+}
+.wf-test-dedup-list {
+  margin: 12px 0 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fafafa;
+  border: 1px dashed #d9d9d9;
+}
+.wf-test-dedup-list h6 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.wf-test-dedup-item {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #ececec;
+}
+.wf-test-dedup-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.wf-test-split-source,
+.wf-test-case-file-batch {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.wf-test-case-file-batch {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef5ff;
+}
+.wf-test-excluded-block {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #e4e7ec;
+}
+.wf-test-excluded-block h6 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #b54708;
+}
+.wf-test-excluded-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.wf-test-split-group.is-excluded {
+  opacity: 0.92;
+}
+.wf-test-unclassified-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fff4e5;
+  color: #b54708;
+  font-size: 12px;
 }
 .wf-test-layout {
   display: grid;
@@ -4164,6 +4272,37 @@ code.export-config-meta-value {
   color: #667085;
   font-size: 12px;
 }
+.wf-test-case-meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.wf-test-case-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.wf-test-case-meta-badge.is-status {
+  background: #eff8ff;
+  color: #175cd3;
+}
+.wf-test-case-meta-badge.is-routing {
+  background: #f4f3ff;
+  color: #5925dc;
+}
+.wf-test-case-meta-badge.is-buffer {
+  background: #fffaeb;
+  color: #b54708;
+}
+.wf-test-cross-batch-card.is-supplement {
+  border-color: #b2ddff;
+  background: #f0f9ff;
+}
 .wf-test-case-keys {
   display: flex;
   flex-wrap: wrap;
@@ -4228,6 +4367,57 @@ code.export-config-meta-value {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+}
+.wf-test-scenario-guide {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+.wf-test-scenario-guide-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.wf-test-scenario-guide-head strong {
+  font-size: 14px;
+  color: #101828;
+}
+.wf-test-scenario-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #067647;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.wf-test-scenario-intro {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #475467;
+  line-height: 1.5;
+}
+.wf-test-scenario-steps {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #344054;
+  line-height: 1.55;
+}
+.wf-test-scenario-lookfor {
+  margin: 0;
+  font-size: 12px;
+  color: #475467;
+  line-height: 1.5;
+}
+.wf-test-scenario-lookfor span {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 600;
+  color: #175cd3;
 }
 .wf-test-toolbar-note {
   color: #667085;
@@ -8869,6 +9059,30 @@ body.idp-inspector-resizing * {
   font-weight: 500;
   color: #344054;
 }
+.verify-inspector .wf-entry-event-list,
+.hitl-gate-inspector .wf-entry-event-list {
+  gap: 0;
+}
+.verify-inspector .wf-entry-event-list .wf-start-readonly-item,
+.hitl-gate-inspector .wf-entry-event-list .wf-start-readonly-item {
+  min-height: 0;
+  padding: 7px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid #f2f4f7;
+}
+.verify-inspector .wf-entry-event-list .wf-start-readonly-item:last-child,
+.hitl-gate-inspector .wf-entry-event-list .wf-start-readonly-item:last-child {
+  border-bottom: none;
+}
+.verify-inspector .wf-entry-event-list .wf-start-readonly-label,
+.hitl-gate-inspector .wf-entry-event-list .wf-start-readonly-label,
+.verify-inspector .wf-entry-event-list .wf-start-readonly-value,
+.hitl-gate-inspector .wf-entry-event-list .wf-start-readonly-value {
+  font-size: 13px;
+  font-weight: 500;
+}
 .wf-end-inspector .inspector-module-card__body {
   padding-bottom: 16px;
 }
@@ -9350,119 +9564,6 @@ body.idp-inspector-resizing * {
   border-radius: var(--app-card-radius);
   padding: var(--app-panel-padding) var(--app-space-4);
   min-height: 0;
-}
-.wf-setup-file-split-panel {
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--app-card-radius);
-  padding: var(--app-panel-padding) var(--app-space-4);
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  box-sizing: border-box;
-}
-.wf-setup-file-split-panel.is-disabled .file-split-rule-textarea {
-  opacity: 0.72;
-}
-.wf-setup-rule-editor {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  gap: 8px;
-}
-.wf-setup-rule-editor-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.wf-setup-rule-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.wf-rule-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  background: #fff;
-  color: #475467;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-.wf-rule-icon-btn svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.wf-rule-icon-btn:hover:not(:disabled) {
-  background: #f9fafb;
-}
-.wf-rule-icon-btn--ai {
-  border-color: #175cd3;
-  background: #175cd3;
-  color: #fff;
-}
-.wf-rule-icon-btn--ai:hover:not(:disabled) {
-  background: #175cd3;
-  color: #fff;
-}
-.wf-rule-icon-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-.wf-setup-rule-editor-body {
-  position: relative;
-  min-width: 0;
-}
-.wf-setup-rule-editor-box {
-  position: relative;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  background: #fcfcfd;
-  overflow: visible;
-}
-.wf-setup-rule-editor-box .wf-setup-rule-actions {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  z-index: 10;
-}
-.wf-setup-rule-editor-box .file-split-rule-textarea .el-textarea__inner {
-  font-size: 14px;
-  line-height: 1.6;
-  min-height: 92px !important;
-  padding: 10px 12px 54px;
-  border: none;
-  box-shadow: none;
-  border-radius: 8px;
-  background: transparent;
-  resize: vertical;
-}
-.wf-setup-rule-editor-box .file-split-rule-textarea .el-textarea__inner:focus {
-  box-shadow: none;
-}
-.wf-setup-rule-editor-box .file-split-rule-textarea .el-input__count,
-.wf-setup-rule-editor-box .file-split-rule-textarea.el-textarea .el-input__count {
-  display: none !important;
-}
-.inspector-switch-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #475467;
 }
 .wf-setup-left-panel,
 .wf-setup-network-panel {

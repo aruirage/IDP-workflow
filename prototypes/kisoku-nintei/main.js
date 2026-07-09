@@ -14,6 +14,11 @@ const appOptions = {
     } catch (initErr) {
       initialForm = sceneForm('2064639102406844416');
     }
+    const storedWorkflow = storedForm?.workflows?.case;
+    ensureFormWorkflows(initialForm);
+    if (storedWorkflow && shouldMigrateCaseWorkflowToDefault(storedWorkflow)) {
+      saveStorage(currentSceneId.value, initialForm);
+    }
     const form = reactive(initialForm);
     const savedSnapshot = ref(JSON.stringify(initialForm));
 
@@ -52,8 +57,6 @@ const appOptions = {
       docFieldLinks: [],
       aggregateRuleSettings: {},
       aggregateCompareStrategy: 'exact',
-      fileSplitEnabled: true,
-      fileSplitRuleText: 'ページ連続性と共通タイトルを利用して、アップロードされたPDF・画像・ZIPを案件候補ごとに分割する。',
     });
     const sceneSetupActiveTab = ref('basic');
     const sceneSetupAggregateDetailOpen = reactive({});
@@ -61,23 +64,6 @@ const appOptions = {
       { value: 'exact', label: '精密マッチング' },
       { value: 'fuzzy', label: '近似マッチング' },
     ];
-    const SCENE_FILE_SPLIT_RULE_OPTIONS = [
-      { value: 'page_continuity', label: 'ページ連続性' },
-      { value: 'doc_title', label: '帳票タイトル' },
-      { value: 'separator_page', label: '白紙 / 区切りページ' },
-      { value: 'folder_layer', label: 'フォルダ階層' },
-      { value: 'file_name', label: 'ファイル名' },
-      { value: 'barcode', label: 'バーコード / QR' },
-    ];
-    const SCENE_FILE_SPLIT_RULE_TEXT_MAP = {
-      page_continuity: 'ページ連続性を利用して、連続するページを同一案件候補として扱う。',
-      doc_title: '共通タイトルや帳票見出しを利用して、同一案件候補の境界を判定する。',
-      separator_page: '区切りページを検出した位置でファイルを分割する。',
-      folder_layer: 'フォルダ階層を案件候補のまとまりとして扱う。',
-      file_name: 'ファイル名に含まれる案件番号・顧客名・日付などを利用して案件候補を分割する。',
-      barcode: 'バーコード / QR コードの値を利用して案件候補を分割する。',
-    };
-
     const UI_ZH_REPLACEMENTS = [
       ['次へ', '下一步'],
       ['前へ', '上一步'],
@@ -163,6 +149,12 @@ const appOptions = {
       ['展開', '展开'],
       ['設定参照', '跳转设定'],
       ['起動タイミング', '启动时机'],
+      ['新規案件', '新建案件'],
+      ['既存案件', '既有案件'],
+      ['初回アップロード', '初次上传'],
+      ['クロスバッチ并入', '跨批次并入'],
+      ['自動補件紐付け', '自动补件绑定'],
+      ['補件アップロード（フォールバック）', '补件上传（兜底）'],
       ['通常処理', '通常处理'],
       ['補件処理', '补件处理'],
       ['案件集約完了後', '案件集约完成后'],
@@ -617,7 +609,15 @@ const appOptions = {
       ['MCP サーバー管理', 'MCP 服务器管理'],
       ['Server 接続・Tool 定義・入力パラメータを集中管理。Workflow では Server / Tool の選択のみ行います。', '集中管理 Server 连接、Tool 定义和输入参数。Workflow 中只选择 Server / Tool。'],
       ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到下游节点输入端口。可通过连线上的 + 在中途插入节点。'],
-      ['案件集約前にアップロード単位のファイルをどの粒度で分けるかを設定します。前処理の画像分割とは別で、ページ連続性や帳票タイトルなどを分割依据として利用できます。', '在案件集约前，设定上传单位文件按什么粒度拆分。它不同于前处理的图像分割，可使用页面连续性、账票标题等作为拆分依据。'],
+      ['ファイル分割は他製品の既存ルールをそのまま利用します。本 PRD では再定義しません。Step1 では設定しません。', '文件分割沿用其他产品已有规则，本 PRD 不重复定义，不在 Step1 配置。'],
+      ['跨批次并入', '跨批次并入'],
+      ['人工触点去重', '人工触点去重'],
+      ['分割规则来源', '分割规则来源'],
+      ['通常（単批次）', '通常（单批次）'],
+      ['バッチ1', '批次1'],
+      ['未分类', '未分类'],
+      ['未分类（不参与归集 / Workflow）', '未分类（不参与归集 / Workflow）'],
+      ['无法命中本场景已配置账票类型的页面，已标记剔除。', '无法命中本场景已配置账票类型的页面，已标记剔除。'],
       ['画面上アップロードまたは APIアップロードでファイルを受け付けます。APIアップロードを有効にした場合はエンドポイント URL を指定します。', '通过画面上传或 API 上传接收文件。启用 API 上传时需指定 Endpoint URL。'],
       ['ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。', '指定文件格式和最大文件大小（上限 20MB，仅可设置为 20MB 以下）。'],
       ['抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。', '抽出字段、Prompt、置信度阈值等详情在账票 template 或系统模型设定中管理。'],
@@ -638,14 +638,151 @@ const appOptions = {
       ['タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。', '设定超时（秒）、重试上限、失败时动作（跳过 / 重试 / 工作流停止）。'],
       ['後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件、MCP 变量引用中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
       ['処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。', '处理后文件、低置信件数、状态。可在后续节点的条件分支中引用。'],
+      ['前処理総状態・成功/失敗件数・人工確認要否・処理済みファイル・分類警告。', '前处理总状态、成功/失败件数、是否需人工确认、处理后文件、分类警告。'],
       ['OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。', 'OCR 结果、按文件 OCR 结果、低置信字段件数、模型不一致件数、状态。'],
+      ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、按文件 OCR 结果。'],
       ['必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。', '必填字段、必要资料、文本、数据、签名盖章校验的集约输出。也可用于通知节点固定变量。'],
+      ['AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、补件/人工确认/异常判定、不足资料/项目明细。'],
       ['Workflow 入口の案件番号・起動イベント・案件データバージョン。', 'Workflow 入口的案件编号、启动事件、案件数据版本。'],
+      ['Workflow 入口の案件基礎情報・起動イベント・ルーティング段階・待処理ファイル範囲・帳票タイプ一覧。', 'Workflow 入口的案件基础信息、启动事件、路由阶段、待处理文件范围、账票类型清单。'],
       ['この分岐の完了状態。案件ライフサイクルの終了は表しません。', '该分支的完成状态，不代表案件生命周期结束。'],
+      ['分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。', '分支结束结果、案件状态建议、未完成事项、成果文件状态、执行摘要。'],
       ['生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。', '生成的人工确认任务 ID、确认状态、确认操作、担当角色、人工修正摘要。'],
+      ['人工確認タスク・缓冲等待状態・open 待办数・待確認ファイル/フィールド件数・確認結果・補件/異常判定。', '人工确认任务、缓冲等待状态、open 待办数、待确认文件/字段件数、确认结果、补件/异常判定。'],
+      ['待办合并', '待办合并'],
+      ['缓冲等待（30 分钟）', '缓冲等待（30 分钟）'],
+      ['OFF = 即时出待办；ON = 多批 pending 合并后一条待办', 'OFF = 即时出待办；ON = 多批 pending 合并后一条待办'],
+      ['系统默认（入口等待 + 去重合并）', '系统默认（入口等待 + 去重合并）'],
+      ['执行前提', '执行前提'],
+      ['入口等待', '入口等待'],
+      ['系统默认（不可关闭）', '系统默认（不可关闭）'],
+      ['跨批次 + OCR缓冲', '跨批次 + OCR 缓冲'],
+      ['跨批次 + 人工缓冲', '跨批次 + 人工缓冲'],
+      ['预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。', '预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。'],
+      ['关注点', '关注点'],
+      ['通知送信状態・通知タイプ・送信日時。', '通知发送状态、通知类型、发送时间。'],
+      ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。', '通知发送状态、通知类型、发送时间、收件人、失败原因、重复抑制标志。'],
+      ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
+      ['Workflow 入口。起動イベントはシステムが案件ルーティング結果に応じて自動設定します（読み取り専用）。', 'Workflow 入口。启动事件由系统根据案件路由结果自动设定（只读）。'],
+      ['前処理確認・OCR結果確認のみ設定可能。ON にすると、需人工確認のファイル到達後すぐ待办を出さず、固定 30 分間 pending を合并します。缓冲期内の新規ファイルは sliding 延長。案件列表は「処理中」、子标志は「等待人工缓冲」。', '仅前处理确认・OCR 结果确认可配置。开启后，需人工确认的文件到达后不立即出待办，固定 30 分钟合并 pending；缓冲期内新文件滑动延长；案件列表仍为「处理中」，子标志为「等待人工缓冲」。'],
+      ['AI検証確認は顧客設定不要。システム既定：AI検証開始前に upstream 汇总を待機し、人工待办は open 追記で去重合并。', 'AI 检证确认无需客户配置。系统默认：AI 检证开始前等待上游汇总，人工待办通过 open 追加去重合并。'],
+      ['システム既定（設定不可）。以下イベントがすべて発生してから AI 検証を実行します。补件・跨批次の pending 汇总も含まれます。', '系统默认（不可配置）。满足以下全部事件后再执行 AI 检证；跨批次/补件 pending 汇总亦包含在内。'],
+      ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
+      ['无需配置；AI 检证入口等待汇总，人工待办 open 追加', '无需配置；AI 检证入口等待汇总，人工待办 open 追加'],
+      ['等待条件', '等待条件'],
+      ['OCR/Mapping 完成 · 上游人工待办已关闭', 'OCR/Mapping 完成 · 上游人工待办已关闭'],
+      ['策略', '策略'],
+      ['说明', '说明'],
+      ['通常（単批次）', '通常（单批次）'],
+      ['補件（兜底入口）', '补件（兜底入口）'],
+      ['1 回上传 → 1 案件 → Workflow 跑通', '1 次上传 → 1 案件 → Workflow 跑通'],
+      ['第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）', '第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）'],
+      ['同上 + OCR 人工确认开缓冲 → 两批合并 1 条待办', '同上 + OCR 人工确认开缓冲 → 两批合并 1 条待办'],
+      ['post 池命中 → 补件绑定，从前处理重跑到 AI 检证', 'post 池命中 → 补件绑定，从前处理重跑到 AI 检证'],
+      ['案件详情手动补件；缺资料警告', '案件详情手动补件；缺资料警告'],
+      ['多候选集约 / OCR 低置信 / 校验失败', '多候选集约 / OCR 低置信 / 校验失败'],
+      ['バッチ2', '批次2'],
+      ['バッチ1（既存）', '批次1（既有）'],
+      ['案件 A を新規作成', '新建案件 A'],
+      ['既存案件 A に并入（Open Case 池）', '并入既有案件 A（Open Case 池）'],
+      ['Open Case 池 → 案件 A に并入', 'Open Case 池 → 并入案件 A'],
+      ['OCR 人工確認', 'OCR 人工确认'],
+      ['案件A + OCR確認ノード', '案件A + OCR 确认节点'],
+      ['open 待办 1 件（バッチ2 分を追記、新規待办なし）', 'open 待办 1 件（追加批次2，不新建）'],
+      ['同一 workflow 周期内 1 回のみ送信', '同一 workflow 周期内仅发送 1 次'],
+      ['バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → 案件 A に并入。案件 B は未作成。', '批次1 新建案件 A（pre_ai_verify）。批次2 在 Open Case 池唯一命中 → 并入案件 A。未创建案件 B。'],
+      ['バッチ2 并入後、OCR 人工確認ノードで 30 分缓冲を有効化。两批 pending 项合并，缓冲结束只触发 1 条 OCR 待办。', '批次2 并入后，OCR 人工确认节点开启 30 分钟缓冲；两批 pending 合并，缓冲结束只触发 1 条 OCR 待办。'],
+      ['OCR 人工確認前等待', 'OCR 人工确认前等待'],
+      ['OCR人工確認 + 30min', 'OCR 人工确认 + 30min'],
+      ['缓冲期内 sliding 延长；列表仍显示处理中 + 等待人工缓冲', '缓冲期内滑动延长；列表仍显示处理中 + 等待人工缓冲'],
+      ['缓冲结束 → open 待办 1 件（两批合并）', '缓冲结束 → open 待办 1 件（两批合并）'],
+      ['高橋誠_手術請求', '高桥诚_手术请求'],
+      ['保険金請求書', '保险金请求书'],
+      ['主帳票', '主账票'],
+      ['関連帳票', '关联账票'],
+      ['診断書', '诊断书'],
+      ['診療明細書', '诊疗明细书'],
+      ['本人確認書類', '本人确认资料'],
+      ['収入証明', '收入证明'],
+      ['バッチ1・バッチ2 を順次取り込み（計 4 原ファイル）', '依次导入批次1・批次2（共 4 个原文件）'],
+      ['バッチ2 Open Case 并入 A；OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；OCR 人工确认缓冲 30 分钟合并 pending'],
+      ['バッチ2 Open Case 并入 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；前处理/OCR 人工确认缓冲 30 分钟合并 pending'],
+      ['前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办', '前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办'],
+      ['前処理人工確認', '前处理人工确认'],
+      ['前処理確認 + 30min', '前处理确认 + 30min'],
+      ['バッチ2 Open Case 并入 A。案件 B 未作成', '批次2 Open Case 并入 A；未创建案件 B'],
+      ['30 分钟缓冲中；列表显示处理中 + 等待人工缓冲', '30 分钟缓冲中；列表显示处理中 + 等待人工缓冲'],
+      ['open 待办 1 件（バッチ2 追記）', 'open 待办 1 件（追加批次2）'],
+      ['open 待办 1 件（バッチ2 追記、新規待办なし）', 'open 待办 1 件（追加批次2，不新建）'],
+      ['バッチ2 を主上传取り込み（案件 A は post_ai_verify）', '主上传导入批次2（案件 A 处于 post_ai_verify）'],
+      ['案件候補が複数件。人工集約確認が必要です', '案件候选有多件，需人工集约确认'],
+      ['1 案件を生成しました。関連帳票の不足候補があります（案件详情补件兜底入口）。', '已生成 1 案件。存在关联账票不足候选（案件详情补件兜底入口）。'],
+      ['バッチ2は补件候选池（post_ai_verify）に唯一命中 → 案件 A へ自动补件绑定。新規案件なし、案件集约跳过。从前处理重跑到 AI 检证。', '批次2 在补件候选池（post_ai_verify）唯一命中 → 自动补件绑定到案件 A。不新建案件、跳过案件集约，从前处理重跑到 AI 检证。'],
+      ['前处理 → OCR → Data Mapping → AI 检证', '前处理 → OCR → Data Mapping → AI 检证'],
+      ['补件文件のみ前处理実行（既存ファイル再実行なし）', '仅对补件文件执行前处理（不重跑既有文件）'],
+      ['同一案件・同一通知ノードのため 1 回のみ送信', '同一案件・同一通知节点因此仅发送 1 次'],
+      ['画像補正・回転・画像分割を完了しました', '已完成图像补正・旋转・图像分割'],
+      ['帳票タイプ別に公式フィールドを抽出しました', '已按账票类型抽出正式字段'],
+      ['標準フィールドへマッピングしました', '已映射到标准字段'],
+      ['必須フィールド・必要書類・各種検証を通過しました', '已通过必填字段・必要资料・各类校验'],
+      ['条件分岐を評価しました', '已评估条件分支'],
+      ['人工確認が必要なため、このノードで停止しました', '因需人工确认，在此节点停止'],
+      ['通知テンプレートを生成しました', '已生成通知模板'],
+      ['Workflow を終了しました', 'Workflow 已结束'],
+      ['Workflow を起動しました', '已启动 Workflow'],
+      ['不足書類を検出しました（補填候補）', '检测到不足资料（补件候选）'],
+      ['必須フィールド不一致を検出しました', '检测到必填字段不一致'],
+      ['低信頼フィールドが閾値を下回りました', '低置信字段低于阈值'],
+      ['抽出信頼度 0.62 < 閾値 0.75（医療機関名）', '抽出置信度 0.62 < 阈值 0.75（医疗机构名）'],
+      ['データ検証 c2：請求金額と診療明細合計が不一致', '数据校验 c2：请求金额与诊疗明细合计不一致'],
+      ['1 案件 REQ-2025-0018890 に 6 ファイルを紐付けました', '已将 6 个文件关联到案件 REQ-2025-0018890'],
+      ['1 案件を生成。関連帳票の不足候補あり', '已生成 1 案件，存在关联账票不足候选'],
+      ['补件候选池命中 → 案件 A 自动补件绑定。不新建', '补件候选池命中 → 案件 A 自动补件绑定，不新建'],
+      ['出力フィールド', '输出字段'],
+      ['テスト案件', '测试案件'],
+      ['終了', '结束'],
+      ['終了ノード', '终了节点'],
+      ['前処理条件判断', '前处理条件判断'],
+      ['OCR条件判断', 'OCR 条件判断'],
+      ['AI検証条件判断', 'AI 检证条件判断'],
+      ['人工確認後条件', '人工确认后条件'],
+      ['ルーティング段階', '路由阶段'],
+      ['業務シーン', '业务场景'],
+      ['待処理ファイル件数', '待处理文件件数'],
+      ['待処理ファイル範囲', '待处理文件范围'],
+      ['帳票タイプ一覧', '账票类型清单'],
+      ['ゲート設定', '网关设定'],
+      ['路由：', '路由：'],
+      ['等待人工缓冲', '等待人工缓冲'],
+      ['案件 A（post_ai_verify）に対し、バッチ2 を主上传から自动补件绑定（計 ', '对案件 A（post_ai_verify）从主上传自动补件绑定批次2（共 '],
+      [' 原ファイル）。', ' 个原文件）。'],
+      ['バッチ1 で案件 A を新規作成後、バッチ2 を主上传から取り込みました（計 ', '批次1 新建案件 A 后，从主上传导入批次2（共 '],
+      ['実行中…', '执行中…'],
+      ['テストファイルを選択しました', '已选择测试文件'],
+      ['Workflow テストを実行しました', '已执行 Workflow 测试'],
+      ['下書きを保存しました', '已保存草稿'],
+      ['説明', '说明'],
+      ['本批処理', '本批处理'],
+      ['上游人工', '上游人工'],
+      ['OCR 完了', 'OCR 完成'],
+      ['Data Mapping 完了', 'Data Mapping 完成'],
+      ['人工待办 close', '人工待办已关闭'],
+      ['pending 汇总完了', 'pending 汇总完成'],
+      ['本批すべてのファイルで OCR 抽出が完了', '本批全部文件 OCR 抽出完成'],
+      ['本批の標準フィールドマッピングが完了', '本批标准字段映射完成'],
+      ['前処理 / OCR 人工確認待办がすべて close', '前处理 / OCR 人工确认待办全部 close'],
+      ['跨批次并入・补件绑定の pending 项が汇总済み', '跨批次并入・补件绑定的 pending 项已汇总'],
+      ['执行前', '执行前'],
+      ['待办生成', '待办生成'],
+      ['上游汇总完了', '上游汇总完成'],
+      ['open 追加去重', 'open 追加去重'],
+      ['本批 OCR / Mapping 完了かつ上游人工待办 close 後', '本批 OCR / Mapping 完成且上游人工待办已关闭后'],
+      ['同一案件の open 待办へ追記し、新規待办は作らない', '追加到同一案件 open 待办，不新建待办'],
+      ['以下イベントがすべて発生してから AI 検証を実行します。补件・跨批次の pending 汇总も含まれます。', '满足以下全部事件后再执行 AI 检证；跨批次/补件 pending 汇总亦包含在内。'],
+      ['以下イベントで待办を生成・合并します（顧客設定不可）。', '按以下事件生成・合并待办（客户不可配置）。'],
     ];
 
-    const uiTranslationOriginals = new WeakMap();
+    let uiTranslationOriginals = new WeakMap();
     let uiTranslationObserver = null;
     let uiTranslationScheduled = false;
 
@@ -655,6 +792,20 @@ const appOptions = {
         result = result.split(ja).join(zh);
       });
       return result;
+    }
+
+    function t(value) {
+      if (uiLanguage.value !== 'zh') return String(value ?? '');
+      return translateUiString(value);
+    }
+
+    function translateDeep(value) {
+      if (typeof value === 'string') return t(value);
+      if (Array.isArray(value)) return value.map((item) => translateDeep(item));
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, translateDeep(item)]));
+      }
+      return value;
     }
 
     function isLikelyTranslatedUiString(value) {
@@ -724,8 +875,16 @@ const appOptions = {
     function toggleUiLanguage() {
       uiLanguage.value = uiLanguage.value === 'zh' ? 'ja' : 'zh';
       localStorage.setItem('neosai-idp-ui-language', uiLanguage.value);
+      uiTranslationOriginals = new WeakMap();
       nextTick(() => applyUiLanguage());
     }
+
+    const localizedInspectorHints = computed(() => {
+      if (uiLanguage.value !== 'zh') return INSPECTOR_HINTS;
+      return Object.fromEntries(
+        Object.entries(INSPECTOR_HINTS).map(([key, value]) => [key, translateUiString(value)]),
+      );
+    });
 
     const docTypeRegistryFiltered = computed(() => {
       const q = docPickerSearch.value.trim();
@@ -2265,7 +2424,7 @@ const appOptions = {
         ? 'ai_verify'
         : inspectorPanel.value;
       const hintKey = INSPECTOR_HEAD_HINT_KEYS[panelKey];
-      return hintKey ? (INSPECTOR_HINTS[hintKey] || '') : '';
+      return hintKey ? t(INSPECTOR_HINTS[hintKey] || '') : '';
     });
 
     const inspectorModuleAccentStyle = computed(() => {
@@ -2281,15 +2440,15 @@ const appOptions = {
 
     const showWorkflowNodeOutputSection = computed(() => {
       if (inspectorMode.value !== 'node' || !selectedWorkflowNode.value) return false;
-      if (['edge', 'overview', 'scene', 'start', 'end'].includes(inspectorPanel.value)) return false;
+      if (['edge', 'overview', 'scene'].includes(inspectorPanel.value)) return false;
       return workflowNodeOutputVars.value.length > 0;
     });
 
     const workflowNodeOutputHint = computed(() => {
       const node = selectedWorkflowNode.value;
-      if (!node) return INSPECTOR_HINTS.nodeOutput;
+      if (!node) return t(INSPECTOR_HINTS.nodeOutput);
       const key = WORKFLOW_NODE_OUTPUT_HINT_KEYS[node.type] || 'nodeOutput';
-      return INSPECTOR_HINTS[key] || INSPECTOR_HINTS.nodeOutput;
+      return t(INSPECTOR_HINTS[key] || INSPECTOR_HINTS.nodeOutput);
     });
 
     function inferWorkflowOutputVarType(item) {
@@ -2309,7 +2468,7 @@ const appOptions = {
         name: String(item.id || '').split('.').pop() || item.id,
         scope: normalizeWorkflowVariableCategory(item).label,
         dataType: inferWorkflowOutputVarType(item),
-        description: item.description || item.label,
+        description: t(item.description || item.label),
       }));
     });
 
@@ -3996,8 +4155,6 @@ const appOptions = {
       sceneSetupDraft.docFieldLinks = [];
       sceneSetupDraft.aggregateRuleSettings = {};
       sceneSetupDraft.aggregateCompareStrategy = 'exact';
-      sceneSetupDraft.fileSplitEnabled = true;
-      sceneSetupDraft.fileSplitRuleText = 'ページ連続性と共通タイトルを利用して、アップロードされたPDF・画像・ZIPを案件候補ごとに分割する。';
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -4019,22 +4176,6 @@ const appOptions = {
       sceneSetupDraft.aggregateCompareStrategy = SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === data.scene?.aggregateCompareStrategy)
         ? data.scene.aggregateCompareStrategy
         : 'exact';
-      sceneSetupDraft.fileSplitEnabled = data.scene?.fileSplit?.enabled !== false;
-      const loadedRuleText = String(data.scene?.fileSplit?.ruleText || '').trim();
-      const loadedSplitRules = Array.isArray(data.scene?.fileSplit?.rules) ? data.scene.fileSplit.rules : [];
-      const legacySplitRuleMap = {
-        file_stream_key: 'page_continuity',
-        main_doc_key: 'doc_title',
-        period_key: 'page_continuity',
-        same_type_multi: 'page_continuity',
-      };
-      const normalizedSplitRules = loadedSplitRules.map((rule) => legacySplitRuleMap[rule] || rule);
-      const firstValidSplitRule = normalizedSplitRules.find((rule) =>
-        SCENE_FILE_SPLIT_RULE_OPTIONS.some((item) => item.value === rule)
-      );
-      sceneSetupDraft.fileSplitRuleText = loadedRuleText
-        || SCENE_FILE_SPLIT_RULE_TEXT_MAP[firstValidSplitRule]
-        || 'ページ連続性と共通タイトルを利用して、アップロードされたPDF・画像・ZIPを案件候補ごとに分割する。';
       if (!sceneSetupDraft.docFieldLinks.length && sceneSetupDraft.documents.length >= 2) {
         sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
           sceneSetupDraft.documents,
@@ -4062,33 +4203,11 @@ const appOptions = {
       data.scene.aggregateCompareStrategy = SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === sceneSetupDraft.aggregateCompareStrategy)
         ? sceneSetupDraft.aggregateCompareStrategy
         : 'exact';
-      data.scene.fileSplit = {
-        enabled: sceneSetupDraft.fileSplitEnabled !== false,
-        ruleText: (sceneSetupDraft.fileSplitRuleText || '').trim(),
-      };
+      delete data.scene.fileSplit;
       delete data.scene.aggregateMatchPolicy;
       delete data.scene.aggregateRuleSettings;
       applySceneAggregate(data.scene, data.scene.documents, data.output);
       return name;
-    }
-
-    function clearSceneFileSplitRule() {
-      sceneSetupDraft.fileSplitRuleText = '';
-    }
-
-    function optimizeSceneFileSplitRule() {
-      const source = String(sceneSetupDraft.fileSplitRuleText || '').trim();
-      if (!source) {
-        ElementPlus.ElMessage.warning('分割ルール記述を入力してください');
-        return;
-      }
-      const normalized = source.replace(/\s+/g, ' ').replace(/。+$/g, '');
-      sceneSetupDraft.fileSplitRuleText = [
-        `${normalized}。`,
-        'ページ番号の連続性、帳票タイトル、フォルダ階層、ファイル名、バーコード / QRコードを補助条件として照合し、同一案件候補ごとにファイルを分割する。',
-        '複数案件に該当する可能性がある場合、または判定根拠が不足する場合は自動確定せず、紐付け待ちファイルとして出力する。',
-      ].join('\n');
-      ElementPlus.ElMessage.success('分割ルール記述を最適化しました');
     }
 
     function enterSceneSetupStep(mode = 'edit') {
@@ -4932,6 +5051,7 @@ const appOptions = {
       }
       else if (pickedNode?.type === 'notify') Object.assign(pickedNode, normalizeNotifyNode(pickedNode, getActiveWf()));
       else if (pickedNode?.type === 'code') Object.assign(pickedNode, normalizeCodeNode(pickedNode, getActiveWf()));
+      else if (pickedNode?.type === 'ai_verify') Object.assign(pickedNode, normalizeAiVerifyNode(pickedNode, getActiveWf()));
       else if (pickedNode && isHitlGateNode(pickedNode)) Object.assign(pickedNode, normalizeHitlGateNode(pickedNode));
       if (pickedNode && (pickedNode.type === 'decision' || isHitlGateNode(pickedNode))) {
         syncWorkflowYesExpression(pickedNode, sceneDocTypes.value);
@@ -6860,6 +6980,17 @@ const appOptions = {
       },
     );
 
+    watch(uiLanguage, () => {
+      uiTranslationOriginals = new WeakMap();
+      nextTick(() => scheduleApplyUiLanguage());
+    });
+
+    watch(workflowTestDialogVisible, (visible) => {
+      if (visible && uiLanguage.value === 'zh') {
+        nextTick(() => scheduleApplyUiLanguage());
+      }
+    });
+
     watch(
       () => {
         const src = form.master.knowledgeSource;
@@ -8160,6 +8291,9 @@ const appOptions = {
       const uploadStep = workflowTestDraft.steps.find((step) => step.phase === 'upload');
       workflowTestDraft.selectedStepId = uploadStep?.id || workflowTestDraft.steps[0]?.id || '';
       workflowTestDialogVisible.value = true;
+      nextTick(() => {
+        if (uiLanguage.value === 'zh') scheduleApplyUiLanguage();
+      });
     }
 
     function triggerWorkflowTestFilePick() {
@@ -8256,8 +8390,42 @@ const appOptions = {
     }
 
     const workflowTestStepRows = computed(() => workflowTestDraft.steps || []);
+    const localizedWorkflowTestStepRows = computed(() => {
+      if (uiLanguage.value !== 'zh') return workflowTestStepRows.value;
+      return workflowTestStepRows.value.map((step) => ({
+        ...step,
+        label: t(step.label),
+        summary: t(step.summary),
+        errorReason: t(step.errorReason),
+      }));
+    });
     const workflowTestSummary = computed(() => workflowTestDraft.summary);
     const workflowTestArtifacts = computed(() => workflowTestDraft.artifacts);
+    const localizedWorkflowTestArtifacts = computed(() => {
+      const artifacts = workflowTestArtifacts.value;
+      if (!artifacts || uiLanguage.value !== 'zh') return artifacts;
+      return translateDeep(artifacts);
+    });
+    const localizedWorkflowTestCaseOptions = computed(() => {
+      if (uiLanguage.value !== 'zh') return WORKFLOW_TEST_CASE_OPTIONS;
+      return WORKFLOW_TEST_CASE_OPTIONS.map((opt) => ({
+        ...opt,
+        label: t(opt.label),
+        desc: t(opt.desc),
+      }));
+    });
+    const workflowTestCaseScenario = computed(() => {
+      const raw = getWorkflowTestCaseScenario(workflowTestDraft.caseType);
+      if (uiLanguage.value !== 'zh') return raw;
+      return {
+        ...raw,
+        title: t(raw.title),
+        intro: t(raw.intro),
+        badge: raw.badge ? t(raw.badge) : raw.badge,
+        steps: (raw.steps || []).map((line) => t(line)),
+        lookFor: raw.lookFor ? t(raw.lookFor) : raw.lookFor,
+      };
+    });
     const workflowTestSelectedStep = computed(() =>
       workflowTestStepRows.value.find((step) => step.id === workflowTestDraft.selectedStepId)
       || workflowTestStepRows.value[0]
@@ -8270,17 +8438,34 @@ const appOptions = {
         : (step.status || 'pending');
       const isPreview = displayStatus === 'pending' || displayStatus === 'running';
       if (step.phase === 'upload') return { kind: 'upload', isPreview };
-      if (step.phase === 'split') return { kind: 'split', isPreview };
       if (step.phase === 'aggregate') return { kind: 'aggregate', isPreview };
       const detail = buildWorkflowTestNodeDetail(step, workflowTestDraft.caseType);
-      if (detail) return { kind: 'node', detail, isPreview };
+      if (detail) {
+        return {
+          kind: 'node',
+          isPreview,
+          detail: uiLanguage.value === 'zh'
+            ? {
+              ...detail,
+              title: t(detail.title),
+              rows: (detail.rows || []).map((row) => ({
+                ...row,
+                label: t(row.label),
+                value: t(row.value),
+              })),
+              issues: (detail.issues || []).map((issue) => t(issue)),
+            }
+            : detail,
+        };
+      }
       return {
         kind: 'generic',
         isPreview,
-        title: step.label || 'ノード詳細',
-        summary: step.summary || '実行後に結果を表示します',
+        title: t(step.label || 'ノード詳細'),
+        summary: t(step.summary || '実行後に結果を表示します'),
       };
     });
+    const localizedWorkflowTestNodeDetail = computed(() => workflowTestNodeDetail.value);
     const workflowTestNeedsHumanContinue = computed(() =>
       workflowTestStepRows.value.some((step) => step.needsHuman
         && ['success', 'warning', 'skipped'].includes(step.status)));
@@ -8311,6 +8496,18 @@ const appOptions = {
 
     function setWorkflowTestCaseType(caseType) {
       workflowTestDraft.caseType = caseType;
+      if (caseType === 'hitl_wait') {
+        const wf = getActiveWf();
+        (wf?.nodes || []).forEach((node) => {
+          if (!isHitlGateNode(node)) return;
+          const ctx = inferHitlContext(node);
+          if (ctx !== 'preprocess' && ctx !== 'ocr') return;
+          Object.assign(node, normalizeHitlGateNode({
+            ...node,
+            hitlWaitEnabled: true,
+          }));
+        });
+      }
       workflowTestDraft.hasRun = false;
       workflowTestDraft.runningStepId = '';
       refreshWorkflowTestRun();
@@ -8329,13 +8526,26 @@ const appOptions = {
     }
 
     function workflowTestStatusLabel(status) {
-      if (status === 'running') return '実行中';
-      if (status === 'success') return '成功';
-      if (status === 'warning') return '要確認';
-      if (status === 'error') return '失敗';
-      if (status === 'skipped') return 'スキップ';
-      return '未実行';
+      if (status === 'running') return t('実行中');
+      if (status === 'success') return t('成功');
+      if (status === 'warning') return t('要確認');
+      if (status === 'error') return t('失敗');
+      if (status === 'skipped') return t('スキップ');
+      return t('未実行');
     }
+
+    const workflowTestUploadSummaryText = computed(() => {
+      const upload = localizedWorkflowTestArtifacts.value?.upload;
+      if (!upload) return '';
+      const count = upload.fileCount;
+      if (upload.batchMode === 'multi' && workflowTestDraft.caseType === 'auto_supplement') {
+        return `${t('对案件 A（post_ai_verify）从主上传自动补件绑定批次2（共 ')}${count}${t(' 个原文件）。')}`;
+      }
+      if (upload.batchMode === 'multi') {
+        return `${t('批次1 新建案件 A 后，从主上传导入批次2（共 ')}${count}${t(' 个原文件）。')}`;
+      }
+      return `${t('ZIP を解凍し、')}${count}${t(' 原ファイルを取り込みました。')}`;
+    });
 
     function applyWorkflowTestContinue() {
       workflowTestDraft.hasRun = false;
@@ -8427,6 +8637,8 @@ const appOptions = {
     return {
       uiLanguage,
       toggleUiLanguage,
+      t,
+      localizedInspectorHints,
       sceneSearch,
       currentSceneId,
       currentNode,
@@ -8437,8 +8649,11 @@ const appOptions = {
       workflowTestTimelineRef,
       workflowTestDraft,
       workflowTestStepRows,
+      localizedWorkflowTestStepRows,
       workflowTestSummary,
       workflowTestArtifacts,
+      localizedWorkflowTestArtifacts,
+      workflowTestUploadSummaryText,
       workflowTestSelectedStep,
       workflowTestNodeDetail,
       workflowTestNeedsHumanContinue,
@@ -8461,6 +8676,11 @@ const appOptions = {
       triggerWorkflowTestFilePick,
       onWorkflowTestFileSelected,
       setWorkflowTestCaseType,
+      WORKFLOW_TEST_CASE_OPTIONS,
+      localizedWorkflowTestCaseOptions,
+      workflowTestCaseScenario,
+      supportsHitlWaitConfig,
+      isHitlVerificationContext,
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
       runWorkflowTest,
@@ -8644,13 +8864,10 @@ const appOptions = {
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
       SCENE_AGGREGATE_COMPARE_STRATEGIES,
-      SCENE_FILE_SPLIT_RULE_OPTIONS,
       confirmSceneSetup,
       proceedToWorkflowStep,
       publishWorkflowScene,
       resetSceneSetup,
-      clearSceneFileSplitRule,
-      optimizeSceneFileSplitRule,
       enterWorkflowCanvasView,
       cancelSceneSetup,
       goToWorkflowSetupStep,
@@ -8910,6 +9127,9 @@ const appOptions = {
       getWorkflowNodeOutputVarItems,
       formatWorkflowOutputVarToken,
       WORKFLOW_NODE_OUTPUT_VAR_DEFS,
+      CASE_WORKFLOW_START_TRIGGERS,
+      AI_VERIFY_ENTRY_WAIT_EVENTS,
+      HITL_VERIFY_MERGE_EVENTS,
       inspectorMode,
       workflowEdgePaths,
       selectWorkflowNode,

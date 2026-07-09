@@ -1631,77 +1631,287 @@ const WORKFLOW_TEST_DEFAULT_ZIP = {
 
 const WORKFLOW_TEST_SYSTEM_STEPS = [
   { id: 'sys-upload', label: 'アップロード', type: 'system', phase: 'upload' },
-  { id: 'sys-split', label: 'ファイル分割', type: 'system', phase: 'split' },
-  { id: 'sys-aggregate', label: '案件集約', type: 'system', phase: 'aggregate' },
+  { id: 'sys-aggregate', label: '案件集約 / 路由', type: 'system', phase: 'aggregate' },
 ];
 
-function buildWorkflowTestSplitArtifacts(caseType = 'normal') {
-  if (caseType === 'abnormal') {
-    return {
-      status: 'warning',
-      statusLabel: '要確認',
-      summary: 'claim_pack.pdf の境界が不明確です。人工分割確認が必要です。',
-      groups: [
-        {
-          sourceFile: 'claim_pack.pdf',
-          splits: [
-            { id: 'split-1', label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', pages: '1-2', confidence: 0.96 },
-            { id: 'split-2', label: '未確定区間_p3.pdf', docType: '未判定', pages: '3', confidence: 0.41 },
-            { id: 'split-3', label: '診断書_p4-5.pdf', docType: '診断書', pages: '4-5', confidence: 0.93 },
-          ],
-        },
-        {
-          sourceFile: 'Medical Bill_11.JPG',
-          splits: [
-            { id: 'split-4', label: '診療明細書_001.jpg', docType: '診療明細書', pages: '1', confidence: 0.88 },
-          ],
-        },
-      ],
-    };
-  }
+const ROUTING_STAGE_LABELS = {
+  pre_ai_verify: 'pre_ai_verify（AI 检证前）',
+  post_ai_verify: 'post_ai_verify（AI 检证后）',
+  closed: 'closed（已结束）',
+};
+
+function withCaseRoutingMeta(caseItem, {
+  routingStage = 'pre_ai_verify',
+  userStatus = '处理中',
+  waitingHumanBuffer = false,
+} = {}) {
   return {
-    status: 'success',
-    statusLabel: '成功',
-    summary: '4 原ファイルから 6 処理ファイルを生成しました。',
-    groups: [
-      {
-        sourceFile: 'claim_pack.pdf',
-        splits: [
-          { id: 'split-1', label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', pages: '1-2', confidence: 0.96 },
-          { id: 'split-2', label: '診断書_p3-4.pdf', docType: '診断書', pages: '3-4', confidence: 0.94 },
-          { id: 'split-3', label: '領収書_p5-6.pdf', docType: '診療明細書', pages: '5-6', confidence: 0.91 },
-        ],
-      },
-      {
-        sourceFile: 'Medical Bill_11.JPG',
-        splits: [
-          { id: 'split-4', label: '診療明細書_001.jpg', docType: '診療明細書', pages: '1', confidence: 0.88 },
-        ],
-      },
-      {
-        sourceFile: 'receipt_scan.png',
-        splits: [
-          { id: 'split-5', label: '領収書_入院費.png', docType: '診療明細書', pages: '1', confidence: 0.90 },
-        ],
-      },
-      {
-        sourceFile: 'memo_page.tiff',
-        splits: [
-          { id: 'split-6', label: '補足説明_p1-2.tiff', docType: 'その他', pages: '1-2', confidence: 0.72 },
-        ],
-      },
-    ],
+    ...caseItem,
+    routingStage,
+    routingStageLabel: ROUTING_STAGE_LABELS[routingStage] || routingStage,
+    userStatus,
+    waitingHumanBuffer,
   };
 }
 
+const WORKFLOW_TEST_CASE_OPTIONS = [
+  { value: 'normal', label: '通常（単批次）', desc: '1 回上传 → 1 案件 → Workflow 跑通' },
+  { value: 'multi_batch', label: '跨批次并入', desc: '第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）' },
+  { value: 'hitl_wait', label: '跨批次 + 人工缓冲', desc: '前处理/OCR 人工确认开缓冲 → 两批 pending 各合并 1 条待办' },
+  { value: 'auto_supplement', label: '自动补件绑定', desc: 'post 池命中 → 补件绑定，从前处理重跑到 AI 检证' },
+  { value: 'supplement', label: '補件（兜底入口）', desc: '案件详情手动补件；缺资料警告' },
+  { value: 'abnormal', label: '異常', desc: '多候选集约 / OCR 低置信 / 校验失败' },
+];
+
+const WORKFLOW_TEST_CASE_SCENARIOS = {
+  normal: {
+    title: '通常（单批次）',
+    intro: '模拟一次主上传：分割（系统）→ 集约 → 按当前画布顺序执行 Workflow。',
+    steps: [
+      '选择本场景 → 点击「测试执行」（无需上传真实 ZIP，使用预制 4 文件数据）',
+      '右侧时间轴逐步高亮；左侧显示当前步骤详情',
+      '点击「上传」「案件集约」看文件与案件卡片',
+      '点击各 Workflow 节点看模拟执行摘要，直至「终了」',
+    ],
+    lookFor: '整体是否到达终了节点；各节点 summary 是否正常。',
+  },
+  multi_batch: {
+    title: '跨批次并入',
+    badge: 'Open Case 池',
+    intro: '批次 1 新建案件 A；批次 2 同识别字段主上传 → 并入 A，不新建 B。',
+    steps: [
+      '测试执行后，点「上传」→ 左侧见バッチ1/バッチ2 两批文件',
+      '点「案件集约」→ 见 cross-batch 卡片 +「人工触点去重」区',
+      '点 OCR 人工确认节点 → summary 为「open 待办 1 件（批次2 追记）」',
+      '点通知节点 → 「同一 workflow 周期内 1 回のみ送信」',
+    ],
+    lookFor: '仅 1 个案件 A；OCR 待办追加而非新建；通知只发一次。',
+  },
+  hitl_wait: {
+    title: '跨批次 + 人工缓冲',
+    badge: '缓冲 30 分钟',
+    intro: '在跨批次基础上，前处理/OCR 人工确认均开启「缓冲等待」：各触点 pending 合并，缓冲结束各出 1 条待办。',
+    steps: [
+      '选本场景会自动打开前处理・OCR 两个人工确认节点的缓冲开关',
+      '测试执行 → 点「案件集约」→ 案件卡片显示「等待人工缓冲」徽章',
+      '点前处理/OCR 人工确认节点 →「30 分钟缓冲中；列表显示处理中 + 等待人工缓冲」',
+      '集约区「人工触点去重」列出前处理/OCR 缓冲 sliding 延长与合并结果',
+    ],
+    lookFor: '用户可见状态仍为处理中；缓冲子标志；前处理/OCR 各 open 待办 1 件（两批合并）。',
+  },
+  auto_supplement: {
+    title: '自动补件绑定',
+    badge: '补件候选池',
+    intro: '案件 A 已在 post_ai_verify；批次 2 主上传同字段 → 自动补件，不新建、不重跑集约。',
+    steps: [
+      '点「上传」→ 仅バッチ2 有新文件',
+      '点「案件集约」→ 补件候选池卡片 +「从前处理重跑到 AI 检证」',
+      '点前处理/OCR 节点 → 仅补件文件执行（既存ファイル再実行なし）',
+      'AI 检证节点 → 查看执行前提事件列表（Inspector 只读）',
+    ],
+    lookFor: '路由阶段 post_ai_verify；补件文件标记；AI 检证不重复跑旧文件。',
+  },
+  supplement: {
+    title: '补件（兜底入口）',
+    intro: '案件详情手动补件路径；AI 检证检出缺资料，状态「等待补件」。',
+    steps: [
+      '测试执行 → 点「案件集约」→ 警告「領収書・診療明細書が未紐付け」',
+      '点 AI 检证 →「不足書類を検出」',
+    ],
+    lookFor: '案件 userStatus = 等待补件；终了可能带 warning。',
+  },
+  abnormal: {
+    title: '异常',
+    intro: '集约多候选 + OCR 低置信 + 数据校验不一致，测试在 error 节点停止。',
+    steps: [
+      '测试执行 → 集约步骤 warning（多候选）',
+      'OCR 或 AI 检证节点 status = error，左侧见 errorReason',
+      'error 之后步骤为 pending（未実行）',
+    ],
+    lookFor: '失败节点与原因定位；终了未到達。',
+  },
+};
+
+function getWorkflowTestCaseScenario(caseType = 'normal') {
+  return WORKFLOW_TEST_CASE_SCENARIOS[caseType] || WORKFLOW_TEST_CASE_SCENARIOS.normal;
+}
+
+function buildWorkflowTestUploadArtifacts(caseType = 'normal') {
+  if (caseType === 'multi_batch' || caseType === 'hitl_wait') {
+    return {
+      name: 'multi_batch_demo.zip',
+      sizeLabel: '4.2 MB',
+      fileCount: 4,
+      batchMode: 'multi',
+      batches: [
+        {
+          id: 'upload-batch-1',
+          label: 'バッチ1',
+          action: '案件 A を新規作成',
+          extractedFiles: [
+            { name: 'claim_pack.pdf', pages: 4, sizeLabel: '1.8 MB' },
+            { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '0.9 MB' },
+          ],
+        },
+        {
+          id: 'upload-batch-2',
+          label: 'バッチ2',
+          action: '既存案件 A に并入（Open Case 池）',
+          extractedFiles: [
+            { name: 'id_card.jpg', pages: 1, sizeLabel: '0.8 MB' },
+            { name: 'income_proof.pdf', pages: 2, sizeLabel: '0.7 MB' },
+          ],
+        },
+      ],
+      extractedFiles: [
+        { name: 'claim_pack.pdf', pages: 4, sizeLabel: '1.8 MB', batch: 'バッチ1' },
+        { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '0.9 MB', batch: 'バッチ1' },
+        { name: 'id_card.jpg', pages: 1, sizeLabel: '0.8 MB', batch: 'バッチ2' },
+        { name: 'income_proof.pdf', pages: 2, sizeLabel: '0.7 MB', batch: 'バッチ2' },
+      ],
+    };
+  }
+  if (caseType === 'auto_supplement') {
+    return {
+      name: 'auto_supplement_demo.zip',
+      sizeLabel: '2.1 MB',
+      fileCount: 3,
+      batchMode: 'multi',
+      batches: [
+        {
+          id: 'upload-batch-1',
+          label: 'バッチ1（既存）',
+          action: '案件 A 已处于 post_ai_verify',
+          extractedFiles: [],
+        },
+        {
+          id: 'upload-batch-2',
+          label: 'バッチ2',
+          action: '补件候选池 → 案件 A 自动补件绑定',
+          extractedFiles: [
+            { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB' },
+            { name: 'memo_page.tiff', pages: 2, sizeLabel: '1.2 MB' },
+          ],
+        },
+      ],
+      extractedFiles: [
+        { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB', batch: 'バッチ2' },
+        { name: 'memo_page.tiff', pages: 2, sizeLabel: '1.2 MB', batch: 'バッチ2' },
+      ],
+    };
+  }
+  return { ...WORKFLOW_TEST_DEFAULT_ZIP, batchMode: 'single' };
+}
+
 function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
+  if (caseType === 'multi_batch') {
+    return {
+      status: 'success',
+      statusLabel: '成功',
+      summary: 'バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → 案件 A に并入。案件 B は未作成。',
+      crossBatch: {
+        batch1: { label: 'バッチ1', action: '案件 A を新規作成' },
+        batch2: { label: 'バッチ2', action: 'Open Case 池 → 案件 A に并入', matchedCaseId: 'case-1' },
+      },
+      touchpointDedup: [
+        { node: 'OCR 人工確認', key: '案件A + OCR確認ノード', result: 'open 待办 1 件（バッチ2 分を追記、新規待办なし）' },
+        { node: '通知', key: '案件A + 通知ノード', result: '同一 workflow 周期内 1 回のみ送信' },
+      ],
+      cases: [
+        withCaseRoutingMeta({
+          id: 'case-1',
+          label: '高橋誠_手術請求',
+          caseNo: 'REQ-2025-0018890',
+          mainDocType: '保険金請求書',
+          mergedBatches: ['upload-batch-1', 'upload-batch-2'],
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 真由美' },
+          ],
+          files: [
+            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票', batch: 'バッチ1' },
+            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票', batch: 'バッチ1' },
+            { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票', batch: 'バッチ1' },
+            { label: '本人確認書類_001.jpg', docType: '本人確認書類', role: '関連帳票', batch: 'バッチ2' },
+            { label: '収入証明_p1-2.pdf', docType: '収入証明', role: '関連帳票', batch: 'バッチ2' },
+          ],
+          warnings: [],
+        }),
+      ],
+    };
+  }
+  if (caseType === 'hitl_wait') {
+    return {
+      status: 'success',
+      statusLabel: '成功',
+      summary: 'バッチ2 并入後、前処理・OCR 人工確認ノードで 30 分缓冲を有効化。各触点 pending 项合并，缓冲结束各触发 1 条待办。',
+      crossBatch: {
+        batch1: { label: 'バッチ1', action: '案件 A を新規作成' },
+        batch2: { label: 'バッチ2', action: 'Open Case 池 → 案件 A に并入', matchedCaseId: 'case-1' },
+      },
+      touchpointDedup: [
+        { node: '前処理人工確認', key: '前処理確認 + 30min', result: '缓冲期内 sliding 延长；列表仍显示处理中 + 等待人工缓冲' },
+        { node: 'OCR 人工確認', key: 'OCR人工確認 + 30min', result: '缓冲结束 → open 待办 1 件（两批合并）' },
+      ],
+      cases: [
+        withCaseRoutingMeta({
+          id: 'case-1',
+          label: '高橋誠_手術請求',
+          caseNo: 'REQ-2025-0018890',
+          mainDocType: '保険金請求書',
+          mergedBatches: ['upload-batch-1', 'upload-batch-2'],
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 真由美' },
+          ],
+          files: [
+            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票', batch: 'バッチ1' },
+            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票', batch: 'バッチ1' },
+            { label: '本人確認書類_001.jpg', docType: '本人確認書類', role: '関連帳票', batch: 'バッチ2' },
+          ],
+          warnings: [],
+        }, { waitingHumanBuffer: true }),
+      ],
+    };
+  }
+  if (caseType === 'auto_supplement') {
+    return {
+      status: 'success',
+      statusLabel: '成功',
+      summary: 'バッチ2は补件候选池（post_ai_verify）に唯一命中 → 案件 A へ自动补件绑定。新規案件なし、案件集约跳过。从前处理重跑到 AI 检证。',
+      autoSupplement: {
+        pool: 'post_ai_verify',
+        batch2: { label: 'バッチ2', action: '自动补件绑定 → 案件 A', matchedCaseId: 'case-1' },
+        rerun: '前处理 → OCR → Data Mapping → AI 检证',
+      },
+      cases: [
+        withCaseRoutingMeta({
+          id: 'case-1',
+          label: '高橋誠_手術請求',
+          caseNo: 'REQ-2025-0018890',
+          mainDocType: '保険金請求書',
+          matchKeys: [
+            { label: '証券番号', value: '02468135-008-002' },
+            { label: '被保険者氏名', value: '高橋 真由美' },
+          ],
+          files: [
+            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
+            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
+            { label: '領収書_入院費.png', docType: '診療明細書', role: '补件文件', batch: 'バッチ2' },
+            { label: '補足説明_p1-2.tiff', docType: 'その他', role: '补件文件', batch: 'バッチ2' },
+          ],
+          warnings: [],
+        }, { routingStage: 'post_ai_verify' }),
+      ],
+    };
+  }
   if (caseType === 'supplement') {
     return {
       status: 'warning',
       statusLabel: '要確認',
-      summary: '1 案件を生成しました。関連帳票の不足候補があります。',
+      summary: '1 案件を生成しました。関連帳票の不足候補があります（案件详情补件兜底入口）。',
       cases: [
-        {
+        withCaseRoutingMeta({
           id: 'case-1',
           label: '高橋誠_手術請求',
           caseNo: 'REQ-2025-0018890',
@@ -1716,7 +1926,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
             { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
           ],
           warnings: ['領収書・診療明細書が未紐付け（補填候補）'],
-        },
+        }, { userStatus: '等待补件' }),
       ],
     };
   }
@@ -1726,7 +1936,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
       statusLabel: '要確認',
       summary: '案件候補が複数件。人工集約確認が必要です。',
       cases: [
-        {
+        withCaseRoutingMeta({
           id: 'case-candidate-a',
           label: '候補 A：高橋誠_手術請求',
           caseNo: '—',
@@ -1740,8 +1950,8 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
             { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
           ],
           warnings: ['候補案件（信頼度 0.78）'],
-        },
-        {
+        }),
+        withCaseRoutingMeta({
           id: 'case-candidate-b',
           label: '候補 B：同一証券・別請求',
           caseNo: '—',
@@ -1754,7 +1964,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
             { label: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
           ],
           warnings: ['契約者氏名が不一致'],
-        },
+        }),
       ],
     };
   }
@@ -1763,7 +1973,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
     statusLabel: '成功',
     summary: '1 案件を生成し、6 処理ファイルを紐付けました。',
     cases: [
-      {
+      withCaseRoutingMeta({
         id: 'case-1',
         label: '高橋誠_手術請求',
         caseNo: 'REQ-2025-0018890',
@@ -1781,7 +1991,7 @@ function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
           { label: '補足説明_p1-2.tiff', docType: 'その他', role: '参考資料' },
         ],
         warnings: [],
-      },
+      }),
     ],
   };
 }
@@ -1792,7 +2002,7 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
     return {
       title: '前処理結果',
       rows: [
-        { label: '成功ファイル', value: caseType === 'abnormal' ? '5 / 6' : '6 / 6' },
+        { label: '成功ファイル', value: caseType === 'abnormal' ? '5 / 6' : (caseType === 'multi_batch' ? '5 / 5' : '6 / 6') },
         { label: '失敗ファイル', value: caseType === 'abnormal' ? '1（補足説明_p1-2.tiff）' : '0' },
         { label: '回転補正', value: '4 件適用' },
         { label: '透視補正', value: '2 件適用' },
@@ -1801,13 +2011,21 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
     };
   }
   if (type === 'ocr') {
+    const rows = [
+      { label: '抽出フィールド', value: caseType === 'multi_batch' ? '48 件' : '42 件' },
+      { label: '低信頼フィールド', value: caseType === 'abnormal' ? '3 件' : '0 件' },
+      { label: '帳票タイプ別', value: caseType === 'multi_batch'
+        ? '保険金請求書 11 / 診断書 9 / 診療明細書 12 / 本人確認 8 / 収入証明 8'
+        : '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
+    ];
+    if (caseType === 'multi_batch' || caseType === 'hitl_wait') {
+      rows.push({ label: '人工確認待办', value: caseType === 'hitl_wait'
+        ? '缓冲中（等待人工缓冲）；结束 → 1 件 open'
+        : '1 件 open（バッチ2 追記、重複待办なし）' });
+    }
     return {
       title: 'OCR 抽出結果',
-      rows: [
-        { label: '抽出フィールド', value: '42 件' },
-        { label: '低信頼フィールド', value: caseType === 'abnormal' ? '3 件' : '0 件' },
-        { label: '帳票タイプ別', value: '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
-      ],
+      rows,
       issues: caseType === 'abnormal'
         ? ['診療明細書.医療機関名：信頼度 0.62（閾値 0.75）']
         : [],
@@ -1824,6 +2042,27 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
       issues: caseType === 'abnormal'
         ? ['claimAmount：保険金請求書 420,000 と診療明細合計 128,400 が不一致']
         : [],
+    };
+  }
+  if (type === 'notify') {
+    if (caseType === 'multi_batch') {
+      return {
+        title: '通知送信結果',
+        rows: [
+          { label: '送信回数', value: '1 回（去重済）' },
+          { label: '去重键', value: '案件 A + 通知ノード ID' },
+          { label: 'バッチ2 追加分', value: '再送信なし（同一周期内）' },
+        ],
+        issues: [],
+      };
+    }
+    return {
+      title: '通知送信結果',
+      rows: [
+        { label: '送信状態', value: '成功' },
+        { label: '送信先', value: 'ops@example.com' },
+      ],
+      issues: [],
     };
   }
   if (type === 'ai_verify') {
@@ -1903,14 +2142,17 @@ function workflowTestStepResultText(step, caseType) {
   const label = step.label || '';
   const type = step.type || '';
   const phase = step.phase || '';
-  if (phase === 'upload') return 'ZIP を解凍し 4 原ファイルを取り込みました';
-  if (phase === 'split') {
-    if (caseType === 'abnormal') return '境界不明区間あり。人工分割確認が必要です';
-    return '4 原ファイルから 6 処理ファイルを生成しました';
+  if (phase === 'upload') {
+    if (caseType === 'multi_batch' || caseType === 'hitl_wait') return 'バッチ1・バッチ2 を順次取り込み（計 4 原ファイル）';
+    if (caseType === 'auto_supplement') return 'バッチ2 を主上传取り込み（案件 A は post_ai_verify）';
+    return 'ZIP を解凍し 4 原ファイルを取り込みました';
   }
   if (phase === 'aggregate') {
     if (caseType === 'abnormal') return '案件候補が複数件。人工集約確認が必要です';
     if (caseType === 'supplement') return '1 案件を生成。関連帳票の不足候補あり';
+    if (caseType === 'auto_supplement') return '补件候选池命中 → 案件 A 自动补件绑定。不新建';
+    if (caseType === 'hitl_wait') return 'バッチ2 Open Case 并入 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending';
+    if (caseType === 'multi_batch') return 'バッチ2 Open Case 并入 A。案件 B 未作成';
     return '1 案件 REQ-2025-0018890 に 6 ファイルを紐付けました';
   }
   const summaries = {
@@ -1927,6 +2169,16 @@ function workflowTestStepResultText(step, caseType) {
     code: 'コード実行を完了しました',
   };
   if (caseType === 'supplement' && type === 'ai_verify') return '不足書類を検出しました（補填候補）';
+  if (caseType === 'multi_batch' && type === 'notify') return '同一案件・同一通知ノードのため 1 回のみ送信';
+  if ((caseType === 'multi_batch' || caseType === 'hitl_wait') && type === 'hitl_gate') {
+    if (caseType === 'hitl_wait' && (step.id === 'wf-hu-pre' || step.id === 'wf-hu-ocr' || /OCR|前処理|前处理/.test(label))) {
+      return '30 分钟缓冲中；列表显示处理中 + 等待人工缓冲';
+    }
+    return caseType === 'hitl_wait'
+      ? '缓冲结束 → open 待办 1 件（两批合并）'
+      : 'open 待办 1 件（バッチ2 追記、新規待办なし）';
+  }
+  if (caseType === 'auto_supplement' && type === 'preprocess') return '补件文件のみ前处理実行（既存ファイルは再実行なし）';
   if (caseType === 'abnormal' && type === 'ai_verify') return '必須フィールド不一致を検出しました';
   if (caseType === 'abnormal' && type === 'ocr') return '低信頼フィールドが閾値を下回りました';
   return summaries[type] || `${label} を完了しました`;
@@ -2034,7 +2286,11 @@ function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_
   return {
     overallStatus,
     overallLabel,
-    durationSec: caseType === 'abnormal' ? 12.6 : (caseType === 'supplement' ? 16.2 : 18.4),
+    durationSec: caseType === 'abnormal' ? 12.6
+      : (caseType === 'supplement' ? 16.2
+        : (caseType === 'auto_supplement' ? 14.5
+          : (caseType === 'hitl_wait' ? 21.2
+            : (caseType === 'multi_batch' ? 19.8 : 18.4)))),
     passedCount: passed,
     totalCount: list.length,
     uploadFileCount: upload.fileCount,
@@ -2045,8 +2301,7 @@ function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_
 
 function buildWorkflowTestArtifacts(caseType = 'normal') {
   return {
-    upload: { ...WORKFLOW_TEST_DEFAULT_ZIP },
-    split: buildWorkflowTestSplitArtifacts(caseType),
+    upload: buildWorkflowTestUploadArtifacts(caseType),
     aggregate: buildWorkflowTestAggregateArtifacts(caseType),
   };
 }

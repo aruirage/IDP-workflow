@@ -882,7 +882,7 @@ function sceneForm(sceneOrId) {
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
   data.scene.documents = normalizeSceneDocuments(data.scene.documents);
-  data.scene.fileSplit = normalizeSceneFileSplit(data.scene.fileSplit);
+  delete data.scene.fileSplit;
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
   data.processing.image = normalizeImageConfig(data.processing?.image, data.scene.documents);
@@ -892,7 +892,7 @@ function sceneForm(sceneOrId) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildMinimalCaseWorkflow(),
+    case: buildDefaultCaseWorkflow(),
   };
   return data;
 }
@@ -908,7 +908,7 @@ function sceneFormByScene(scene) {
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
   data.scene.documents = normalizeSceneDocuments(data.scene.documents);
-  data.scene.fileSplit = normalizeSceneFileSplit(data.scene.fileSplit);
+  delete data.scene.fileSplit;
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
   data.processing.image = normalizeImageConfig(data.processing?.image, data.scene.documents);
@@ -918,7 +918,7 @@ function sceneFormByScene(scene) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildMinimalCaseWorkflow(),
+    case: buildDefaultCaseWorkflow(),
   };
   return data;
 }
@@ -932,7 +932,7 @@ function normalizeLoadedForm(form) {
   }
   form.scene.deficiencyAction = normalizeDeficiencyAction();
   delete form.scene.notificationEmail;
-  form.scene.fileSplit = normalizeSceneFileSplit(form.scene.fileSplit);
+  delete form.scene.fileSplit;
   applySceneAggregate(form.scene, form.scene.documents, form.output);
   applySceneDocFieldLinks(form.scene, form.scene.documents);
   form.processing = form.processing || {};

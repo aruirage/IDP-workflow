@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=543" />
+  <link rel="stylesheet" href="style.css?v=544" />
 </head>
 <body>
   <div id="app">
@@ -290,7 +290,7 @@
             </div>
             <div class="mcp-admin-body">
               <aside class="mcp-admin-sidebar">
-                <inspector-title title="サーバー一覧" :hint="INSPECTOR_HINTS.mcpAdminOverview"></inspector-title>
+                <inspector-title title="サーバー一覧" :hint="localizedInspectorHints.mcpAdminOverview"></inspector-title>
                 <div v-if="!mcpServerCatalog.length" class="kr-knowledge-empty">MCP サーバーがありません</div>
                 <div v-else class="mcp-admin-server-list">
                   <button
@@ -319,7 +319,7 @@
                   <el-tag v-else type="success" effect="light">カスタム</el-tag>
                 </div>
                 <div class="mcp-admin-tools-section">
-                  <inspector-title title="Tool 一覧" :hint="INSPECTOR_HINTS.mcpAdminTools"></inspector-title>
+                  <inspector-title title="Tool 一覧" :hint="localizedInspectorHints.mcpAdminTools"></inspector-title>
                   <div v-if="!mcpAdminTools.length" class="kr-knowledge-empty">Tool がありません</div>
                   <div v-else class="mcp-admin-tool-stack">
                     <div
@@ -506,64 +506,10 @@
                   </div>
                 </div>
 
-                  <div
-                    class="wf-setup-file-split-panel"
-                    :class="{ 'is-disabled': !sceneSetupDraft.fileSplitEnabled }"
-                  >
-                    <div class="wf-step-card-head wf-step-card-head--sub">
-                      <span class="wf-step-card-index">2</span>
-                      <inspector-title title="ファイル分割ルール" :hint="INSPECTOR_HINTS.sceneFileSplit"></inspector-title>
-                      <span class="wf-step-card-spacer"></span>
-                      <span class="inspector-switch-label">実行</span>
-                      <el-switch v-model="sceneSetupDraft.fileSplitEnabled" size="small" />
-                    </div>
-                    <div class="wf-setup-rule-editor">
-                      <div class="wf-setup-rule-editor-body">
-                        <div class="wf-setup-rule-editor-box">
-                          <el-input
-                            v-model="sceneSetupDraft.fileSplitRuleText"
-                            class="inspector-field-control file-split-rule-textarea"
-                            type="textarea"
-                            :autosize="{ minRows: 3, maxRows: 5 }"
-                            resize="vertical"
-                            :disabled="!sceneSetupDraft.fileSplitEnabled"
-                            placeholder="例：ページ連続性、共通タイトル、フォルダ階層、ファイル名、バーコードなどを利用し、アップロードされたファイルを案件候補ごとに分割する。"
-                            maxlength="800"
-                            :show-word-limit="false"
-                          />
-                          <div class="wf-setup-rule-actions">
-                            <button
-                              type="button"
-                              class="wf-rule-icon-btn wf-rule-icon-btn--ai"
-                              title="AIで表述を最適化"
-                              :disabled="!sceneSetupDraft.fileSplitEnabled"
-                              @click="optimizeSceneFileSplitRule"
-                            >
-                              <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path d="M5 15l8.5-8.5M11.5 4.5l4 4M4 5.5l.7-1.7.8 1.7 1.7.7-1.7.8-.8 1.7L4 7l-1.7-.8L4 5.5ZM15 13l.5-1.2.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5L15 13Z" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              class="wf-rule-icon-btn wf-rule-icon-btn--clear"
-                              title="クリア"
-                              :disabled="!sceneSetupDraft.fileSplitEnabled || !sceneSetupDraft.fileSplitRuleText"
-                              @click="clearSceneFileSplitRule"
-                            >
-                              <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path d="M6.5 7.5v7M10 7.5v7M13.5 7.5v7M4.5 5h11M8 3.5h4M5.5 5l.7 11h7.6l.7-11" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                 <div class="wf-setup-docs-panel">
                     <div class="wf-step-card-head">
-                      <span class="wf-step-card-index">3</span>
-                      <inspector-title title="関連帳票" :hint="INSPECTOR_HINTS.caseLinkDocs"></inspector-title>
+                      <span class="wf-step-card-index">2</span>
+                      <inspector-title title="関連帳票" :hint="localizedInspectorHints.caseLinkDocs"></inspector-title>
                       <span class="inspector-section-meta">選択済み {{ sceneSetupDraft.documents.length }}/10</span>
                       <el-button class="wf-section-action-btn" @click="openSceneSetupDocPicker">+ 帳票追加</el-button>
                     </div>
@@ -618,8 +564,8 @@
                 <div class="wf-setup-links-grid">
                   <div class="wf-setup-left-panel">
                     <div class="wf-step-card-head">
-                      <span class="wf-step-card-index">4</span>
-                      <inspector-title title="案件集約ルール" :hint="INSPECTOR_HINTS.docFieldLinks"></inspector-title>
+                      <span class="wf-step-card-index">3</span>
+                      <inspector-title title="案件集約ルール" :hint="localizedInspectorHints.docFieldLinks"></inspector-title>
                       <span class="wf-step-card-spacer"></span>
                       <div class="case-aggregate-policy-inline">
                         <span class="case-aggregate-policy-label">マッチング戦略</span>
@@ -742,7 +688,7 @@
 
                 <aside class="wf-setup-network-panel wf-setup-step1-preview-panel">
                   <div class="wf-preview-panel-head wf-network-head">
-                    <inspector-title title="関連プレビュー" :hint="INSPECTOR_HINTS.docFieldNetwork"></inspector-title>
+                    <inspector-title title="関連プレビュー" :hint="localizedInspectorHints.docFieldNetwork"></inspector-title>
                     <span
                       v-if="sceneSetupLinkCheckVisible && sceneSetupLinkStats.total"
                       class="wf-network-stat"
@@ -831,6 +777,7 @@
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
               <el-button @click="resetNode">リセット</el-button>
+              <el-button @click="goToWorkflowSetupStep(1)">前へ</el-button>
               <el-button @click="goToWorkflowSetupStep(3)">次へ</el-button>
               <el-button type="warning" class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト</el-button>
               <el-button type="primary" @click="handleSave">保存</el-button>
@@ -1074,6 +1021,13 @@
                       title="前にノードを追加 / ここに接続"
                       @click.stop="onWfNodeAddInClick(node, $event)"
                     >+</button>
+                    <span
+                      v-else
+                      class="wf-node-port wf-node-port--in"
+                      data-wf-port="in"
+                      :data-node-id="node.id"
+                      title="入力 / ここに接続"
+                    ></span>
                     <div
                       class="wf-node-card wf-node-card--accent"
                       :style="getWorkflowNodeAccentStyle(node.type)"
@@ -1784,7 +1738,7 @@
                     </inspector-module-card>
                     <inspector-module-card title="出力設定" desc="後続ノードへ公開する戻り値を制御します。">
                       <div class="inspector-switch-row">
-                        <inspector-field-label label="ユーザーへ出力" :hint="INSPECTOR_HINTS.codeReturn"></inspector-field-label>
+                        <inspector-field-label label="ユーザーへ出力" :hint="localizedInspectorHints.codeReturn"></inspector-field-label>
                         <el-switch v-model="selectedWorkflowNode.returnContent" @change="onCodeFieldChange" />
                       </div>
                     </inspector-module-card>
@@ -1829,6 +1783,18 @@
                         </button>
                       </div>
                     </section>
+                    <inspector-module-card title="実行前提" :desc="localizedInspectorHints.aiVerifyEntryWait">
+                      <div class="wf-start-readonly-list wf-entry-event-list">
+                        <div
+                          v-for="event in AI_VERIFY_ENTRY_WAIT_EVENTS"
+                          :key="event.id"
+                          class="wf-start-readonly-item"
+                        >
+                          <span class="wf-start-readonly-label">{{ t(event.category) }}</span>
+                          <span class="wf-start-readonly-value" :title="t(event.detail)">{{ t(event.label) }}</span>
+                        </div>
+                      </div>
+                    </inspector-module-card>
                   </div>
                 </div>
 
@@ -1859,21 +1825,48 @@
                         </el-select>
                       </div>
                     </inspector-module-card>
+                    <inspector-module-card
+                      v-if="isHitlVerificationContext(selectedWorkflowNode)"
+                      title="待办合并"
+                      :desc="localizedInspectorHints.hitlVerifyMergeDefault"
+                    >
+                      <div class="wf-start-readonly-list wf-entry-event-list">
+                        <div
+                          v-for="event in HITL_VERIFY_MERGE_EVENTS"
+                          :key="event.id"
+                          class="wf-start-readonly-item"
+                        >
+                          <span class="wf-start-readonly-label">{{ t(event.category) }}</span>
+                          <span class="wf-start-readonly-value" :title="t(event.detail)">{{ t(event.label) }}</span>
+                        </div>
+                      </div>
+                    </inspector-module-card>
+                    <inspector-module-card
+                      v-else-if="supportsHitlWaitConfig(selectedWorkflowNode)"
+                      title="待办合并"
+                      :hint="localizedInspectorHints.hitlWaitBeforeConfirm"
+                    >
+                      <div class="inspector-switch-row">
+                        <inspector-field-label label="缓冲等待（30 分钟）" :hint="localizedInspectorHints.hitlWaitBeforeConfirm"></inspector-field-label>
+                        <el-switch v-model="selectedWorkflowNode.hitlWaitEnabled" size="small" />
+                      </div>
+                      <p class="inspector-field-help">OFF = 即时出待办；ON = 多批 pending 合并后一条待办</p>
+                    </inspector-module-card>
                   </inspector-module>
                 </div>
 
                 <!-- 開始ノード -->
                 <div v-if="inspectorPanel === 'start' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector">
                   <inspector-module>
-                    <inspector-module-card title="起動タイミング" desc="ワークフローが開始される条件です（読み取り専用）。">
+                    <inspector-module-card title="起動タイミング" :desc="localizedInspectorHints.startTriggers">
                       <div class="wf-start-readonly-list">
-                        <div class="wf-start-readonly-item">
-                          <span class="wf-start-readonly-label">通常処理</span>
-                          <span class="wf-start-readonly-value">案件集約完了後</span>
-                        </div>
-                        <div class="wf-start-readonly-item">
-                          <span class="wf-start-readonly-label">補件処理</span>
-                          <span class="wf-start-readonly-value">補件紐付け完了後</span>
+                        <div
+                          v-for="trigger in CASE_WORKFLOW_START_TRIGGERS"
+                          :key="trigger.id"
+                          class="wf-start-readonly-item"
+                        >
+                          <span class="wf-start-readonly-label">{{ trigger.category }}</span>
+                          <span class="wf-start-readonly-value" :title="trigger.detail">{{ trigger.label }}</span>
                         </div>
                       </div>
                     </inspector-module-card>
@@ -2236,15 +2229,39 @@
 
     <el-dialog
       v-model="workflowTestDialogVisible"
-      title="Workflow テスト"
+      :title="t('Workflow テスト')"
       width="1240px"
       align-center
       class="wf-test-dialog"
       destroy-on-close
     >
-      <p class="wf-test-dialog-subtitle">現在の Workflow 設定でテスト実行し、停止したノードと原因を確認します。</p>
+      <p class="wf-test-dialog-subtitle">{{ t('预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。') }}</p>
+      <section v-if="workflowTestCaseScenario" class="wf-test-scenario-guide">
+        <div class="wf-test-scenario-guide-head">
+          <strong>{{ workflowTestCaseScenario.title }}</strong>
+          <span v-if="workflowTestCaseScenario.badge" class="wf-test-scenario-badge">{{ workflowTestCaseScenario.badge }}</span>
+        </div>
+        <p class="wf-test-scenario-intro">{{ workflowTestCaseScenario.intro }}</p>
+        <ol class="wf-test-scenario-steps">
+          <li v-for="(line, index) in workflowTestCaseScenario.steps" :key="'wf-scenario-' + index">{{ line }}</li>
+        </ol>
+        <p v-if="workflowTestCaseScenario.lookFor" class="wf-test-scenario-lookfor"><span>关注点</span>{{ workflowTestCaseScenario.lookFor }}</p>
+      </section>
       <div class="wf-test-toolbar">
-        <div class="wf-test-toolbar-note">アップロードしたファイルを使い、画布上のノード順に実行します。</div>
+        <div class="wf-test-toolbar-left">
+          <div class="wf-test-toolbar-note">アップロードしたファイルを使い、画布上のノード順に実行します。</div>
+          <div class="wf-test-case-types">
+            <button
+              v-for="option in WORKFLOW_TEST_CASE_OPTIONS"
+              :key="option.value"
+              type="button"
+              class="wf-test-case-type-btn"
+              :class="{ 'is-active': workflowTestDraft.caseType === option.value }"
+              :title="option.desc"
+              @click="setWorkflowTestCaseType(option.value)"
+            >{{ option.label }}</button>
+          </div>
+        </div>
         <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
           {{ workflowTestRunning ? '実行中…' : 'テスト実行' }}
         </el-button>
@@ -2282,18 +2299,37 @@
               <section class="wf-test-artifact-section">
                 <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
                 <h5>アップロード結果</h5>
-                <p class="wf-test-artifact-summary">ZIP を解凍し、{{ workflowTestArtifacts.upload.fileCount }} 原ファイルを取り込みました。</p>
+                <p class="wf-test-artifact-summary">
+                  <template v-if="workflowTestArtifacts.upload.batchMode === 'multi' && workflowTestDraft.caseType === 'auto_supplement'">
+                    案件 A（post_ai_verify）に対し、バッチ2 を主上传から自动补件绑定（計 {{ workflowTestArtifacts.upload.fileCount }} 原ファイル）。
+                  </template>
+                  <template v-else-if="workflowTestArtifacts.upload.batchMode === 'multi'">
+                    バッチ1 で案件 A を新規作成後、バッチ2 を主上传から取り込みました（計 {{ workflowTestArtifacts.upload.fileCount }} 原ファイル）。
+                  </template>
+                  <template v-else>
+                    ZIP を解凍し、{{ workflowTestArtifacts.upload.fileCount }} 原ファイルを取り込みました。
+                  </template>
+                </p>
+                <div v-if="workflowTestArtifacts.upload.batches && workflowTestArtifacts.upload.batches.length" class="wf-test-cross-batch-grid">
+                  <div v-for="batch in workflowTestArtifacts.upload.batches" :key="batch.id" class="wf-test-cross-batch-card">
+                    <strong>{{ batch.label }}</strong>
+                    <span>{{ batch.action }}</span>
+                    <span>{{ batch.extractedFiles.length }} 原ファイル</span>
+                  </div>
+                </div>
                 <table class="wf-test-artifact-table">
                   <thead>
                     <tr>
                       <th>原ファイル</th>
+                      <th v-if="workflowTestArtifacts.upload.batchMode === 'multi'">批次</th>
                       <th>ページ</th>
                       <th>サイズ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="file in workflowTestArtifacts.upload.extractedFiles" :key="file.name">
+                    <tr v-for="file in workflowTestArtifacts.upload.extractedFiles" :key="file.name + (file.batch || '')">
                       <td>{{ file.name }}</td>
+                      <td v-if="workflowTestArtifacts.upload.batchMode === 'multi'">{{ file.batch || '—' }}</td>
                       <td>{{ file.pages }}</td>
                       <td>{{ file.sizeLabel }}</td>
                     </tr>
@@ -2302,44 +2338,36 @@
               </section>
             </template>
 
-            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'split' && workflowTestArtifacts">
-              <section class="wf-test-artifact-section">
-                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
-                <h5>ファイル分割結果</h5>
-                <p class="wf-test-artifact-summary">{{ workflowTestArtifacts.split.summary }}</p>
-                <div
-                  v-for="group in workflowTestArtifacts.split.groups"
-                  :key="group.sourceFile"
-                  class="wf-test-split-group"
-                >
-                  <div class="wf-test-split-source">{{ group.sourceFile }}</div>
-                  <table class="wf-test-artifact-table">
-                    <thead>
-                      <tr>
-                        <th>処理ファイル</th>
-                        <th>帳票タイプ</th>
-                        <th>ページ</th>
-                        <th>信頼度</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="split in group.splits" :key="split.id">
-                        <td>{{ split.label }}</td>
-                        <td>{{ getDocDisplayLabel(split.docType) }}</td>
-                        <td>{{ split.pages }}</td>
-                        <td>{{ split.confidence }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </template>
-
             <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'aggregate' && workflowTestArtifacts">
               <section class="wf-test-artifact-section">
                 <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
                 <h5>案件集約結果</h5>
                 <p class="wf-test-artifact-summary">{{ workflowTestArtifacts.aggregate.summary }}</p>
+                <div v-if="workflowTestArtifacts.aggregate.autoSupplement" class="wf-test-cross-batch-grid">
+                  <div class="wf-test-cross-batch-card is-supplement">
+                    <strong>补件候选池 · {{ workflowTestArtifacts.aggregate.autoSupplement.pool }}</strong>
+                    <span>{{ workflowTestArtifacts.aggregate.autoSupplement.batch2.action }}</span>
+                    <span>{{ workflowTestArtifacts.aggregate.autoSupplement.rerun }}</span>
+                  </div>
+                </div>
+                <div v-if="workflowTestArtifacts.aggregate.crossBatch" class="wf-test-cross-batch-grid">
+                  <div class="wf-test-cross-batch-card">
+                    <strong>{{ workflowTestArtifacts.aggregate.crossBatch.batch1.label }}</strong>
+                    <span>{{ workflowTestArtifacts.aggregate.crossBatch.batch1.action }}</span>
+                  </div>
+                  <div class="wf-test-cross-batch-card is-merge">
+                    <strong>{{ workflowTestArtifacts.aggregate.crossBatch.batch2.label }}</strong>
+                    <span>{{ workflowTestArtifacts.aggregate.crossBatch.batch2.action }}</span>
+                  </div>
+                </div>
+                <div v-if="workflowTestArtifacts.aggregate.touchpointDedup && workflowTestArtifacts.aggregate.touchpointDedup.length" class="wf-test-dedup-list">
+                  <h6>人工触点去重</h6>
+                  <div v-for="item in workflowTestArtifacts.aggregate.touchpointDedup" :key="item.node" class="wf-test-dedup-item">
+                    <strong>{{ item.node }}</strong>
+                    <span>{{ item.key }}</span>
+                    <span>{{ item.result }}</span>
+                  </div>
+                </div>
                 <div
                   v-for="caseItem in workflowTestArtifacts.aggregate.cases"
                   :key="caseItem.id"
@@ -2348,6 +2376,11 @@
                   <div class="wf-test-case-card-head">
                     <strong>{{ caseItem.label }}</strong>
                     <span v-if="caseItem.caseNo !== '—'">{{ caseItem.caseNo }}</span>
+                  </div>
+                  <div class="wf-test-case-meta-badges">
+                    <span v-if="caseItem.userStatus" class="wf-test-case-meta-badge is-status">{{ caseItem.userStatus }}</span>
+                    <span v-if="caseItem.routingStageLabel" class="wf-test-case-meta-badge is-routing">路由：{{ caseItem.routingStageLabel }}</span>
+                    <span v-if="caseItem.waitingHumanBuffer" class="wf-test-case-meta-badge is-buffer">等待人工缓冲</span>
                   </div>
                   <div class="wf-test-case-keys">
                     <span v-for="key in caseItem.matchKeys" :key="caseItem.id + key.label">
@@ -2358,6 +2391,7 @@
                     <li v-for="file in caseItem.files" :key="caseItem.id + file.label">
                       <span class="wf-test-case-file-role">{{ file.role }}</span>
                       <span>{{ getDocDisplayLabel(file.docType) }} · {{ file.label }}</span>
+                      <span v-if="file.batch" class="wf-test-case-file-batch">{{ file.batch }}</span>
                     </li>
                   </ul>
                   <ul v-if="caseItem.warnings && caseItem.warnings.length" class="wf-test-case-warnings">
@@ -2696,7 +2730,7 @@
     >
       <div class="code-param-dialog-body">
         <div class="inspector-field">
-          <inspector-field-label label="パラメータ名" :hint="INSPECTOR_HINTS.codeParamName"></inspector-field-label>
+          <inspector-field-label label="パラメータ名" :hint="localizedInspectorHints.codeParamName"></inspector-field-label>
           <el-input
             v-model="codeParamDialogDraft.name"
             maxlength="64"
@@ -2706,7 +2740,7 @@
           />
         </div>
         <div class="inspector-field">
-          <inspector-field-label label="データ型" :hint="INSPECTOR_HINTS.codeParamDataType"></inspector-field-label>
+          <inspector-field-label label="データ型" :hint="localizedInspectorHints.codeParamDataType"></inspector-field-label>
           <el-select v-model="codeParamDialogDraft.dataType" class="inspector-field-control">
             <el-option
               v-for="opt in CODE_PARAM_DATA_TYPES"
@@ -2718,7 +2752,7 @@
         </div>
         <template v-if="codeParamDialogMode === 'input'">
           <div class="inspector-field">
-            <inspector-field-label label="ソース" :hint="INSPECTOR_HINTS.codeParamSource"></inspector-field-label>
+            <inspector-field-label label="ソース" :hint="localizedInspectorHints.codeParamSource"></inspector-field-label>
             <el-select
               v-model="codeParamDialogDraft.source"
               class="inspector-field-control"
@@ -2733,7 +2767,7 @@
             </el-select>
           </div>
           <div v-if="codeParamDialogDraft.source === 'custom'" class="inspector-field">
-            <inspector-field-label label="カスタム値" :hint="INSPECTOR_HINTS.codeParamCustom"></inspector-field-label>
+            <inspector-field-label label="カスタム値" :hint="localizedInspectorHints.codeParamCustom"></inspector-field-label>
             <el-input
               v-model="codeParamDialogDraft.customValue"
               class="inspector-field-control"
@@ -2741,7 +2775,7 @@
             />
           </div>
           <div class="inspector-switch-row code-param-required-row">
-            <inspector-field-label label="必須" :hint="INSPECTOR_HINTS.codeParamRequired"></inspector-field-label>
+            <inspector-field-label label="必須" :hint="localizedInspectorHints.codeParamRequired"></inspector-field-label>
             <el-switch v-model="codeParamDialogDraft.required" />
           </div>
         </template>
@@ -2758,9 +2792,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=517"></script>
-  <script src="scripts/mock-data.js?v=501"></script>
-  <script src="scripts/scene-config.js?v=498"></script>
-  <script src="main.js?v=537"></script>
+  <script src="scripts/workflow-core.js?v=524"></script>
+  <script src="scripts/mock-data.js?v=503"></script>
+  <script src="scripts/scene-config.js?v=499"></script>
+  <script src="main.js?v=541"></script>
 </body>
 </html>
