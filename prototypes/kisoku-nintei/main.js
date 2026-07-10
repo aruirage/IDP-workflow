@@ -1,4 +1,5 @@
-const MAIN_BUILD = '582-builtin-test-case-upload';
+const MAIN_BUILD = '592-ensure-end-node';
+const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v16';
 
 const appOptions = {
   setup() {
@@ -19,10 +20,22 @@ const appOptions = {
     } catch (initErr) {
       initialForm = sceneForm('2064639102406844416');
     }
-    const storedWorkflow = storedForm?.workflows?.case;
     ensureFormWorkflows(initialForm);
-    if (storedWorkflow && shouldMigrateCaseWorkflowToDefault(storedWorkflow)) {
-      saveStorage(currentSceneId.value, initialForm);
+    const wfCase = initialForm.workflows?.case;
+    if (wfCase && shouldMigrateCaseWorkflowToDefault(wfCase)) {
+      initialForm.workflows.case = buildDefaultCaseWorkflow();
+      if (typeof saveStorage === 'function') {
+        saveStorage(currentSceneId.value, initialForm);
+      }
+    } else if (wfCase && (
+      localStorage.getItem(WF_CANONICAL_LAYOUT_KEY) !== 'done'
+      || needsCanonicalCaseWorkflowLayout(wfCase)
+    )) {
+      applyCanonicalCaseWorkflowLayout(wfCase);
+      localStorage.setItem(WF_CANONICAL_LAYOUT_KEY, 'done');
+      if (typeof saveStorage === 'function') {
+        saveStorage(currentSceneId.value, initialForm);
+      }
     }
     const form = reactive(initialForm);
     const savedSnapshot = ref(JSON.stringify(initialForm));
@@ -722,7 +735,8 @@ const appOptions = {
       ['試す：', '试用：'],
       ['接続しました', '已连接'],
       ['回流接続しました', '已创建回流连接'],
-      ['接続先ノードの入力ポートへドラッグしてください', '请拖拽到目标节点的输入端口'],
+      ['接続先ノードの入力ポートへドラッグしてください', '请拖拽到目标节点的输入端口以完成连线（按 Esc 取消）'],
+      ['クリックでノードを追加、ドラッグで既存ノードへ接続', '单击添加节点，拖拽连接到已有节点'],
       ['この接続は上流への回流です（点線表示）。公開・テスト実行はブロックされません。', '此连接为上游回流（虚线显示），不会阻止发布或测试执行。'],
       ['案件集約完了後、開始ノードから到達可能な順に実行します（環状パス上のノードは初回到達順で表示）', '案件集约完成后，按从起始节点可达顺序执行（环路径上的节点按首次到达顺序展示）'],
       ['開始ノードから到達可能な順に Workflow ノードを実行します（環状パス上のノードは初回到達順で表示）', '从起始节点起按可达顺序执行 Workflow 节点（环路径上的节点按首次到达顺序展示）'],
@@ -762,7 +776,8 @@ const appOptions = {
       ['集約済み案件スナップショットを選択するか、アップロードしてください。案件集約は実行しません。', '请选择集约済み案件快照，或上传测试数据；本测试不执行案件集约。'],
       ['テストデータを更新しました', '已更新测试数据'],
       ['アップロード', '已上传'],
-      ['内蔵の集約済み案件スナップショットをテスト入力として使用します。', '使用内置集约済み案件快照作为测试输入。'],
+      ['内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。', '使用内置标准集约済み案件快照（只读）作为测试输入。'],
+      ['読み取り専用', '只读'],
       ['JSON の形式が正しくありません', 'JSON 格式不正确'],
       ['テスト用データを初期値に戻しました', '已恢复测试数据默认值'],
       ['案件番号を入力してください', '请输入案件编号'],
@@ -1233,8 +1248,7 @@ const appOptions = {
     }
 
     function getActiveWf() {
-      ensureFormWorkflows(form);
-      return form.workflows.case;
+      return form.workflows?.case || null;
     }
 
     const activeWorkflow = computed(() => getActiveWf());
@@ -1471,9 +1485,19 @@ const appOptions = {
 
     function restoreWorkflowSnapshot(snapshot) {
       wfHistoryRecording = false;
+      const wf = getActiveWf();
+      if (!wf) {
+        wfHistoryRecording = true;
+        return;
+      }
       const normalized = normalizeWorkflow(cloneJson(snapshot));
-      getActiveWf().nodes = normalized.nodes;
-      getActiveWf().edges = normalized.edges;
+      wf.nodes = normalized.nodes;
+      wf.edges = normalized.edges;
+      wf.isTemplate = normalized.isTemplate;
+      wf.topologyCustomized = normalized.topologyCustomized;
+      wf.templateVersion = normalized.templateVersion;
+      wf.startNodeId = normalized.startNodeId;
+      wf.layoutVersion = normalized.layoutVersion;
       if (selectedWorkflowNodeId.value && !getActiveWf().nodes.some((n) => n.id === selectedWorkflowNodeId.value)) {
         selectedWorkflowNodeId.value = getActiveWf().nodes[0]?.id || null;
       }
@@ -2950,10 +2974,10 @@ const appOptions = {
     }
 
     let workflowEdgePathsEvalCount = 0;
-    const WF_EDGE_ROUTE_GAP = 64;
-    const WF_EDGE_ROUTE_STEP = 22;
+    const WF_EDGE_ROUTE_GAP = 72;
+    const WF_EDGE_ROUTE_STEP = 34;
     const WF_EDGE_ROUTE_PAD = 18;
-    const WF_EDGE_COLLISION_SAMPLES = 22;
+    const WF_EDGE_COLLISION_SAMPLES = 24;
 
     function getWorkflowEdgeNodeRect(node) {
       const summary = getWorkflowNodeCanvasSummary(node);
@@ -2976,13 +3000,15 @@ const appOptions = {
     function workflowEdgeIntersectsNode(draft, nodes) {
       const minX = Math.min(draft.x1, draft.x2) - WF_EDGE_ROUTE_PAD;
       const maxX = Math.max(draft.x1, draft.x2) + WF_EDGE_ROUTE_PAD;
-      const sourceRight = Math.max(draft.x1, draft.from?.x ?? draft.x1);
-      const targetLeft = Math.min(draft.x2, draft.to?.x ?? draft.x2);
+      const minY = Math.min(draft.y1, draft.y2) - WF_EDGE_ROUTE_PAD;
+      const maxY = Math.max(draft.y1, draft.y2) + WF_EDGE_ROUTE_PAD;
       const candidates = nodes
         .filter((node) => node.id !== draft.edge.from && node.id !== draft.edge.to)
         .map((node) => ({ node, rect: getWorkflowEdgeNodeRect(node) }))
-        .filter(({ rect }) => rect.right >= minX && rect.left <= maxX)
-        .filter(({ rect }) => rect.left > sourceRight + WF_EDGE_ROUTE_PAD && rect.right < targetLeft - WF_EDGE_ROUTE_PAD);
+        .filter(({ rect }) => rect.right >= minX
+          && rect.left <= maxX
+          && rect.bottom >= minY
+          && rect.top <= maxY);
       if (!candidates.length) return false;
       for (let i = 1; i < WF_EDGE_COLLISION_SAMPLES; i += 1) {
         const point = wfBezierPoint(draft.x1, draft.y1, draft.x2, draft.y2, i / WF_EDGE_COLLISION_SAMPLES);
@@ -3012,7 +3038,10 @@ const appOptions = {
         ? draft.edge.route
         : '';
       if (explicit) return explicit;
-      if (draft.isBackflow || draft.x2 < draft.x1) return 'top';
+      const span = Math.abs(draft.x2 - draft.x1);
+      if (draft.isBackflow || draft.x2 < draft.x1) {
+        return span > 220 ? 'bottom' : 'top';
+      }
       if (draft.y2 > draft.y1 + 28) return 'bottom';
       if (draft.y2 < draft.y1 - 28) return 'top';
       const branch = String(draft.edge.branch || '');
@@ -3022,61 +3051,87 @@ const appOptions = {
       return 'top';
     }
 
-    function buildWorkflowOffsetEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0) {
-      const dx = Math.abs(x2 - x1);
-      const dy = Math.abs(y2 - y1);
-      const handle = Math.max(36, Math.min(140, dx * 0.18 + dy * 0.08));
-      const bend = Math.min(72, Math.max(28, dy * 0.36 + laneOffset));
+    function buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const backflow = x2 < x1 - 20;
+      const sweep = Math.max(56, Math.min(160, Math.abs(dx) * 0.34 + Math.abs(dy) * 0.12));
+      const bend = Math.max(40, Math.min(120, Math.abs(dy) * 0.42 + laneOffset * 0.65));
       const sign = direction === 'top' ? -1 : 1;
-      const laneY = y1 + sign * bend;
-      const midX = (x1 + x2) / 2;
-      const d = [
-        `M ${x1} ${y1}`,
-        `C ${x1 + handle} ${y1}, ${x1 + handle} ${laneY}, ${midX} ${laneY}`,
-        `C ${x2 - handle} ${laneY}, ${x2 - handle} ${y2}, ${x2} ${y2}`,
-      ].join(' ');
+      let laneY = y1 + sign * bend;
+      if (backflow) {
+        laneY = direction === 'bottom'
+          ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
+          : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
+        const midX = (x1 + x2) / 2;
+        const d = [
+          `M ${x1} ${y1}`,
+          `C ${x1 + sweep} ${y1}, ${x1 + sweep} ${laneY}, ${midX} ${laneY}`,
+          `C ${x2 - sweep} ${laneY}, ${x2 - sweep} ${y2}, ${x2} ${y2}`,
+        ].join(' ');
+        return {
+          d,
+          mid: { x: midX, y: laneY },
+          labelAnchor: { x: midX, y: laneY },
+        };
+      }
+      const c1x = x1 + sweep;
+      const c1y = y1 + sign * (bend * 0.72);
+      const c2x = x2 - sweep;
+      const c2y = y2 - sign * (bend * 0.42);
+      const d = `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+      const mid = wfBezierPoint(x1, y1, x2, y2, 0.5);
       return {
         d,
-        mid: { x: midX, y: laneY },
-        labelAnchor: { x: midX, y: laneY },
+        mid,
+        labelAnchor: { x: (c1x + c2x) / 2, y: (c1y + c2y) / 2 },
       };
+    }
+
+    function buildWorkflowBackflowEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0, clearance = null) {
+      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
+    }
+
+    function buildWorkflowOffsetEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0) {
+      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset);
     }
 
     function buildWorkflowAvoidingEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0, clearance = null) {
-      const dx = Math.abs(x2 - x1);
-      const dy = Math.abs(y2 - y1);
-      const handle = Math.max(44, Math.min(160, dx * 0.22 + dy * 0.08));
-      const topBase = Math.min(clearance?.minTop ?? Math.min(y1, y2), y1, y2);
-      const bottomBase = Math.max(clearance?.maxBottom ?? Math.max(y1, y2), y1, y2);
-      const laneY = direction === 'bottom'
-        ? bottomBase + WF_EDGE_ROUTE_GAP + laneOffset
-        : Math.max(24, topBase - WF_EDGE_ROUTE_GAP - laneOffset);
-      const midX = (x1 + x2) / 2;
-      const d = [
-        `M ${x1} ${y1}`,
-        `C ${x1 + handle} ${y1}, ${x1 + handle} ${laneY}, ${midX} ${laneY}`,
-        `C ${x2 - handle} ${laneY}, ${x2 - handle} ${y2}, ${x2} ${y2}`,
-      ].join(' ');
-      return {
-        d,
-        mid: { x: midX, y: laneY },
-        labelAnchor: { x: midX, y: laneY },
-      };
+      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
     }
 
     function assignWorkflowRouteLaneOffsets(drafts) {
-      ['top', 'bottom'].forEach((direction) => {
-        const routed = drafts
-          .filter((draft) => draft.shouldRoute && draft.routeDirection === direction)
-          .sort((a, b) => {
-            const spanA = Math.abs(a.x2 - a.x1);
-            const spanB = Math.abs(b.x2 - b.x1);
-            return spanA - spanB || a.x1 - b.x1 || a.y1 - b.y1 || a.key.localeCompare(b.key);
+      const assignByDirection = (items, getGroupKey) => {
+        ['top', 'bottom'].forEach((direction) => {
+          const groups = new Map();
+          items
+            .filter((draft) => draft.routeDirection === direction)
+            .forEach((draft) => {
+              const key = getGroupKey(draft);
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key).push(draft);
+            });
+          groups.forEach((group) => {
+            group
+              .sort((a, b) => {
+                const spanA = Math.abs(a.x2 - a.x1);
+                const spanB = Math.abs(b.x2 - b.x1);
+                return spanA - spanB || a.y1 - b.y1 || a.y2 - b.y2 || a.key.localeCompare(b.key);
+              })
+              .forEach((draft, index) => {
+                draft.laneOffset = index * WF_EDGE_ROUTE_STEP;
+              });
           });
-        routed.forEach((draft, index) => {
-          draft.laneOffset = index * WF_EDGE_ROUTE_STEP;
         });
-      });
+      };
+      assignByDirection(
+        drafts.filter((draft) => draft.shouldRoute || draft.shouldOffset),
+        (draft) => `${draft.edge.from}:${draft.edge.branch || 'main'}`,
+      );
+      assignByDirection(
+        drafts.filter((draft) => draft.isBackflow),
+        (draft) => `backflow:${draft.routeDirection}`,
+      );
     }
 
     const workflowEdgePaths = computed(() => {
@@ -3145,12 +3200,12 @@ const appOptions = {
                   : '',
         };
         const span = Math.abs(x2 - x1);
-        draft.shouldRoute = (span > 40 && (isBackflow || x2 < x1))
+        draft.shouldRoute = draft.isBackflow
+          || x2 < x1 - 24
+          || !!edge.branch
+          || Math.abs(y2 - y1) > 10
           || workflowEdgeIntersectsNode(draft, nodes);
-        draft.shouldOffset = !draft.shouldRoute
-          && !!edge.branch
-          && span > 260
-          && Math.abs(y2 - y1) > 24;
+        draft.shouldOffset = !draft.shouldRoute && span > 48;
         draft.routeDirection = getWorkflowEdgeRouteDirection(draft);
         return draft;
       }).filter(Boolean);
@@ -3166,8 +3221,8 @@ const appOptions = {
             new Set([draft.edge.from, draft.edge.to]),
           )
           : null;
-        const routed = draft.shouldRoute
-          ? buildWorkflowAvoidingEdgePath(
+        const routed = draft.shouldRoute || draft.shouldOffset
+          ? buildWorkflowBezierEdgePath(
             draft.x1,
             draft.y1,
             draft.x2,
@@ -3176,17 +3231,16 @@ const appOptions = {
             draft.laneOffset,
             clearance,
           )
-          : (draft.shouldOffset
-            ? buildWorkflowOffsetEdgePath(
-              draft.x1,
-              draft.y1,
-              draft.x2,
-              draft.y2,
-              draft.routeDirection,
-              draft.laneOffset,
-            )
-            : null);
-        const d = routed?.d || wfBezierPath(draft.x1, draft.y1, draft.x2, draft.y2);
+          : null;
+        const d = routed?.d || buildWorkflowBezierEdgePath(
+          draft.x1,
+          draft.y1,
+          draft.x2,
+          draft.y2,
+          draft.routeDirection,
+          draft.laneOffset,
+          clearance,
+        ).d;
         const mid = routed?.mid || wfBezierPoint(draft.x1, draft.y1, draft.x2, draft.y2, 0.5);
         const labelAnchor = routed?.labelAnchor || wfBezierPoint(
           draft.x1,
@@ -3344,6 +3398,7 @@ const appOptions = {
       closeWfNodePicker();
       closeWfNodePlacement();
       layoutWorkflowGraph(wf);
+      applyWorkflowEdgeRoutes(wf);
       pushWorkflowHistory('ノードを整列');
       nextTick(() => fitWorkflowToView());
     }
@@ -5738,7 +5793,7 @@ const appOptions = {
 
     function onWfNodeAddOutClick(node, event) {
       if (wfConnectSuppressClick) return;
-      enterWorkflowConnectMode(node.id, null);
+      openWfNodePickerAt(node, 'after');
     }
 
     function onWfNodeAddInClick(node, event) {
@@ -5792,7 +5847,7 @@ const appOptions = {
 
         if (!dragging) {
           if (role === 'branch') openWfNodePickerForBranchNode(node, branch, anchorEl);
-          else if (role === 'out') enterWorkflowConnectMode(node.id, null);
+          else if (role === 'out') openWfNodePickerAt(node, 'after');
           wfConnectSuppressClick = true;
           setTimeout(() => { wfConnectSuppressClick = false; }, 0);
           wfConnectDrag.fromId = null;
@@ -5807,6 +5862,10 @@ const appOptions = {
           ElementPlus.ElMessage.success(connectWorkflowEdge.lastBackflow ? '回流接続しました' : '接続しました');
           wfConnectSuppressClick = true;
           setTimeout(() => { wfConnectSuppressClick = false; }, 0);
+        } else if (role === 'branch') {
+          openWfNodePickerForBranchNode(node, connectBranch, anchorEl);
+        } else if (role === 'out') {
+          openWfNodePickerAt(node, 'after');
         }
         wfConnectDrag.fromId = null;
         wfConnectDrag.branch = null;
@@ -5819,11 +5878,12 @@ const appOptions = {
     }
 
     function removeWorkflowNode(id) {
-      const wf = getActiveWf();
+      const wf = form.workflows?.case;
       if (!wf) return;
-      markWorkflowTopologyEdited(wf);
-      wf.nodes = wf.nodes.filter((n) => n.id !== id);
-      wf.edges = wf.edges.filter((e) => e.from !== id && e.to !== id);
+      wf.isTemplate = false;
+      wf.topologyCustomized = true;
+      wf.nodes = (wf.nodes || []).filter((n) => n.id !== id);
+      wf.edges = (wf.edges || []).filter((e) => e.from !== id && e.to !== id);
       if (selectedWorkflowNodeId.value === id) {
         selectedWorkflowNodeId.value = wf.nodes[0]?.id || null;
         if (selectedWorkflowNodeId.value) {
@@ -8909,112 +8969,29 @@ const appOptions = {
 
     const workflowTestCaseSummary = computed(() => {
       const tc = workflowTestDraft.testCase || {};
-      if (isWorkflowTestCaseCustom(tc) && tc.uploadFileName) return tc.uploadFileName;
       const count = Array.isArray(tc.files) ? tc.files.length : 0;
       return `${tc.caseNo || '—'} · ${tc.caseLabel || '—'} · ${count}${t('件')}`;
     });
 
-    function isWorkflowTestCaseCustom(testCase) {
-      const tc = testCase || {};
-      return tc.source === 'upload' || Boolean(String(tc.uploadFileName || '').trim());
-    }
-
-    const workflowTestIsCustom = computed(() =>
-      isWorkflowTestCaseCustom(workflowTestDraft.testCase));
-
-    const workflowTestBuiltinSample = computed(() => {
-      if (typeof getWorkflowTestSampleList === 'function') {
-        const list = getWorkflowTestSampleList();
-        if (list.length) return list[0];
-      }
-      if (typeof cloneWorkflowTestCaseDefault === 'function') {
-        return cloneWorkflowTestCaseDefault();
-      }
-      return {
-        label: '標準集約済み案件',
-        caseNo: '—',
-        caseLabel: '—',
-        files: [],
-        includes: [],
-      };
-    });
-
-    function ensureFormWorkflowTestCase() {
-      if (typeof normalizeWorkflowTestCase !== 'function') return;
-      form.workflowTestCase = normalizeWorkflowTestCase(form.workflowTestCase);
-    }
-
     function applyWorkflowTestCaseToDraft(testCase) {
-      const normalized = normalizeWorkflowTestCase(testCase);
+      const normalized = typeof normalizeWorkflowTestCase === 'function'
+        ? normalizeWorkflowTestCase(testCase)
+        : testCase;
       workflowTestDraft.testCase = {
         ...normalized,
-        files: normalized.files.map((f) => ({ ...f })),
+        files: (normalized.files || []).map((f) => ({ ...f })),
       };
-    }
-
-    function persistWorkflowTestCase(testCase) {
-      if (typeof normalizeWorkflowTestCase !== 'function') return;
-      form.workflowTestCase = normalizeWorkflowTestCase(
-        JSON.parse(JSON.stringify(testCase)),
-      );
-      form.workflowTestCase.savedAt = Date.now();
-      saveStorage(currentSceneId.value, form);
-      applyWorkflowTestCaseToDraft(form.workflowTestCase);
-      resetWorkflowTestProgress();
-      refreshWorkflowTestRun();
     }
 
     function loadWorkflowTestCaseIntoDraft() {
-      ensureFormWorkflowTestCase();
-      if (!form.workflowTestCase && typeof cloneWorkflowTestCaseDefault === 'function') {
-        form.workflowTestCase = cloneWorkflowTestCaseDefault();
-      }
-      applyWorkflowTestCaseToDraft(form.workflowTestCase || cloneWorkflowTestCaseDefault());
-    }
-
-    async function handleWorkflowTestUpload(event) {
-      const file = event?.target?.files?.[0];
-      if (!file) return;
-      const ext = String(file.name || '').split('.').pop()?.toLowerCase();
-      if (!['zip', 'json'].includes(ext)) {
-        ElementPlus.ElMessage.warning('ZIP または JSON を選択してください');
-        event.target.value = '';
-        return;
-      }
-      let parsed = null;
-      if (ext === 'json') {
-        try {
-          const text = await file.text();
-          parsed = JSON.parse(text);
-        } catch {
-          ElementPlus.ElMessage.warning('JSON の形式が正しくありません');
-          event.target.value = '';
-          return;
-        }
-      }
-      const testCase = typeof buildWorkflowTestCaseFromUpload === 'function'
-        ? buildWorkflowTestCaseFromUpload(file.name, parsed)
-        : normalizeWorkflowTestCase({
-          ...(cloneWorkflowTestCaseDefault?.() || {}),
-          source: 'upload',
-          uploadFileName: file.name,
-        });
-      persistWorkflowTestCase(testCase);
-      workflowTestDraft.samplePanelOpen = true;
-      ElementPlus.ElMessage.success(`テストデータを更新しました：${file.name}`);
-      event.target.value = '';
-    }
-
-    function resetWorkflowTestCaseToDefault() {
       if (typeof cloneWorkflowTestCaseDefault !== 'function') return;
-      persistWorkflowTestCase(cloneWorkflowTestCaseDefault());
-      workflowTestDraft.samplePanelOpen = true;
-      ElementPlus.ElMessage.success(t('テスト用データを初期値に戻しました'));
-    }
-
-    function selectWorkflowTestBuiltinDefault() {
-      if (!workflowTestIsCustom.value) return;
-      resetWorkflowTestCaseToDefault();
+      const builtinCase = cloneWorkflowTestCaseDefault();
+      if (typeof normalizeWorkflowTestCase === 'function') {
+        form.workflowTestCase = normalizeWorkflowTestCase(builtinCase);
+      } else {
+        form.workflowTestCase = builtinCase;
+      }
+      applyWorkflowTestCaseToDraft(form.workflowTestCase);
     }
 
     function openWorkflowTestDialog() {
@@ -9351,10 +9328,12 @@ const appOptions = {
       }
       syncMasterMatchNodesFromSceneMaster();
       initWorkflowHistory('初期状態');
-      // 确保 workflow layout 只在 mount 时执行一次（不能在 computed 内执行写操作）
       const _wfCase = form.workflows?.case;
-      if (_wfCase && (!_wfCase.layoutVersion || _wfCase.layoutVersion < 10)) {
-        layoutWorkflowGraph(_wfCase);
+      if (_wfCase && needsCanonicalCaseWorkflowLayout(_wfCase)) {
+        applyCanonicalCaseWorkflowLayout(_wfCase);
+        if (typeof saveStorage === 'function') {
+          saveStorage(currentSceneId.value, form);
+        }
       }
       if (workflowSetupStep.value === 2) enterWorkflowCanvasView();
       nextTick(() => {
@@ -9394,11 +9373,6 @@ const appOptions = {
       workflowTestTimelineRef,
       workflowTestDraft,
       workflowTestCaseSummary,
-      workflowTestIsCustom,
-      workflowTestBuiltinSample,
-      handleWorkflowTestUpload,
-      resetWorkflowTestCaseToDefault,
-      selectWorkflowTestBuiltinDefault,
       workflowTestStepRows,
       localizedWorkflowTestStepRows,
       workflowTestSummary,

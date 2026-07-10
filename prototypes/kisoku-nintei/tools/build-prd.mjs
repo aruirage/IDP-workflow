@@ -1,10 +1,11 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const MD_PATH = path.join(ROOT, 'PRD.zh-CN.md');
 const OUT_DIR = path.join(ROOT, 'prd-public');
 const OUT_PATH = path.join(OUT_DIR, 'index.html');
+const HEADERS_PATH = path.join(ROOT, 'tools', '_headers');
 
 function escapeHtml(text) {
   return text
@@ -512,4 +513,5 @@ ${content}
 const md = await readFile(MD_PATH, 'utf8');
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(OUT_PATH, buildHtml(md), 'utf8');
+await copyFile(HEADERS_PATH, path.join(OUT_DIR, '_headers'));
 console.log(`PRD site written to ${OUT_PATH}`);

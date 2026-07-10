@@ -1647,14 +1647,10 @@ const WORKFLOW_TEST_SAMPLES = {
     id: 'custom',
     label: 'ユーザーアップロード',
     fixtureName: '',
-    description: 'アップロードした集約済みテストデータを入力前提として使用します（本プロトタイプはファイル内容を解析せず mock 実行）。',
-    includes: [
-      '形式：ZIP / JSON（集約済み案件スナップショット）',
-      'トリガー種別・案件情報はファイル内メタデータから取得（実装時）',
-    ],
-    expectedOutcome: 'テスト成功（終了ノード到達）',
+    description: '第一期では未提供。内蔵の標準集約済み案件スナップショットのみ使用します。',
+    includes: [],
     caseNo: '—',
-    caseLabel: 'アップロード案件',
+    caseLabel: '—',
     triggerType: '新規起動',
     fileCount: 0,
     files: [],
@@ -1693,41 +1689,17 @@ function cloneWorkflowTestCaseDefault() {
   };
 }
 
-function buildWorkflowTestCaseFromUpload(fileName, parsed = null) {
-  const base = parsed && typeof parsed === 'object'
-    ? parsed
-    : cloneWorkflowTestCaseDefault();
-  const normalized = normalizeWorkflowTestCase({
-    ...base,
-    source: 'upload',
-    uploadFileName: fileName,
-    caseLabel: parsed?.caseLabel || fileName.replace(/\.(zip|json)$/i, '') || base.caseLabel,
-  });
-  normalized.source = 'upload';
-  normalized.uploadFileName = fileName;
-  return normalized;
-}
-
 function normalizeWorkflowTestCase(raw) {
   const def = cloneWorkflowTestCaseDefault();
-  if (!raw || typeof raw !== 'object') return def;
-  const triggerType = normalizeWorkflowTestTriggerType(raw.triggerType || raw.triggerEvent, def.triggerType);
-  const files = Array.isArray(raw.files) && raw.files.length
-    ? raw.files.map((f) => ({
-        name: String(f?.name || '').trim() || 'document.pdf',
-        docType: String(f?.docType || 'その他').trim() || 'その他',
-        role: WORKFLOW_TEST_FILE_ROLES.includes(f?.role) ? f.role : '関連帳票',
-      }))
-    : def.files.map((f) => ({ ...f }));
   return {
-    label: String(raw.label || def.label).trim() || def.label,
-    caseNo: String(raw.caseNo || def.caseNo).trim() || def.caseNo,
-    caseLabel: String(raw.caseLabel || def.caseLabel).trim() || def.caseLabel,
-    triggerType,
-    files,
-    source: raw.source === 'upload' ? 'upload' : 'builtin',
-    uploadFileName: String(raw.uploadFileName || '').trim(),
-    savedAt: raw.savedAt || null,
+    label: def.label,
+    caseNo: def.caseNo,
+    caseLabel: def.caseLabel,
+    triggerType: def.triggerType,
+    files: def.files.map((f) => ({ ...f })),
+    source: 'builtin',
+    uploadFileName: '',
+    savedAt: null,
   };
 }
 
@@ -1749,9 +1721,7 @@ function buildWorkflowTestInputContext(testCase) {
   return {
     ...tc,
     fileCount: tc.files.length,
-    description: tc.source === 'upload' && tc.uploadFileName
-      ? `アップロードした「${tc.uploadFileName}」をテスト入力として使用します。`
-      : '内蔵の集約済み案件スナップショットをテスト入力として使用します。',
+    description: '内蔵の集約済み案件スナップショットをテスト入力として使用します。',
     scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
   };
 }

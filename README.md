@@ -23,12 +23,14 @@ npm run serve:prd
 
 浏览器打开 http://127.0.0.1:4176/
 
-Netlify 部署（PRD 站点）：
+Netlify 部署（同一 Git 仓库 · 两个站点）：
 
-- Base directory：`prototypes/kisoku-nintei`
-- Build command：`npm run build:prd`
-- Publish directory：`prd-public`
-- 配置文件：`prd-netlify.toml`（在 Netlify 站点设置中指定该文件，或重命名为该站点的 `netlify.toml`）
+| 站点 | Config file | Publish directory | 说明 |
+|------|-------------|-------------------|------|
+| 原型 | `netlify.toml` | `public` | 工作流画布高保真原型 |
+| PRD | `netlify-prd.toml` | `prd-public` | PRD 评审 HTML |
+
+两个站点均 **Import 同一仓库**；在各自站点的 **Build settings → Config file** 中指定上表对应文件即可。Base directory 已写在配置里（`prototypes/kisoku-nintei`），无需再填。
 
 ## 目录
 

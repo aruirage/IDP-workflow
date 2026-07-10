@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '584-hitl-ports-outside';
+const PROTOTYPE_BUILD = '592-ensure-end-node';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -132,9 +132,10 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 19;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 21;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 16;
 const WF_LAYOUT_PAD = { x: 48, y: 160 };
-const WF_BRANCH_LANE_GAP = 56;
+const WF_BRANCH_LANE_GAP = 88;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
@@ -3498,16 +3499,18 @@ function buildMinimalCaseWorkflow() {
     id: 'wf-start',
     type: 'start',
     label: getWorkflowNodeMeta('start').title,
-    x: 40,
-    y: 200,
+    x: WF_LAYOUT_PAD.x,
+    y: WF_LAYOUT_PAD.y,
     isStart: true,
   });
   const wf = {
     nodes: [start],
     edges: [],
     startNodeId: start.id,
-    layoutVersion: 4,
+    layoutVersion: 12,
     templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+    isTemplate: true,
+    topologyCustomized: false,
   };
   layoutWorkflowGraph(wf);
   return wf;
@@ -3781,6 +3784,7 @@ function hasCanonicalDefaultCaseWorkflowNodes(workflow) {
 }
 
 function isDefaultCaseWorkflowTemplate(workflow) {
+  if (workflow?.topologyCustomized) return false;
   return hasCanonicalDefaultCaseWorkflowNodes(workflow)
     && workflow?.templateVersion === CASE_WORKFLOW_TEMPLATE_VERSION;
 }
@@ -3805,18 +3809,24 @@ function markWorkflowTopologyEdited(workflow) {
 function shouldMigrateCaseWorkflowToDefault(workflow) {
   if (!workflow?.nodes?.length) return true;
   if (workflow.topologyCustomized) return false;
-  if (isMinimalPlaceholderCaseWorkflow(workflow)) return true;
   if (isDefaultCaseWorkflowTemplate(workflow)) return false;
+  if (isMinimalPlaceholderCaseWorkflow(workflow)) return true;
+  if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) {
+    return !workflow.templateVersion || workflow.templateVersion < CASE_WORKFLOW_TEMPLATE_VERSION;
+  }
   if (isLegacyCaseWorkflowTemplate(workflow)) return true;
   if (isPreviousV6CaseWorkflowTemplate(workflow)) return true;
   if (!workflow.templateVersion || workflow.templateVersion < CASE_WORKFLOW_TEMPLATE_VERSION) return true;
   if (workflow.isTemplate) return true;
   const matchedDefaultIds = DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS
     .filter((id) => (workflow.nodes || []).some((node) => node.id === id));
-  if (matchedDefaultIds.length > 0 && matchedDefaultIds.length < DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS.length) {
+  if (workflow.isTemplate
+    && matchedDefaultIds.length > 0
+    && matchedDefaultIds.length < DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS.length) {
     return true;
   }
-  if (workflowHasTemplateNodeIds(workflow, DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS)
+  if (workflow.isTemplate
+    && workflowHasTemplateNodeIds(workflow, DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS)
     && !hasCanonicalDefaultCaseWorkflowNodes(workflow)) {
     return true;
   }
@@ -3856,8 +3866,8 @@ function ensureFormWorkflows(form, { force = false } = {}) {
     if (!force) {
       if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
         form.workflows.case = buildDefaultCaseWorkflow();
-      } else if (!form.workflows.case.layoutVersion || form.workflows.case.layoutVersion < 10) {
-        layoutWorkflowGraph(form.workflows.case);
+      } else if (needsCanonicalCaseWorkflowLayout(form.workflows.case)) {
+        applyCanonicalCaseWorkflowLayout(form.workflows.case);
       }
       return;
     }
@@ -4011,6 +4021,20 @@ function migrateEnsureTerminalNodes(workflow) {
         approveEdge.to = endId;
       }
     }
+  }
+
+  if (!endNode && isStraightCaseWorkflowLayoutTarget(workflow)) {
+    const anchor = workflow.nodes.find((n) => n.id === 'wf-n-ok')
+      || workflow.nodes.find((n) => n.id === 'wf-hu-final')
+      || workflow.nodes.find((n) => n.type === 'notify');
+    const endId = workflow.nodes.some((n) => n.id === 'wf-end') ? `wf-end-${Date.now()}` : 'wf-end';
+    endNode = createTerminalWorkflowNode(
+      'end',
+      endId,
+      (anchor?.x || WF_LAYOUT_PAD.x) + 280,
+      anchor?.y ?? WF_LAYOUT_PAD.y,
+    );
+    workflow.nodes.push(endNode);
   }
 
   workflow.nodes.forEach((n) => {
@@ -4279,11 +4303,7 @@ function isValidWorkflowConnect(from, to, branch) {
 
 function normalizeWorkflowEdgeRoute(workflow, edge) {
   if (!edge || !workflow) return edge;
-  if (isWorkflowBackflowEdge(workflow, edge.from, edge.to, edge)) {
-    edge.route = 'top';
-  } else if (edge.route === 'top') {
-    delete edge.route;
-  }
+  if (edge.route === 'top') delete edge.route;
   return edge;
 }
 
@@ -4483,74 +4503,112 @@ function resolveWorkflowBranchOverlaps(branchNodes, sizes) {
     const cur = sorted[i];
     const prevSize = sizes.get(prev.id);
     const curSize = sizes.get(cur.id);
-    const overlapX = Math.abs(cur.x - prev.x) < Math.max(prevSize.w, curSize.w) * 0.85;
-    const minY = prev.y + prevSize.h + 24;
+    const overlapX = Math.abs(cur.x - prev.x) < Math.max(prevSize.w, curSize.w) * 0.72;
+    const minY = prev.y + prevSize.h + 32;
     if (overlapX && cur.y < minY) cur.y = minY;
+    if (overlapX && Math.abs(cur.y - prev.y) < 28) {
+      cur.x = prev.x + prevSize.w + 40;
+    }
   }
+}
+
+function isStraightCaseWorkflowLayoutTarget(workflow) {
+  if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) return true;
+  const ids = new Set((workflow?.nodes || []).map((node) => node.id));
+  const coreIds = [
+    'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+    'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
+  ];
+  if (!coreIds.every((id) => ids.has(id))) return false;
+  return ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].some((id) => ids.has(id));
+}
+
+function needsCanonicalCaseWorkflowLayout(workflow) {
+  if (!isStraightCaseWorkflowLayoutTarget(workflow)) return false;
+  if (!workflow.nodes.some((n) => n.type === 'end')) return true;
+  return !workflow.layoutVersion || workflow.layoutVersion < CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
+}
+
+function ensureCanonicalCaseWorkflowEndNode(workflow) {
+  if (!workflow?.nodes?.length || !isStraightCaseWorkflowLayoutTarget(workflow)) return null;
+  let endNode = workflow.nodes.find((n) => n.type === 'end');
+  if (!endNode) {
+    const endId = workflow.nodes.some((n) => n.id === 'wf-end') ? `wf-end-${Date.now()}` : 'wf-end';
+    endNode = createTerminalWorkflowNode('end', endId, WF_LAYOUT_PAD.x, WF_LAYOUT_PAD.y);
+    workflow.nodes.push(endNode);
+  }
+  workflow.edges = workflow.edges || [];
+  const endId = endNode.id;
+  ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].forEach((fromId) => {
+    if (!workflow.nodes.some((n) => n.id === fromId)) return;
+    if (!workflow.edges.some((e) => e.from === fromId && e.to === endId)) {
+      workflow.edges.push({ from: fromId, to: endId });
+    }
+  });
+  return endNode;
+}
+
+function applyCanonicalCaseWorkflowLayout(workflow) {
+  if (!isStraightCaseWorkflowLayoutTarget(workflow)) return workflow;
+  migrateEnsureTerminalNodes(workflow);
+  ensureCanonicalCaseWorkflowEndNode(workflow);
+  layoutWorkflowGraph(workflow);
+  workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
+  return workflow;
 }
 
 function layoutStraightCaseWorkflow(workflow, sizes) {
   const nodes = workflow?.nodes || [];
-  if (!workflowHasTemplateNodeIds(workflow, STRAIGHT_CASE_WORKFLOW_NODE_IDS)) return false;
-  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  if (!isStraightCaseWorkflowLayoutTarget(workflow)) return false;
+  ensureCanonicalCaseWorkflowEndNode(workflow);
+  const byId = Object.fromEntries(workflow.nodes.map((node) => [node.id, node]));
   const mainIds = [
     'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
     'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
-  ];
-  const endId = 'wf-end';
-  const laneGap = 142;
-  const stepGap = 72;
-  const branchPlacements = [
-    { id: 'wf-n-ok', lane: -1 },
-    { id: 'wf-n-supp', lane: 0 },
-    { id: 'wf-n-error', lane: 1 },
-  ];
+  ].filter((id) => byId[id]);
+  const notifyIds = ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].filter((id) => byId[id]);
+  const stepGap = WF_NODE_GAP;
+  const notifyLaneGap = WF_BRANCH_LANE_GAP;
+  const rowY = WF_LAYOUT_PAD.y;
   let x = WF_LAYOUT_PAD.x;
-  const y = WF_LAYOUT_PAD.y;
+  let mainMaxH = 76;
+
   mainIds.forEach((id) => {
     const node = byId[id];
-    if (!node) return;
     const size = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
     node.x = x;
-    node.y = y + Math.round((76 - Math.min(76, size.h)) / 2);
+    node.y = rowY;
+    mainMaxH = Math.max(mainMaxH, size.h);
     x += size.w + stepGap;
   });
-  const resultDecision = byId['wf-hu-final'];
-  const resultSize = resultDecision
-    ? (sizes.get(resultDecision.id) || getWorkflowNodeLayoutSize(resultDecision))
-    : null;
-  const terminalX = resultDecision && resultSize
-    ? resultDecision.x + resultSize.w + stepGap
-    : x + stepGap;
-  branchPlacements.forEach((placement) => {
-    const node = byId[placement.id];
-    if (!node) return;
-    const nodeSize = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
-    node.x = terminalX;
-    node.y = y + placement.lane * laneGap + Math.round((76 - Math.min(76, nodeSize.h)) / 2);
+
+  const notifyColumnX = x;
+  const notifyNodes = notifyIds.map((id) => {
+    const size = sizes.get(id) || getWorkflowNodeLayoutSize(byId[id]);
+    return { id, size };
   });
-  const endNode = byId[endId];
+  const stackHeight = notifyNodes.reduce(
+    (total, item, index) => total + item.size.h + (index > 0 ? notifyLaneGap : 0),
+    0,
+  );
+  let notifyY = rowY + Math.max(0, Math.round((mainMaxH - stackHeight) / 2));
+  let maxNotifyRight = notifyColumnX;
+  notifyNodes.forEach((item) => {
+    const node = byId[item.id];
+    node.x = notifyColumnX;
+    node.y = notifyY;
+    maxNotifyRight = Math.max(maxNotifyRight, node.x + item.size.w);
+    notifyY += item.size.h + notifyLaneGap;
+  });
+
+  const endNode = workflow.nodes.find((n) => n.type === 'end');
   if (endNode) {
     const endSize = sizes.get(endNode.id) || getWorkflowNodeLayoutSize(endNode);
-    const terminalIds = branchPlacements.map((item) => item.id);
-    const maxTerminalRight = Math.max(
-      ...terminalIds
-        .map((id) => byId[id])
-        .filter(Boolean)
-        .map((node) => node.x + (sizes.get(node.id) || getWorkflowNodeLayoutSize(node)).w),
-      x,
-    );
-    endNode.x = maxTerminalRight + stepGap;
-    endNode.y = y + Math.round((76 - Math.min(76, endSize.h)) / 2);
+    endNode.x = (notifyNodes.length ? maxNotifyRight : x) + stepGap;
+    endNode.y = rowY + Math.max(0, Math.round((mainMaxH - endSize.h) / 2));
   }
-  nodes
-    .filter((node) => !mainIds.includes(node.id) && node.id !== endId && !branchPlacements.some((item) => item.id === node.id))
-    .forEach((node, idx) => {
-      const size = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
-      node.x = x + idx * (size.w + stepGap);
-      node.y = y + laneGap;
-    });
-  workflow.layoutVersion = 10;
+
+  workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
   return true;
 }
 
@@ -4633,7 +4691,7 @@ function layoutWorkflowGraph(workflow) {
     endNode.y = mainY + Math.round((mainH - sizes.get(endNode.id).h) / 2);
   }
 
-  workflow.layoutVersion = 10;
+  workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
   return workflow;
 }
 

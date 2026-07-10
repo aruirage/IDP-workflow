@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=594" />
+  <link rel="stylesheet" href="style.css?v=596" />
 </head>
 <body>
   <div id="app">
@@ -892,7 +892,7 @@
                       v-if="node.type === 'start' && isWorkflowTopologyEditable"
                       type="button"
                       class="wf-node-add-btn wf-node-add-btn--out wf-node-add-btn--start-connect"
-                      title="後にノードを追加 / ドラッグして接続"
+                      title="クリックでノード追加、ドラッグで接続"
                       @click.stop="onWfNodeAddOutClick(node, $event)"
                       @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
                     >+</button>
@@ -1061,7 +1061,7 @@
                       class="wf-node-add-btn wf-node-add-btn--branch"
                       :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
                       :style="getHitlGatePortStyle(node, branch.key)"
-                      :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
+                      :title="getHitlGateBranchCanvasLabel(branch.key) + '：クリックで追加、ドラッグで接続'"
                       @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
                     >+</button>
                   </template>
@@ -1115,7 +1115,7 @@
                       v-else-if="showWfNodeAddBtn(node)"
                       type="button"
                       class="wf-node-add-btn wf-node-add-btn--out"
-                      title="後にノードを追加 / ドラッグして接続"
+                      title="クリックでノード追加、ドラッグで接続"
                       @click.stop="onWfNodeAddOutClick(node, $event)"
                       @mousedown.stop="onWfConnectHandleDown($event, node, null, 'out')"
                     >+</button>
@@ -2229,11 +2229,6 @@
       destroy-on-close
     >
       <div class="wf-test-toolbar">
-        <el-button
-          v-if="workflowTestIsCustom"
-          :disabled="workflowTestRunning"
-          @click="resetWorkflowTestCaseToDefault"
-        >{{ t('初期値に戻す') }}</el-button>
         <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
           {{ workflowTestRunning ? '実行中…' : 'テスト実行' }}
         </el-button>
@@ -2260,7 +2255,7 @@
               <div class="wf-test-sample-default">
                 <div class="wf-test-sample-default-head">
                   <strong>{{ t(workflowTestDraft.testCase.label) }}</strong>
-                  <span v-if="workflowTestIsCustom" class="wf-test-sample-badge">{{ t('アップロード') }}</span>
+                  <span class="wf-test-sample-badge is-readonly">{{ t('読み取り専用') }}</span>
                 </div>
                 <p class="wf-test-sample-meta">
                   {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
@@ -2273,17 +2268,8 @@
                     {{ file.name }} · {{ file.docType }} · {{ t(file.role) }}
                   </li>
                 </ul>
+                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。') }}</p>
               </div>
-              <p class="wf-test-sample-divider">{{ t('または') }}</p>
-              <label class="wf-test-upload-zone wf-test-upload-zone--compact">
-                <input type="file" accept=".zip,.json,application/zip,application/json" class="wf-test-file-input" @change="handleWorkflowTestUpload">
-                <strong>{{ t('集約済みテストデータをアップロード') }}</strong>
-                <span>{{ t('ZIP / JSON（集約済みスナップショット）· クリックして選択') }}</span>
-                <span class="wf-test-upload-format-note">{{ t('直接アップロードは ZIP / JSON のみ。個別 PDF・TIFF・フォルダは不可（集約済みスナップショット内の帳票 PDF は含まれます）') }}</span>
-              </label>
-              <p v-if="workflowTestIsCustom && workflowTestDraft.testCase.uploadFileName" class="wf-test-upload-meta">
-                <span>{{ workflowTestDraft.testCase.uploadFileName }}</span>
-              </p>
             </div>
           </section>
 
@@ -2706,9 +2692,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=594"></script>
-  <script src="scripts/mock-data.js?v=594"></script>
-  <script src="scripts/scene-config.js?v=594"></script>
-  <script src="main.js?v=594"></script>
+  <script src="scripts/workflow-core.js?v=596"></script>
+  <script src="scripts/mock-data.js?v=596"></script>
+  <script src="scripts/scene-config.js?v=596"></script>
+  <script src="main.js?v=596"></script>
 </body>
 </html>
