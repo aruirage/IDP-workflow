@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '575-dify-curves-inline-hitl-branches';
+const PROTOTYPE_BUILD = '584-hitl-ports-outside';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -72,7 +72,7 @@ const INSPECTOR_HINTS = {
   nodeOutputPreprocess: '前処理総状態・成功/失敗件数・人工確認要否・処理済みファイル・分類警告。',
   nodeOutputOcr: 'OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。',
   nodeOutputVerify: 'AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。',
-  nodeOutputStart: 'Workflow 入口の案件基礎情報・起動イベント・ルーティング段階・待処理ファイル範囲・帳票タイプ一覧。',
+  nodeOutputStart: 'Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル範囲・帳票タイプ一覧。',
   nodeOutputEnd: '分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。',
   nodeOutputHitl: '人工確認タスク・缓冲等待状態・open 待办数・待確認ファイル/フィールド件数・確認結果・補件/異常判定。',
   nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。',
@@ -94,21 +94,21 @@ const INSPECTOR_HINTS = {
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
-  hitlGate: '案件レベルの人工確認タスクを生成します。コンテキストと審査ロールを指定し、3 つの出口から下流を接続してください。',
-  hitlContext: '確認タイプ：前処理確認 / OCR 結果確認 / AI 検証確認。同一タイプは Workflow 内で最大 1 件。',
+  hitlGate: '案件レベルの人工確認タスクを生成します。審査ロールを指定し、完成・補件・案件終止の 3 出口から下流を接続してください。確認対象は上流ノードから自動判定されます。',
+  hitlContext: '前処理・OCR 抽出・AI 検証の直後に接続すると、確認対象が自動判定されます。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
   decisionOutputVar: '分岐名は後続ノードの条件式で参照できます。',
   fraudDetect: '画像の PS 痕跡・改ざんの有無を判定します。画像リスクスコアが閾値以上の場合、条件分岐または人工確認へ送ります。',
   notify: '不備通知・処理完了通知・異常通知を送信します。通知ノードは案件状態を更新せず、停止も制御しません。',
-  startTriggers: 'Workflow 入口。起動イベントはシステムが案件ルーティング結果に応じて自動設定します（読み取り専用）。',
-  startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件集約・ルーティング完了後に開始します。',
+  startTriggers: 'Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。',
+  startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件集約完了後、または補件後に開始・続行します。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
   notifyRecipients: 'システム通知の場合は通知先ロールを選択します。メールの場合は宛先アドレスを指定します。',
   notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
-  code: 'Python スクリプトで上流変数を加工し、後続ノードへ結果を渡します。入力パラメータ・戻り値の定義は本パネルで設定します。',
-  codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」からパラメータを登録できます。',
+  code: 'Python スクリプトで上流変数を加工し、後続ノードへ結果を渡します。入力変数・出力変数の定義は本パネルで設定します。',
+  codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」から変数を登録できます。',
   codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は {ノード変数名.result} へ格納されます。',
   codeReturn: 'OFF の場合、ユーザー定義の戻り値は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。',
   codeOutput: 'スクリプト戻り値の各項目名とデータ型を定義します。後続ノードでは {ノード変数名.項目名} 形式で参照できます。',
@@ -286,10 +286,60 @@ const WORKFLOW_INSPECTOR_MAP = {
   code: 'code',
 };
 
-const CASE_WORKFLOW_TRIGGER_EVENTS = [
-  { value: 'CASE_AGGREGATED', label: '案件集約完了', desc: '新規アップロードから案件が生成された' },
-  { value: 'SUPPLEMENT_LINKED', label: '補件紐付け完了', desc: '案件入口アップロード、または待ちファイルから既存案件へ紐付いた' },
-  { value: 'REPROCESS', label: '再処理', desc: '手動またはシステムからの再実行要求' },
+const CASE_WORKFLOW_START_TRIGGERS = [
+  {
+    id: 'new_case_start',
+    category: '案件集約',
+    label: '新規起動',
+    detail: '案件集約完了後、新規案件としてワークフローインスタンスを起動',
+    triggerType: '新規起動',
+  },
+  {
+    id: 'resume',
+    category: '補件・帰属',
+    label: '続行',
+    detail: '補件归入・補件直掛・後続ファイル归入後、既存インスタンスを続行',
+    triggerType: '続行',
+  },
+  {
+    id: 'reexecute',
+    category: '処理中止',
+    label: '再実行',
+    detail: '処理中止案件が現行ワークフロー版で再実行されたとき、新規インスタンスを起動',
+    triggerType: '再実行',
+  },
+];
+
+const CASE_WORKFLOW_START_TRIGGER_IDS = new Set(
+  CASE_WORKFLOW_START_TRIGGERS.map((trigger) => trigger.id),
+);
+
+const CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP = {
+  initial_upload: 'new_case_start',
+  cross_batch_upload: 'resume',
+  auto_supplement_bind: 'resume',
+  manual_supplement_link: 'resume',
+};
+
+const CASE_WORKFLOW_LEGACY_ROUTING_EVENT_TO_TRIGGER_IDS = {
+  CASE_AGGREGATED: ['new_case_start'],
+  SUPPLEMENT_LINKED: ['resume'],
+};
+
+/** @deprecated migrated to acceptedTriggers */
+const CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS = {
+  AWAITING_SUPPLEMENT: ['resume'],
+  SUPPLEMENT_RECEIVED: ['resume'],
+  SUPPLEMENT: ['resume'],
+  NEW: ['new_case_start'],
+  NEW_CASE: ['new_case_start'],
+};
+
+const WORKFLOW_END_OUTCOMES = [
+  { key: 'branchStatus', label: '分岐ステータス', value: '完了', hint: 'この Workflow 分岐の終了結果' },
+  { key: 'caseStatus', label: '案件状態', value: '処理完了', hint: '案件状態机への提案値' },
+  { key: 'finalResult', label: '最終処理結果', value: '正常完了', hint: '正常完了 / 補件待ち / 異常 / 中止' },
+  { key: 'hasOpenItems', label: '未完了事項あり', value: 'いいえ', hint: '未完了ファイル・フィールド・待办の有無' },
 ];
 
 const START_SUPPLEMENT_REPLAY_MODES = [
@@ -301,18 +351,6 @@ const START_DUPLICATE_POLICIES = [
   { value: 'ignore_running', label: '処理中は起動しない' },
   { value: 'queue', label: '順番に実行' },
 ];
-
-/** @deprecated migrated to CASE_WORKFLOW_TRIGGER_EVENTS */
-const CASE_WORKFLOW_LEGACY_STATUS_TO_EVENT = {
-  AWAITING_SUPPLEMENT: 'SUPPLEMENT_LINKED',
-  SUPPLEMENT_RECEIVED: 'SUPPLEMENT_LINKED',
-  SUPPLEMENT: 'SUPPLEMENT_LINKED',
-  NEW: 'CASE_AGGREGATED',
-  NEW_CASE: 'CASE_AGGREGATED',
-  DEFICIENCY_REVIEW: 'REPROCESS',
-  DEFICIENCY: 'REPROCESS',
-  PROCESSING: 'REPROCESS',
-};
 
 const WORKFLOW_SCHEDULE_MODES = [
   { value: 'fixed', label: '固定時刻' },
@@ -327,26 +365,31 @@ const WORKFLOW_INTERVAL_UNITS = [
 
 function getDefaultStartTriggerConfig() {
   return {
-    caseEvents: ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'],
+    acceptedTriggers: [...CASE_WORKFLOW_START_TRIGGER_IDS],
     supplementReplayMode: 'restart_to_verify',
     duplicatePolicy: 'ignore_running',
     schedule: null,
   };
 }
 
-function migrateCaseEventsFromRaw(raw) {
+function migrateAcceptedTriggersFromRaw(raw) {
+  if (Array.isArray(raw?.acceptedTriggers)) {
+    return [...new Set(raw.acceptedTriggers
+      .map((id) => CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP[id] || id)
+      .filter((id) => CASE_WORKFLOW_START_TRIGGER_IDS.has(id)))];
+  }
   const legacyStatuses = Array.isArray(raw?.caseStatuses) ? raw.caseStatuses : [];
-  const directEvents = Array.isArray(raw?.caseEvents) ? raw.caseEvents : [];
+  const legacyEvents = Array.isArray(raw?.caseEvents) ? raw.caseEvents : [];
   const merged = [
-    ...directEvents.map((e) => CASE_WORKFLOW_LEGACY_STATUS_TO_EVENT[e] || e),
-    ...legacyStatuses.map((s) => CASE_WORKFLOW_LEGACY_STATUS_TO_EVENT[s] || s),
+    ...legacyEvents.flatMap((event) => CASE_WORKFLOW_LEGACY_ROUTING_EVENT_TO_TRIGGER_IDS[event] || []),
+    ...legacyStatuses.flatMap((status) => CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS[status] || []),
   ];
-  return [...new Set(merged.filter((e) => CASE_WORKFLOW_TRIGGER_EVENTS.some((o) => o.value === e)))];
+  return [...new Set(merged.filter((id) => CASE_WORKFLOW_START_TRIGGER_IDS.has(id)))];
 }
 
 function normalizeStartTriggerConfig(raw) {
   if (!raw || typeof raw !== 'object') return getDefaultStartTriggerConfig();
-  const caseEvents = migrateCaseEventsFromRaw(raw);
+  const acceptedTriggers = migrateAcceptedTriggersFromRaw(raw);
   let schedule = null;
   if (raw.schedule && typeof raw.schedule === 'object') {
     const mode = raw.schedule.mode === 'interval' ? 'interval' : 'fixed';
@@ -360,22 +403,22 @@ function normalizeStartTriggerConfig(raw) {
         : 'minutes',
     };
   }
-  const cfg = { caseEvents, schedule };
+  const cfg = { acceptedTriggers, schedule };
   cfg.supplementReplayMode = START_SUPPLEMENT_REPLAY_MODES.some((m) => m.value === raw.supplementReplayMode)
     ? raw.supplementReplayMode
     : 'restart_to_verify';
   cfg.duplicatePolicy = START_DUPLICATE_POLICIES.some((p) => p.value === raw.duplicatePolicy)
     ? raw.duplicatePolicy
     : 'ignore_running';
-  if (!cfg.caseEvents.length && !cfg.schedule) {
-    cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'];
+  if (!cfg.acceptedTriggers.length && !cfg.schedule) {
+    cfg.acceptedTriggers = [...CASE_WORKFLOW_START_TRIGGER_IDS];
   }
   return cfg;
 }
 
 function migrateLegacyStartTriggers(triggers) {
   const cfg = {
-    caseEvents: [],
+    acceptedTriggers: [],
     supplementReplayMode: 'restart_to_verify',
     duplicatePolicy: 'ignore_running',
     schedule: null,
@@ -384,11 +427,13 @@ function migrateLegacyStartTriggers(triggers) {
   triggers.forEach((t) => {
     if (t.enabled === false) return;
     if (t.type === 'intake') {
-      if (!cfg.caseEvents.includes('CASE_AGGREGATED')) cfg.caseEvents.push('CASE_AGGREGATED');
+      if (!cfg.acceptedTriggers.includes('new_case_start')) cfg.acceptedTriggers.push('new_case_start');
     }
     if (t.type === 'case_status' && t.caseStatus) {
-      const mapped = CASE_WORKFLOW_LEGACY_STATUS_TO_EVENT[t.caseStatus] || t.caseStatus;
-      if (!cfg.caseEvents.includes(mapped)) cfg.caseEvents.push(mapped);
+      const mapped = CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS[t.caseStatus] || [];
+      mapped.forEach((id) => {
+        if (!cfg.acceptedTriggers.includes(id)) cfg.acceptedTriggers.push(id);
+      });
     }
     if (t.type === 'schedule') {
       cfg.schedule = {
@@ -400,7 +445,9 @@ function migrateLegacyStartTriggers(triggers) {
       };
     }
   });
-  if (!cfg.caseEvents.length && !cfg.schedule) cfg.caseEvents = ['CASE_AGGREGATED', 'SUPPLEMENT_LINKED'];
+  if (!cfg.acceptedTriggers.length && !cfg.schedule) {
+    cfg.acceptedTriggers = [...CASE_WORKFLOW_START_TRIGGER_IDS];
+  }
   return normalizeStartTriggerConfig(cfg);
 }
 
@@ -419,7 +466,7 @@ function normalizeStartNode(node) {
 }
 
 function getCaseWorkflowEventLabel(event) {
-  return CASE_WORKFLOW_TRIGGER_EVENTS.find((e) => e.value === event)?.label || event;
+  return CASE_WORKFLOW_START_TRIGGERS.find((trigger) => trigger.triggerType === event || trigger.id === event)?.label || event;
 }
 
 function formatScheduleSummary(schedule) {
@@ -435,7 +482,7 @@ function formatScheduleSummary(schedule) {
 }
 
 function isStartCaseEventEnabled(node) {
-  return normalizeStartTriggerConfig(node?.triggerConfig).caseEvents.length > 0;
+  return normalizeStartTriggerConfig(node?.triggerConfig).acceptedTriggers.length > 0;
 }
 
 function normalizeEndNode(node) {
@@ -451,7 +498,7 @@ const WORKFLOW_NODE_META = {
   start: {
     icon: '▶',
     title: '開始',
-    desc: '案件生成・クロスバッチ并入・自動補件紐付けで起動',
+    desc: '案件集約完了後の新規起動、補件・帰属後の続行、処理中止後の再実行',
     tasks: [],
     accent: '#067647',
   },
@@ -528,7 +575,7 @@ const WORKFLOW_NODE_META = {
   hitl_gate: {
     icon: '人',
     title: '人工確認',
-    desc: '確認・修正・承認',
+    desc: '完成・補件・案件終止',
     tasks: [],
     input: 'Process Result',
     output: 'Confirmed',
@@ -676,40 +723,12 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
-const CASE_WORKFLOW_START_TRIGGERS = [
-  {
-    id: 'initial_upload',
-    category: '新規案件',
-    label: '初回アップロード',
-    detail: '案件集約完了後、新規案件として Workflow を開始',
-  },
-  {
-    id: 'cross_batch_merge',
-    category: '既存案件',
-    label: 'クロスバッチ并入',
-    detail: 'Open Case 池へ唯一命中し、既存案件へファイルを并入',
-  },
-  {
-    id: 'auto_supplement_bind',
-    category: '補件',
-    label: '自動補件紐付け',
-    detail: '補件候補池へ唯一命中し、自動で補件ファイルを紐付け',
-  },
-  {
-    id: 'supplement_upload_fallback',
-    category: '補件',
-    label: '補件アップロード（フォールバック）',
-    detail: '案件詳細の補件入口から手動紐付け完了後に開始',
-  },
-];
-
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   start: [
     { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', description: 'Workflow 対象の案件番号' },
     { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', description: 'Step1 で設定した業務シーン名' },
-    { id: 'case.triggerEvent', label: '起動イベント', scope: '案件', type: 'Enum', description: '初回アップロード / クロスバッチ并入 / 自動補件紐付け / 補件アップロード（フォールバック）' },
-    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', description: '処理中・人工確認待処理などユーザー可視状態' },
-    { id: 'case.routingPhase', label: 'ルーティング段階', scope: '案件', type: 'Enum', description: 'pre_ai_verify / post_ai_verify / closed' },
+    { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', description: '新規起動 / 続行 / 再実行' },
+    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', description: '処理中・人工確認・補件などユーザー可視状態' },
     { id: 'case.caseDataVersion', label: '案件データバージョン', scope: '案件', type: 'String', description: '現在処理している案件データ版' },
     { id: 'case.pendingFileCount', label: '待処理ファイル件数', scope: '案件', type: 'Number', description: '今回 Workflow で処理するファイル数' },
     { id: 'case.pendingFileScope', label: '待処理ファイル範囲', scope: '案件', type: 'Array', description: '今回処理対象のファイル ID 一覧' },
@@ -2040,7 +2059,71 @@ function inferJudgmentContext(node) {
   return 'custom';
 }
 
-function inferHitlContext(node) {
+const HITL_UPSTREAM_TYPE_TO_CONTEXT = {
+  preprocess: 'preprocess',
+  ocr: 'ocr',
+  ai_verify: 'verification',
+};
+
+function collectHitlUpstreamSources(workflow, hitlNodeId) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
+  const visited = new Set();
+  const sources = [];
+  const queue = (wf.edges || []).filter((edge) => edge.to === hitlNodeId).map((edge) => edge.from);
+  while (queue.length) {
+    const id = queue.shift();
+    if (!id || visited.has(id)) continue;
+    visited.add(id);
+    const node = nodeMap[id];
+    if (!node) continue;
+    if (node.type === 'decision') {
+      (wf.edges || []).filter((edge) => edge.to === id).forEach((edge) => queue.push(edge.from));
+      continue;
+    }
+    if (node.type === 'hitl_gate') {
+      (wf.edges || []).filter((edge) => edge.to === id).forEach((edge) => queue.push(edge.from));
+      continue;
+    }
+    sources.push(node);
+  }
+  return sources;
+}
+
+function inferHitlContextFromDecision(decisionNode) {
+  const raw = decisionNode?.judgmentContext || decisionNode?.conditionType;
+  const map = {
+    preprocess_hitl: 'preprocess',
+    ocr_hitl: 'ocr',
+    verify_hitl: 'verification',
+    ocr_low_confidence: 'ocr',
+    deficiency_hitl: 'verification',
+  };
+  return map[raw] || '';
+}
+
+function inferHitlContext(node, workflow = null) {
+  if (workflow && node?.id) {
+    const nodeMap = Object.fromEntries((workflow.nodes || []).map((n) => [n.id, n]));
+    const directFromIds = (workflow.edges || [])
+      .filter((edge) => edge.to === node.id)
+      .map((edge) => edge.from);
+    const sources = collectHitlUpstreamSources(workflow, node.id);
+    const priority = ['preprocess', 'ocr', 'ai_verify'];
+    for (let i = 0; i < priority.length; i += 1) {
+      const type = priority[i];
+      if (sources.some((source) => source.type === type)) {
+        return HITL_UPSTREAM_TYPE_TO_CONTEXT[type];
+      }
+    }
+    for (let i = 0; i < directFromIds.length; i += 1) {
+      const direct = nodeMap[directFromIds[i]];
+      if (direct?.type === 'decision') {
+        const hinted = inferHitlContextFromDecision(direct);
+        if (hinted) return hinted;
+      }
+    }
+  }
   if (node?.hitlContext && HITL_CONTEXT_OPTIONS.some((o) => o.value === node.hitlContext)) {
     return node.hitlContext;
   }
@@ -2190,9 +2273,9 @@ function isHitlGateNode(node) {
     || ['ocr_confirm', 'verify_confirm', 'confirm'].includes(node?.type);
 }
 
-function getHitlGatePreset(node) {
+function getHitlGatePreset(node, workflow = null) {
   if (!node) return null;
-  const hitlContext = inferHitlContext(node);
+  const hitlContext = inferHitlContext(node, workflow);
   return getHitlContextMeta(hitlContext);
 }
 
@@ -2220,10 +2303,9 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 
 const HITL_GATE_LAYOUT = {
   minW: 224,
-  headerH: 44,
-  summaryH: 18,
+  headerH: 50,
   bodyPadTop: 4,
-  bodyPadBottom: 6,
+  bodyPadBottom: 8,
   rowGap: 4,
   rowH: 28,
   labelCharW: 14,
@@ -2231,20 +2313,18 @@ const HITL_GATE_LAYOUT = {
 
 function getHitlGateNodeLayoutMetrics(node) {
   const actions = normalizeHitlGateActions(node?.actions);
-  const { minW, headerH, summaryH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW } = HITL_GATE_LAYOUT;
+  const { minW, headerH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW } = HITL_GATE_LAYOUT;
   let maxLabelLen = 0;
   actions.forEach((action) => {
     maxLabelLen = Math.max(maxLabelLen, getHitlGateActionLabel(action).length);
   });
   const cardW = Math.max(minW, 56 + maxLabelLen * labelCharW);
-  const branchCount = actions.length;
-  const branchesBodyH = branchCount > 0
-    ? bodyPadTop + branchCount * rowH + Math.max(0, branchCount - 1) * rowGap
-    : 0;
-  const cardH = headerH + summaryH + branchesBodyH + bodyPadBottom;
+  const branchesH = actions.length * rowH + Math.max(0, actions.length - 1) * rowGap;
+  const shellH = headerH + bodyPadTop + branchesH + bodyPadBottom;
+  const branchStartY = headerH + bodyPadTop;
   const rows = actions.map((action, index) => {
     const yCenter = Math.round(
-      headerH + summaryH + bodyPadTop + index * (rowH + rowGap) + rowH / 2,
+      branchStartY + index * (rowH + rowGap) + rowH / 2,
     );
     return {
       key: action,
@@ -2252,17 +2332,19 @@ function getHitlGateNodeLayoutMetrics(node) {
       label: getHitlGateActionLabel(action),
       yCenter,
       rowH,
-      ratio: yCenter / cardH,
+      ratio: yCenter / shellH,
     };
   });
   return {
     w: cardW,
-    h: cardH,
+    h: shellH,
     cardW,
-    cardH,
+    cardH: shellH,
     headerH,
-    summaryH,
-    branchesBodyH,
+    branchStartY,
+    branchLaneW: 0,
+    branchGapW: 0,
+    branchesH,
     rows,
   };
 }
@@ -2287,10 +2369,9 @@ function isHitlGateBranchNode(node) {
   return isHitlGateNode(node);
 }
 
-function normalizeHitlGateNode(node) {
+function normalizeHitlGateNode(node, workflow = null) {
   if (!isHitlGateNode(node)) return node;
-  const hitlContext = inferHitlContext(node);
-  const meta = getHitlContextMeta(hitlContext);
+  const hitlContext = inferHitlContext(node, workflow);
   return normalizeHitlWaitConfig({
     ...node,
     type: 'hitl_gate',
@@ -2975,7 +3056,8 @@ function inferDecisionConditionValue(condition, decisionCase = null) {
   if (/confirmAction$/.test(variable)) {
     if (branchText.includes('修正')) return 'request_fix';
     if (branchText.includes('補件')) return 'request_supplement';
-    if (branchText.includes('異常')) return 'reject';
+    if (branchText.includes('案件終止') || branchText.includes('異常')) return 'reject';
+    if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
     return 'approve';
   }
   if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
@@ -3641,24 +3723,24 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-pp', to: 'wf-d-pre' },
     { from: 'wf-d-pre', to: 'wf-oc', branch: 'if', label: '通過' },
     { from: 'wf-d-pre', to: 'wf-hu-pre', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '通過' },
-    { from: 'wf-hu-pre', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼', visualHidden: true },
-    { from: 'wf-hu-pre', to: 'wf-n-error', branch: 'reject', label: '異常', visualHidden: true },
+    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-pre', to: 'wf-n-supp', branch: 'request_supplement', label: '補件', visualHidden: true },
+    { from: 'wf-hu-pre', to: 'wf-n-error', branch: 'reject', label: '案件終止', visualHidden: true },
     { from: 'wf-oc', to: 'wf-d-ocr' },
     { from: 'wf-d-ocr', to: 'wf-map', branch: 'if', label: '通過' },
     { from: 'wf-d-ocr', to: 'wf-hu-ocr', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '通過' },
-    { from: 'wf-hu-ocr', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼', visualHidden: true },
-    { from: 'wf-hu-ocr', to: 'wf-n-error', branch: 'reject', label: '異常', visualHidden: true },
+    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-ocr', to: 'wf-n-supp', branch: 'request_supplement', label: '補件', visualHidden: true },
+    { from: 'wf-hu-ocr', to: 'wf-n-error', branch: 'reject', label: '案件終止', visualHidden: true },
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-n-ok', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'elif-deficiency', label: '補件' },
     { from: 'wf-d-final', to: 'wf-n-error', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-final', to: 'wf-n-ok', branch: 'approve', label: '通過' },
-    { from: 'wf-hu-final', to: 'wf-n-supp', branch: 'request_supplement', label: '補件依頼' },
-    { from: 'wf-hu-final', to: 'wf-n-error', branch: 'reject', label: '異常' },
+    { from: 'wf-hu-final', to: 'wf-n-ok', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-final', to: 'wf-n-supp', branch: 'request_supplement', label: '補件' },
+    { from: 'wf-hu-final', to: 'wf-n-error', branch: 'reject', label: '案件終止' },
     { from: 'wf-n-supp', to: 'wf-end' },
     { from: 'wf-n-error', to: 'wf-end' },
     { from: 'wf-n-ok', to: 'wf-end' },

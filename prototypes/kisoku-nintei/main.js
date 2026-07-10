@@ -1,4 +1,4 @@
-const MAIN_BUILD = '575-dify-curves-inline-hitl-branches';
+const MAIN_BUILD = '582-builtin-test-case-upload';
 
 const appOptions = {
   setup() {
@@ -9,7 +9,10 @@ const appOptions = {
     const currentProduct = ref('kisoku');
 
     // Try loading from localStorage first, fall back to default
-    const storedForm = loadSceneFromStorage('2064639102406844416');
+    let storedForm = null;
+    if (typeof loadSceneFromStorage === 'function') {
+      storedForm = loadSceneFromStorage('2064639102406844416');
+    }
     let initialForm;
     try {
       initialForm = normalizeLoadedForm(storedForm) || sceneForm('2064639102406844416');
@@ -37,9 +40,12 @@ const appOptions = {
     const workflowTestDialogVisible = ref(false);
     const workflowTestRunning = ref(false);
     const workflowTestTimelineRef = ref(null);
+    const workflowTestHighlightNodeId = ref(null);
     let workflowTestRunTimer = null;
+    let workflowTestHighlightTimer = null;
     const workflowTestDraft = reactive({
-      caseType: 'normal',
+      samplePanelOpen: false,
+      testCase: cloneWorkflowTestCaseDefault(),
       continueAs: 'approve',
       hasRun: false,
       runningStepId: '',
@@ -150,13 +156,14 @@ const appOptions = {
       ['折りたたむ', '折叠'],
       ['展開', '展开'],
       ['設定参照', '跳转设定'],
-      ['起動タイミング', '启动时机'],
-      ['新規案件', '新建案件'],
-      ['既存案件', '既有案件'],
-      ['初回アップロード', '初次上传'],
-      ['クロスバッチ并入', '跨批次并入'],
-      ['自動補件紐付け', '自动补件绑定'],
-      ['補件アップロード（フォールバック）', '补件上传（兜底）'],
+      ['起動条件', '启动条件'],
+      ['案件集約', '案件集约'],
+      ['補件・帰属', '补件・归属'],
+      ['処理中止', '处理中止'],
+      ['新規起動', '新建启动'],
+      ['続行', '续跑'],
+      ['再実行', '重新执行'],
+      ['トリガー種別', '触发类型'],
       ['通常処理', '通常处理'],
       ['補件処理', '补件处理'],
       ['案件集約完了後', '案件集约完成后'],
@@ -193,6 +200,7 @@ const appOptions = {
       ['アップロードしたファイルを使い、画布上のノード順に実行します。', '使用上传文件，按画布上的节点顺序执行。'],
       ['案件集約完了後、Workflow ノードを順に実行します', '案件集约完成后，按顺序执行 Workflow 节点'],
       ['右側のノードをクリックすると、ここに処理結果を表示します。', '点击右侧节点后，这里显示处理结果。'],
+      ['ノードをクリックすると設定パネルが表示されます。', '点击节点后将显示设置面板。'],
       ['プレビュー — テスト実行後に確定', '预览 — 测试执行后确定'],
       ['アップロード結果', '上传结果'],
       ['ファイル分割結果', '文件分割结果'],
@@ -213,18 +221,17 @@ const appOptions = {
       ['サイズ', '大小'],
       ['信頼度', '置信度'],
       ['参照変数', '参照变量'],
-      ['入力パラメータ', '输入参数'],
-      ['固定入力パラメータ', '固定输入参数'],
+      ['入力変数', '输入变量'],
+      ['固定入力変数', '固定输入变量'],
       ['Python スクリプト', 'Python 脚本'],
-      ['出力パラメータ', '输出参数'],
+      ['出力変数', '输出变量'],
       ['スクリプトへ渡す引数を定義します。参照パラメータまたはカスタム値を選択できます。', '定义传给脚本的参数。可选择参照参数或自定义值。'],
       ['上流ノードの出力変数を JSON として Python 関数へ渡します。', '将上游节点输出变量作为 JSON 传给 Python 函数。'],
       ['必要な固定値だけ追加します。上流変数は上の JSON から参照します。', '只添加必要的固定值。上游变量从上方 JSON 参照。'],
       ['main(inputs) 関数を実装します。', '实现 main(inputs) 函数。'],
       ['戻り値の項目名とデータ型を定義します。', '定义返回值的字段名和数据类型。'],
-      ['入力パラメータがありません', '没有输入参数'],
-      ['固定入力パラメータがありません', '没有固定输入参数'],
-      ['出力パラメータがありません', '没有输出参数'],
+      ['入力変数がありません', '没有输入变量'],
+      ['出力変数がありません', '没有输出变量'],
       ['パラメータ名', '参数名'],
       ['データ型', '数据类型'],
       ['ソース', '来源'],
@@ -473,7 +480,7 @@ const appOptions = {
       ['案件シーン設定に戻る', '返回案件场景设定'],
       ['Workflowに戻る', '返回 Workflow'],
       ['設定を変更', '修改设定'],
-      ['関連を確認', '确认关联'],
+      ['関連チェック', '关联检查'],
       ['確認済みにする', '设为已确认'],
       ['コピーして作成', '复制并创建'],
       ['空白で作成', '空白创建'],
@@ -512,7 +519,7 @@ const appOptions = {
       ['標準値生成ルール', '标准值生成规则'],
       ['必須フィールド、必要書類、テキスト、データ、署名・印鑑検証を業務シーン単位で管理します。', '按业务场景管理必填字段、必要资料、文本、数据、签名・印章校验。'],
       ['AI検証ルール', 'AI 校验规则'],
-      ['起動タイミング', '启动时机'],
+      ['起動条件', '启动条件'],
       ['ワークフローが開始される条件です', 'Workflow 开始的条件'],
       ['読み取り専用', '只读'],
       ['終了情報', '结束信息'],
@@ -619,7 +626,7 @@ const appOptions = {
       ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
       ['出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。', '拖拽输出端口可连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
       ['ファイル分割は他製品の既存ルールをそのまま利用します。本 PRD では再定義しません。Step1 では設定しません。', '文件分割沿用其他产品已有规则，本 PRD 不重复定义，不在 Step1 配置。'],
-      ['跨批次并入', '跨批次并入'],
+      ['跨批次上传', '跨批次上传'],
       ['人工触点去重', '人工触点去重'],
       ['分割规则来源', '分割规则来源'],
       ['通常（単批次）', '通常（单批次）'],
@@ -652,8 +659,8 @@ const appOptions = {
       ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、按文件 OCR 结果。'],
       ['必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。', '必填字段、必要资料、文本、数据、签名盖章校验的集约输出。也可用于通知节点固定变量。'],
       ['AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、补件/人工确认/异常判定、不足资料/项目明细。'],
-      ['Workflow 入口の案件番号・起動イベント・案件データバージョン。', 'Workflow 入口的案件编号、启动事件、案件数据版本。'],
-      ['Workflow 入口の案件基礎情報・起動イベント・ルーティング段階・待処理ファイル範囲・帳票タイプ一覧。', 'Workflow 入口的案件基础信息、启动事件、路由阶段、待处理文件范围、账票类型清单。'],
+      ['Workflow 入口の案件番号・トリガー種別・案件データバージョン。', 'Workflow 入口的案件编号、触发类型、案件数据版本。'],
+      ['Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル範囲・帳票タイプ一覧。', 'Workflow 入口的案件基础信息、触发类型、待处理文件范围、账票类型清单。'],
       ['この分岐の完了状態。案件ライフサイクルの終了は表しません。', '该分支的完成状态，不代表案件生命周期结束。'],
       ['分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。', '分支结束结果、案件状态建议、未完成事项、成果文件状态、执行摘要。'],
       ['生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。', '生成的人工确认任务 ID、确认状态、确认操作、担当角色、人工修正摘要。'],
@@ -666,7 +673,7 @@ const appOptions = {
       ['公開前チェック（本テストでは未シミュレーション）', '发布前检查（本测试未模拟）'],
       ['案件集約：複数候補', '案件集约：多候选'],
       ['集約 warning', '集约 warning'],
-      ['同一識別キーで複数 Open Case 候補に命中。集約ステップ warning、人工確認で归并先を決定。', '同一识别键命中多个 Open Case 候选。集约步骤 warning，需人工确认归并目标。'],
+      ['同一識別キーで複数候補案件に命中。集約ステップ warning、人工確認で归并先を決定。', '同一识别键命中多个候选案件。集约步骤 warning，需人工确认归并目标。'],
       ['OCR：低信頼フィールド', 'OCR：低置信字段'],
       ['失敗・ワークフロー停止', '失败・工作流停止'],
       ['抽出信頼度が閾値未満（例：医療機関名 0.62 < 0.75）。OCR ノード error、以降は未実行。', '抽出置信度低于阈值（例：医疗机构名 0.62 < 0.75）。OCR 节点 error，后续未执行。'],
@@ -701,6 +708,117 @@ const appOptions = {
       ['接続先ノードの入力ポートへドラッグしてください', '请拖拽到目标节点的输入端口'],
       ['この接続は上流への回流です（点線表示）。公開・テスト実行はブロックされません。', '此连接为上游回流（虚线显示），不会阻止发布或测试执行。'],
       ['案件集約完了後、開始ノードから到達可能な順に実行します（環状パス上のノードは初回到達順で表示）', '案件集约完成后，按从起始节点可达顺序执行（环路径上的节点按首次到达顺序展示）'],
+      ['開始ノードから到達可能な順に Workflow ノードを実行します（環状パス上のノードは初回到達順で表示）', '从起始节点起按可达顺序执行 Workflow 节点（环路径上的节点按首次到达顺序展示）'],
+      ['入力前提', '输入前提'],
+      ['選択中の入力前提', '当前选中的输入前提'],
+      ['テスト用データ', '测试数据'],
+      ['案件一覧から集約済み案件を選択してください。案件集約は実行しません。', '请从案件一览选择已集约完成的案件；本测试不执行案件集约。'],
+      ['または', '或'],
+      ['業務シーンを公開すると、集約済み案件を選択できます', '请先发布业务场景，再从案件一览选择已集约案件'],
+      ['業務シーンを公開すると、案件一覧から集約済み案件を選択できます。', '请先发布业务场景，再从案件一览选择已集约案件。'],
+      ['公開後に選択可能', '发布后可选'],
+      ['案件一覧から選択', '从案件一览选择'],
+      ['案件を選択', '选择案件'],
+      ['テスト案件を選択しました', '已选择测试案件'],
+      ['案件番号・案件名で検索', '按案件编号或案件名搜索'],
+      ['集約完了', '集约完成'],
+      ['件の集約済み案件', '个已集约案件'],
+      ['テストサンプルを選択しました', '已选择测试样本'],
+      ['展開', '展开'],
+      ['收起', '收起'],
+      ['集約済み案件スナップショットを選択してください。案件集約は実行しません。', '请选择集约済み案件快照；本测试不执行案件集约。'],
+      ['想定結果', '预期结果'],
+      ['ルーティング段階', '路由阶段'],
+      ['案件集約は本テストの対象外。選択したサンプルは集約済み案件スナップショットです。Workflow のみ検証します。', '案件集约不在本测试范围内。所选样本为集约済み案件快照，仅验证 Workflow。'],
+      ['通常（通关）', '通常（通关）'],
+      ['不足書類（補件分岐）', '缺件（补件分支）'],
+      ['必要書類不足が残る集約済み案件。Workflow が補件分岐まで到達できるかを検証します。', '必要书类仍缺失的已集约案件。用于验证 Workflow 能否执行到补件分支。'],
+      ['想定：テスト成功（AI 検証で不足書類を検出）', '预期：测试成功（AI 检证检出不足书类）'],
+      ['失败（OCR/检证）', '失败（OCR/检证）'],
+      ['ユーザーアップロード', '用户上传'],
+      ['集約済みテストデータをアップロード', '上传集约済み测试数据'],
+      ['ZIP / JSON · クリックして選択', 'ZIP / JSON · 点击选择'],
+      ['ZIP / JSON（集約済みスナップショット）· クリックして選択', 'ZIP / JSON（已集约快照）· 点击选择'],
+      ['PDF・TIFF・フォルダは対象外（案件集約前の入力形式）', '不支持 PDF、TIFF、文件夹（属案件集约前的输入）'],
+      ['直接アップロードは ZIP / JSON のみ。個別 PDF・TIFF・フォルダは不可（集約済みスナップショット内の帳票 PDF は含まれます）', '仅可直接上传 ZIP / JSON；不可上传单个 PDF、TIFF 或文件夹（集约済み快照内可包含账票 PDF）'],
+      ['またはサンプルを選択', '或选择样本'],
+      ['集約済み案件スナップショットを選択するか、アップロードしてください。案件集約は実行しません。', '请选择集约済み案件快照，或上传测试数据；本测试不执行案件集约。'],
+      ['テストデータを更新しました', '已更新测试数据'],
+      ['アップロード', '已上传'],
+      ['内蔵の集約済み案件スナップショットをテスト入力として使用します。', '使用内置集约済み案件快照作为测试输入。'],
+      ['JSON の形式が正しくありません', 'JSON 格式不正确'],
+      ['テスト用データを初期値に戻しました', '已恢复测试数据默认值'],
+      ['案件番号を入力してください', '请输入案件编号'],
+      ['案件名を入力してください', '请输入案件名'],
+      ['紐付ファイルを1件以上追加してください', '请至少添加一个关联文件'],
+      ['ファイル名が空の行があります', '存在文件名为空的行'],
+      ['集約済み案件のテスト用スナップショットを編集し、保存すると次回以降も利用できます。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '可编辑集约済み案件测试快照，保存后下次可继续使用。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
+      ['案件番号', '案件编号'],
+      ['案件名', '案件名'],
+      ['起動イベント', '启动事件'],
+      ['紐付ファイル', '关联文件'],
+      ['ファイル名', '文件名'],
+      ['帳票タイプ', '账票类型'],
+      ['役割', '角色'],
+      ['行を追加', '添加行'],
+      ['削除', '删除'],
+      ['初期値に戻す', '恢复默认值'],
+      ['エラー箇所へ移動', '定位错误'],
+      ['テスト用データを保存', '保存测试数据'],
+      ['主帳票', '主账票'],
+      ['関連帳票', '相关账票'],
+      ['参考資料', '参考资料'],
+      ['標準集約済み案件', '标准集约済み案件'],
+      ['内蔵の集約済みスナップショットを既定入力とします。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '使用内置集约済み快照作为默认输入。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
+      ['案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。', '案件集约済み的固定快照。缺件与检证结果在 Workflow 执行时（AI 检证节点）判定。'],
+      ['主帳票・関連帳票を含む標準構成', '含主账票与相关账票的标准构成'],
+      ['テストデータをアップロードしました', '已上传测试数据'],
+      ['ZIP または JSON を選択してください', '请选择 ZIP 或 JSON 文件'],
+      ['起動：新規起動 · 6 ファイル', '启动：新建启动 · 6 个文件'],
+      ['想定：テスト成功', '预期：测试成功'],
+      ['起動：手動補件紐付け · 4 ファイル', '启动：手动补件关联 · 4 个文件'],
+      ['想定：テスト要確認', '预期：测试要确认'],
+      ['想定：テスト失敗', '预期：测试失败'],
+      ['テスト成功', '测试成功'],
+      ['テスト要確認', '测试要确认'],
+      ['テスト失敗', '测试失败'],
+      ['形式：ZIP / JSON（集約済み案件スナップショット）', '格式：ZIP / JSON（集约済み案件快照）'],
+      ['トリガー種別・案件情報はファイル内メタデータから取得（実装時）', '触发类型与案件信息从文件内元数据读取（实现时）'],
+      ['跨批次上传（集約済み）', '跨批次上传（集约済み）'],
+      ['自动补件关联（集約済み）', '自动补件关联（集约済み）'],
+      ['手动补件关联（缺件）', '手动补件关联（缺件）'],
+      ['异常（OCR/检证失败）', '异常（OCR/检证失败）'],
+      ['初回アップロード後に生成された標準案件。主帳票・関連帳票が揃い、Workflow を最後まで通す基準サンプルです。', '初回上传后生成的标准案件。主副账票齐全，用于跑通 Workflow 的基准样本。'],
+      ['バッチ2 分が Open Case 池で唯一命中し、既存案件 A へファイル追加済みのスナップショット。新規案件は作成されません。', '批次2 在 Open Case 池唯一命中、已向既有案件 A 追加文件的快照。不新建案件。'],
+      ['补件候选池で唯一命中し、案件 A へ自動補件紐付け済みのスナップショット。新規案件なし、補件ファイルのみ Workflow 対象です。', '补件候选池唯一命中、已自动补件关联到案件 A 的快照。不新建案件，仅补件文件进入 Workflow。'],
+      ['案件詳細から手動補件紐付け済みだが、必要書類チェックで不足候補が残る案件スナップショット。', '案件详情手动补件关联已完成，但必要书类检查仍缺件的案件快照。'],
+      ['集約済み案件だが、OCR 低信頼・データ検証不一致が発生するサンプル。エラー定位と分岐確認用です。', '集约済み案件，但会出现 OCR 低置信与数据检证不一致，用于错误定位与分支确认。'],
+      ['テスト成功（終了ノード到達）', '测试成功（到达结束节点）'],
+      ['テスト成功（新規案件なし・追記ファイルのみ処理）', '测试成功（不新建案件，仅处理追加文件）'],
+      ['テスト成功（补件ファイルのみ処理）', '测试成功（仅处理补件文件）'],
+      ['テスト要確認（AI 検証で必要書類不足）', '测试要确认（AI 检证检出必要书类不足）'],
+      ['テスト失敗（OCR または AI 検証で阻断）', '测试失败（OCR 或 AI 检证阻断）'],
+      ['トリガー種別：新規起動', '触发类型：新建启动'],
+      ['案件：高橋誠_手術請求 / REQ-2025-0018890', '案件：高桥诚_手术请求 / REQ-2025-0018890'],
+      ['紐付 6 処理ファイル（保険金請求書・診断書・診療明細書 ほか）', '关联 6 个处理文件（保险金请求书、诊断书、诊疗明细书等）'],
+      ['路由段階：pre_ai_verify', '路由阶段：pre_ai_verify'],
+      ['起動イベント：クロスバッチアップロード', '启动事件：跨批次上传'],
+      ['案件 A：高橋誠_手術請求（バッチ1+2 統合済み）', '案件 A：高桥诚_手术请求（批次1+2 已合并）'],
+      ['バッチ2 追加分：本人確認書類・収入証明', '批次2 追加：本人确认资料、收入证明'],
+      ['起動イベント：自動補件紐付け', '启动事件：自动补件关联'],
+      ['案件 A：post_ai_verify 段階の既存案件', '案件 A：处于 post_ai_verify 的既有案件'],
+      ['补件追加分：領収書スキャン・メモ画像', '补件追加：收据扫描、备注图片'],
+      ['既存ファイルの再実行なし（补件分のみ前処理〜）', '不重跑既有文件（仅补件部分从前处理起）'],
+      ['起動イベント：手動補件紐付け', '启动事件：手动补件关联'],
+      ['案件：高橋誠_手術請求', '案件：高桥诚_手术请求'],
+      ['紐付 4 処理ファイル（領収書・診療明細の不足候補あり）', '关联 4 个处理文件（收据、诊疗明细存在不足候选）'],
+      ['路由段階：post_ai_verify', '路由阶段：post_ai_verify'],
+      ['紐付 6 処理ファイル（1 件前処理失敗・低信頼フィールドあり）', '关联 6 个处理文件（1 个前处理失败、存在低置信字段）'],
+      ['案件番号', '案件编号'],
+      ['案件名', '案件名称'],
+      ['紐付ファイル', '关联文件'],
+      ['案件集約は本テストの対象外。上流完了済みの案件入力を前提に Workflow のみ検証します。', '案件集约不在本测试范围内。假定上游已完成案件输入，仅验证 Workflow。'],
+      ['案件集約は本テストの対象外。補件紐付け完了後の案件入力を前提に Workflow のみ検証します。', '案件集约不在本测试范围内。假定补件关联已完成，仅验证 Workflow。'],
       ['環状パス上のノード（プロトタイプは初回到達順で表示）', '环路径上的节点（原型按首次到达顺序展示）'],
       ['（環状パス上のノード）', '（环路径上的节点）'],
       ['環状パスを', '检测到环路径，涉及'],
@@ -708,12 +826,12 @@ const appOptions = {
       ['系统默认（入口等待 + 去重合并）', '系统默认（入口等待 + 去重合并）'],
       ['跨批次 + OCR缓冲', '跨批次 + OCR 缓冲'],
       ['跨批次 + 人工缓冲', '跨批次 + 人工缓冲'],
-      ['预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。', '预制场景模拟上传→集约→Workflow 全流程。无需真实 ZIP；点「测试执行」后看右侧时间轴，点各步骤看左侧详情。'],
+      ['预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。', '预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。'],
       ['关注点', '关注点'],
       ['通知送信状態・通知タイプ・送信日時。', '通知发送状态、通知类型、发送时间。'],
       ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。', '通知发送状态、通知类型、发送时间、收件人、失败原因、重复抑制标志。'],
       ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
-      ['Workflow 入口。起動イベントはシステムが案件ルーティング結果に応じて自動設定します（読み取り専用）。', 'Workflow 入口。启动事件由系统根据案件路由结果自动设定（只读）。'],
+      ['Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。', 'Workflow 入口。根据案件集约结果新建启动或续跑实例（只读）。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
       ['无需配置；AI 检证入口等待汇总，人工待办 open 追加', '无需配置；AI 检证入口等待汇总，人工待办 open 追加'],
       ['等待条件', '等待条件'],
@@ -721,9 +839,9 @@ const appOptions = {
       ['策略', '策略'],
       ['说明', '说明'],
       ['通常（単批次）', '通常（单批次）'],
-      ['補件（兜底入口）', '补件（兜底入口）'],
+      ['手動補件紐付け（案件詳細）', '手动补件关联（案件详情）'],
       ['1 回上传 → 1 案件 → Workflow 跑通', '1 次上传 → 1 案件 → Workflow 跑通'],
-      ['第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）', '第 2 批 Open Case 并入 A；人工待办/通知各 1 次（OCR 即时合并）'],
+      ['第 2 批 Open Case 跨批次上传至案件 A；人工待办/通知各 1 次（OCR 即时合并）', '第 2 批 Open Case 跨批次上传至案件 A；人工待办/通知各 1 次（OCR 即时合并）'],
       ['同上 + OCR 人工确认缓冲 → 两批合并 1 条待办', '同上 + OCR 人工确认缓冲 → 两批合并 1 条待办'],
       ['post 池命中 → 补件绑定，从前处理重跑到 AI 检证', 'post 池命中 → 补件绑定，从前处理重跑到 AI 检证'],
       ['案件详情手动补件；缺资料警告', '案件详情手动补件；缺资料警告'],
@@ -731,14 +849,14 @@ const appOptions = {
       ['バッチ2', '批次2'],
       ['バッチ1（既存）', '批次1（既有）'],
       ['案件 A を新規作成', '新建案件 A'],
-      ['既存案件 A に并入（Open Case 池）', '并入既有案件 A（Open Case 池）'],
-      ['Open Case 池 → 案件 A に并入', 'Open Case 池 → 并入案件 A'],
+      ['クロスバッチアップロード → 既存案件 A（Open Case 池）', '跨批次上传至既有案件 A（Open Case 池）'],
+      ['Open Case 池 → 案件 A へクロスバッチアップロード', 'Open Case 池 → 跨批次上传至案件 A'],
       ['OCR 人工確認', 'OCR 人工确认'],
       ['案件A + OCR確認ノード', '案件A + OCR 确认节点'],
       ['open 待办 1 件（バッチ2 分を追記、新規待办なし）', 'open 待办 1 件（追加批次2，不新建）'],
       ['同一 workflow 周期内 1 回のみ送信', '同一 workflow 周期内仅发送 1 次'],
-      ['バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → 案件 A に并入。案件 B は未作成。', '批次1 新建案件 A（pre_ai_verify）。批次2 在 Open Case 池唯一命中 → 并入案件 A。未创建案件 B。'],
-      ['バッチ2 并入後、前処理・OCR 人工確認で 30 分缓冲。各触点 pending 项合并，缓冲结束各触发 1 条待办。', '批次2 并入后，前处理/OCR 人工确认 30 分钟缓冲；各触点 pending 合并，缓冲结束各触发 1 条待办。'],
+      ['バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → クロスバッチアップロードで案件 A にファイル追加。案件 B は未作成。', '批次1 新建案件 A（pre_ai_verify）。批次2 在 Open Case 池唯一命中 → 跨批次上传追加至案件 A。未创建案件 B。'],
+      ['バッチ2 クロスバッチアップロード後、前処理・OCR 人工確認で 30 分缓冲。各触点 pending 项合并，缓冲结束各触发 1 条待办。', '批次2 跨批次上传后，前处理/OCR 人工确认 30 分钟缓冲；各触点 pending 合并，缓冲结束各触发 1 条待办。'],
       ['OCR 人工確認前等待', 'OCR 人工确认前等待'],
       ['OCR人工確認 + 30min', 'OCR 人工确认 + 30min'],
       ['缓冲期内 sliding 延长；列表仍显示处理中 + 等待人工缓冲', '缓冲期内滑动延长；列表仍显示处理中 + 等待人工缓冲'],
@@ -752,18 +870,18 @@ const appOptions = {
       ['本人確認書類', '本人确认资料'],
       ['収入証明', '收入证明'],
       ['バッチ1・バッチ2 を順次取り込み（計 4 原ファイル）', '依次导入批次1・批次2（共 4 个原文件）'],
-      ['バッチ2 Open Case 并入 A；OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；OCR 人工确认缓冲 30 分钟合并 pending'],
-      ['バッチ2 Open Case 并入 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending', '批次2 Open Case 并入 A；前处理/OCR 人工确认缓冲 30 分钟合并 pending'],
+      ['バッチ2 クロスバッチアップロード → 案件 A；OCR 人工確認缓冲 30 分钟合并 pending', '批次2 跨批次上传至案件 A；OCR 人工确认缓冲 30 分钟合并 pending'],
+      ['バッチ2 クロスバッチアップロード → 案件 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending', '批次2 跨批次上传至案件 A；前处理/OCR 人工确认缓冲 30 分钟合并 pending'],
       ['前处理/OCR 人工确认缓冲 → 两批 pending 各合并 1 条待办', '前处理/OCR 人工确认缓冲 → 两批 pending 各合并 1 条待办'],
       ['前処理人工確認', '前处理人工确认'],
       ['前処理確認 + 30min', '前处理确认 + 30min'],
-      ['バッチ2 Open Case 并入 A。案件 B 未作成', '批次2 Open Case 并入 A；未创建案件 B'],
+      ['バッチ2 クロスバッチアップロード → 案件 A。案件 B 未作成', '批次2 跨批次上传至案件 A；未创建案件 B'],
       ['30 分钟缓冲中；列表显示处理中 + 等待人工缓冲', '30 分钟缓冲中；列表显示处理中 + 等待人工缓冲'],
       ['open 待办 1 件（バッチ2 追記）', 'open 待办 1 件（追加批次2）'],
       ['open 待办 1 件（バッチ2 追記、新規待办なし）', 'open 待办 1 件（追加批次2，不新建）'],
       ['バッチ2 を主上传取り込み（案件 A は post_ai_verify）', '主上传导入批次2（案件 A 处于 post_ai_verify）'],
       ['案件候補が複数件。人工集約確認が必要です', '案件候选有多件，需人工集约确认'],
-      ['1 案件を生成しました。関連帳票の不足候補があります（案件详情补件兜底入口）。', '已生成 1 案件。存在关联账票不足候选（案件详情补件兜底入口）。'],
+      ['1 案件を生成しました。関連帳票の不足候補があります（案件詳細・手動補件紐付け入口）。', '已生成 1 案件。存在关联账票不足候选（案件详情手动补件关联入口）。'],
       ['バッチ2は补件候选池（post_ai_verify）に唯一命中 → 案件 A へ自动补件绑定。新規案件なし、案件集约跳过。从前处理重跑到 AI 检证。', '批次2 在补件候选池（post_ai_verify）唯一命中 → 自动补件绑定到案件 A。不新建案件、跳过案件集约，从前处理重跑到 AI 检证。'],
       ['前处理 → OCR → Data Mapping → AI 检证', '前处理 → OCR → Data Mapping → AI 检证'],
       ['补件文件のみ前处理実行（既存ファイル再実行なし）', '仅对补件文件执行前处理（不重跑既有文件）'],
@@ -818,7 +936,7 @@ const appOptions = {
       ['本批すべてのファイルで OCR 抽出が完了', '本批全部文件 OCR 抽出完成'],
       ['本批の標準フィールドマッピングが完了', '本批标准字段映射完成'],
       ['前処理 / OCR 人工確認待办がすべて close', '前处理 / OCR 人工确认待办全部 close'],
-      ['跨批次并入・补件绑定の pending 项が汇总済み', '跨批次并入・补件绑定的 pending 项已汇总'],
+      ['跨批次上传・补件绑定の pending 项が汇总済み', '跨批次上传・补件绑定的 pending 项已汇总'],
       ['执行前', '执行前'],
       ['待办生成', '待办生成'],
       ['上游汇总完了', '上游汇总完成'],
@@ -1469,7 +1587,7 @@ const appOptions = {
     const saveButtonText = computed(() => (isLastNode.value ? '設定を完了' : '保存'));
     const scenePublishBadge = computed(() => {
       if (form.scene.publishStatus === 'published') {
-        return `公開済み v${form.scene.publishedVersion || 1}`;
+        return '公開済み';
       }
       return '下書き';
     });
@@ -1889,7 +2007,7 @@ const appOptions = {
       const stats = sceneSetupLinkStats.value;
       if (stats.unlinkedCount > 0) {
         const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-        return { tone: 'warn', text: `${stats.unlinkedCount} 件が主帳票に未関連：${names}` };
+        return { tone: 'warn', text: `主帳票に未関連の帳票があります：${names}` };
       }
       if (stats.total <= stats.mainDocCount) {
         return { tone: 'ok', text: '主帳票のみの構成です' };
@@ -1947,20 +2065,15 @@ const appOptions = {
       return HITL_ROLE_OPTIONS.find((item) => item.value === node.role)?.hint || '復核ロールを選択してください';
     });
 
-    function onHitlGateContextChange(contextValue) {
+    const selectedHitlGatePreset = computed(() => {
       const node = selectedWorkflowNode.value;
-      if (!node || !isHitlGateNode(node)) return;
-      const meta = getHitlContextMeta(contextValue);
-      if (!meta) return;
-      node.hitlContext = meta.value;
-      node.label = '人工確認';
-      node.role = getHitlGateDefaultRole(meta.value);
-      pushWorkflowHistory('人工確認コンテキストを変更');
-    }
+      if (!node || !isHitlGateNode(node)) return null;
+      return getHitlGatePreset(node, getActiveWf());
+    });
 
     function getHitlGateCanvasSummary(node) {
       if (!node || !isHitlGateNode(node)) return t('人工確認');
-      const meta = getHitlGatePreset(node);
+      const meta = getHitlGatePreset(node, getActiveWf());
       const parts = [meta?.label, node.role].filter(Boolean).map((item) => t(item));
       return parts.join(' · ') || t('人工確認');
     }
@@ -2039,10 +2152,7 @@ const appOptions = {
         items: group.options.map((opt) => ({
           id: opt.value,
           text: getDecisionVariableSecondaryLabel(opt),
-          title: [getDecisionVariableSecondaryLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
-          scope: opt.scope || '',
-          dataType: opt.dataType || '',
-          description: opt.description || opt.label || '',
+          title: getDecisionVariableSecondaryLabel(opt),
         })),
       })));
 
@@ -2149,7 +2259,7 @@ const appOptions = {
 
     const codeParamDialogTitle = computed(() => {
       const editing = !!codeParamDialogDraft.value?.id;
-      const kind = codeParamDialogMode.value === 'output' ? '出力パラメータ' : '入力パラメータ';
+      const kind = codeParamDialogMode.value === 'output' ? '出力変数' : '入力変数';
       return editing ? `${kind}を編集` : `${kind}を追加`;
     });
 
@@ -2270,7 +2380,7 @@ const appOptions = {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code' || !node.outputParams?.length) return;
       if (node.outputParams.length <= 1) {
-        ElementPlus.ElMessage.warning('出力パラメータは最低1つ必要です');
+        ElementPlus.ElMessage.warning('出力変数は最低1つ必要です');
         return;
       }
       node.outputParams = node.outputParams.filter((r) => r.id !== rowId);
@@ -2443,15 +2553,14 @@ const appOptions = {
       return lib?.label || getWorkflowNodeMeta(node?.type).title || 'ノード設定';
     });
 
-    const INSPECTOR_NODES_WITH_HEAD_HINT = new Set(['data_mapping', 'ai_verify', 'verify']);
-
     const inspectorHeadHint = computed(() => {
-      if (inspectorMode.value !== 'node') return '';
-      if (!INSPECTOR_NODES_WITH_HEAD_HINT.has(inspectorPanel.value)) return '';
-      const panelKey = inspectorPanel.value === 'verify' && selectedWorkflowNode.value?.type === 'ai_verify'
-        ? 'ai_verify'
-        : inspectorPanel.value;
-      const hintKey = INSPECTOR_HEAD_HINT_KEYS[panelKey];
+      if (inspectorMode.value === 'edge') {
+        return t(INSPECTOR_HINTS.edgeEdit);
+      }
+      if (inspectorMode.value === 'overview' || inspectorPanel.value === 'overview') {
+        return t('ノードをクリックすると設定パネルが表示されます。');
+      }
+      const hintKey = INSPECTOR_HEAD_HINT_KEYS[inspectorPanel.value];
       return hintKey ? t(INSPECTOR_HINTS[hintKey] || '') : '';
     });
 
@@ -3156,6 +3265,31 @@ const appOptions = {
       wfViewport.y = (vh - bounds.height * scale) / 2 - bounds.minY * scale;
     }
 
+    function focusWorkflowNodeOnCanvas(nodeId) {
+      const node = getActiveWf()?.nodes?.find((n) => n.id === nodeId);
+      const el = wfCanvasViewportRef.value;
+      if (!node || !el) return;
+      const summary = getWorkflowNodeCanvasSummary(node);
+      const size = getWorkflowNodeDisplaySize(node, summary);
+      const cx = node.x + size.w / 2;
+      const cy = node.y + size.h / 2;
+      const vw = el.clientWidth;
+      const vh = el.clientHeight;
+      if (!vw || !vh) return;
+      const targetScale = clampWorkflowZoom(Math.max(wfViewport.scale, 0.88));
+      wfViewport.scale = targetScale;
+      wfViewport.x = vw / 2 - cx * targetScale;
+      wfViewport.y = vh / 2 - cy * targetScale;
+    }
+
+    function clearWorkflowTestHighlight() {
+      workflowTestHighlightNodeId.value = null;
+      if (workflowTestHighlightTimer) {
+        window.clearTimeout(workflowTestHighlightTimer);
+        workflowTestHighlightTimer = null;
+      }
+    }
+
     function zoomWorkflowAt(clientX, clientY, factor) {
       const el = wfCanvasViewportRef.value;
       if (!el) return;
@@ -3248,16 +3382,34 @@ const appOptions = {
       return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
     }
 
+    const HITL_NODE_SUMMARY_H = 22;
+
     function getHitlGateLayoutMetricsForNode(node) {
       if (!node) return getHitlGateNodeLayoutMetrics(node);
-      const metrics = getHitlGateNodeLayoutMetrics(node);
-      if (!wfCanvasNodesCollapsed.value) return metrics;
+      const base = getHitlGateNodeLayoutMetrics(node);
+      if (!wfCanvasNodesCollapsed.value) {
+        const summary = getWorkflowNodeCanvasSummary(node);
+        const summaryH = summary ? HITL_NODE_SUMMARY_H : 0;
+        if (!summaryH) return base;
+        const h = base.h + summaryH;
+        return {
+          ...base,
+          h,
+          cardH: h,
+          branchStartY: base.branchStartY + summaryH,
+          rows: base.rows.map((row) => ({
+            ...row,
+            yCenter: row.yCenter + summaryH,
+            ratio: (row.yCenter + summaryH) / h,
+          })),
+        };
+      }
       const preview = getHitlGateCanvasSummary(node);
       const collapsed = {
-        w: Math.min(340, Math.max(metrics.cardW, 76 + preview.length * DECISION_NODE_LAYOUT.charW)),
-        h: 64,
+        w: Math.min(340, Math.max(base.cardW, 76 + preview.length * DECISION_NODE_LAYOUT.charW)),
+        h: Math.max(72, 46 + Math.min(2, Math.ceil(preview.length / 24)) * 16),
       };
-      const rows = (metrics.rows || []).map((row, idx, all) => {
+      const rows = (base.rows || []).map((row, idx, all) => {
         const step = collapsed.h / Math.max(1, all.length + 1);
         const yCenter = Math.round(step * (idx + 1));
         return {
@@ -3266,7 +3418,7 @@ const appOptions = {
           ratio: yCenter / collapsed.h,
         };
       });
-      return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
+      return { ...base, w: collapsed.w, h: collapsed.h, rows };
     }
 
     function getWorkflowNodeDisplaySize(node, summary = null) {
@@ -3281,6 +3433,11 @@ const appOptions = {
       }
       if (isHitlGateNode(displayNode)) {
         return getHitlGateLayoutMetricsForNode(displayNode);
+      }
+      if (!isWorkflowTerminalNode(displayNode)) {
+        const summary = getWorkflowNodeCanvasSummary(node);
+        const taskItems = workflowNodeSummaryTasks(summary);
+        return getWorkflowNodeSize(displayNode, taskItems.length, taskItems);
       }
       const resolved = summary ?? getWorkflowNodeCanvasSummary(node);
       const taskItems = workflowNodeSummaryTasks(resolved);
@@ -3642,6 +3799,10 @@ const appOptions = {
       wfNodePicker.visible = true;
     }
 
+    function openWfNodePickerForBranchNode(node, branchKey, anchor) {
+      openWfNodePickerForDecisionBranch(node, branchKey, anchor);
+    }
+
     function openWfNodePickerForDecisionBranch(node, branchKey, anchor) {
       if (!assertWorkflowTopologyEditable()) return;
       if (!node || (node.type !== 'decision' && !isHitlGateNode(node)) || !branchKey) return;
@@ -3755,7 +3916,7 @@ const appOptions = {
           y,
           hitlContext: payload.defaultPreset || preset.value,
           label: '人工確認',
-        });
+        }, wf);
       }
       if (payload.type === 'notify') {
         return normalizeNotifyNode({
@@ -3816,12 +3977,14 @@ const appOptions = {
       newNode.y = Math.round((from.y + fromSize.h / 2 + to.y + toSize.h / 2) / 2 - newSize.h / 2);
 
       wf.edges.splice(edgeIdx, 1);
-      if (from.type === 'decision' && edge.branch) {
+      if ((from.type === 'decision' || isHitlGateNode(from)) && edge.branch) {
         wf.edges.push({
           from: edge.from,
           to: newNode.id,
           branch: edge.branch,
-          label: edge.label || getDecisionBranchEdgeLabel(edge.branch, from),
+          label: edge.label || (from.type === 'decision'
+            ? getDecisionBranchEdgeLabel(edge.branch, from)
+            : getHitlGateBranchEdgeLabel(edge.branch, from)),
         });
       } else {
         wf.edges.push({ from: edge.from, to: newNode.id });
@@ -3838,6 +4001,9 @@ const appOptions = {
       }
 
       wf.nodes.push(newNode);
+      if (isHitlGateNode(newNode)) {
+        newNode.hitlContext = inferHitlContext(newNode, wf);
+      }
       if (payload.kind === 'terminal' && payload.type === 'start') ensureWorkflowStartNode(wf);
       closeWfNodePicker();
       selectWorkflowNode(newNode.id);
@@ -3924,7 +4090,7 @@ const appOptions = {
           y: to.y,
           hitlContext: payload.defaultPreset || preset.value,
           label: '人工確認',
-        });
+        }, wf);
       } else if (payload.type === 'notify') {
         newNode = normalizeNotifyNode({
           id: newId,
@@ -4075,7 +4241,7 @@ const appOptions = {
           y: from.y,
           hitlContext: payload.defaultPreset || preset.value,
           label: '人工確認',
-        });
+        }, wf);
       } else if (payload.type === 'notify') {
         newNode = normalizeNotifyNode({
           id: newId,
@@ -4206,6 +4372,9 @@ const appOptions = {
 
       closeWfNodePicker();
       selectWorkflowNode(newNode.id);
+      if (isHitlGateNode(newNode)) {
+        newNode.hitlContext = inferHitlContext(newNode, wf);
+      }
       pushWorkflowHistory(`${match?.label || '分岐'} にノードを接続`);
       nextTick(() => fitWorkflowToView());
       return newNode.id;
@@ -4693,7 +4862,7 @@ const appOptions = {
 
     function validateSceneAggregateDraft(draft) {
       if (!draft.mainDocType) return '主帳票を1件選択してください';
-      if (!draft.mainKey) return '主帳票キーを選択してください';
+      if (!draft.mainKey) return '業務キーを選択してください';
       const invalidGroups = sceneSetupAggregateInvalidGroups.value;
       if (invalidGroups.length) {
         const names = invalidGroups.map((group) => getDocDisplayLabel(group.docType)).join('、');
@@ -4875,14 +5044,11 @@ const appOptions = {
           ElementPlus.ElMessage.warning(err);
           return;
         }
-        const publishedAt = new Date().toISOString();
-        const currentVersion = Number(form.scene.publishedVersion || 0);
         form.scene.publishStatus = 'published';
-        form.scene.publishedAt = publishedAt;
-        form.scene.publishedVersion = currentVersion + 1;
+        form.scene.publishedAt = new Date().toISOString();
         savedSnapshot.value = JSON.stringify(form);
         saveStorage(currentSceneId.value, form);
-        ElementPlus.ElMessage.success(`公開しました（v${form.scene.publishedVersion}）`);
+        ElementPlus.ElMessage.success('公開しました');
       }).catch(() => {});
     }
 
@@ -4899,19 +5065,26 @@ const appOptions = {
         ElementPlus.ElMessage.warning('関連帳票を1件以上追加してください');
         return;
       }
-      if (!sceneSetupDraft.mainDocType) {
-        ElementPlus.ElMessage.warning('主帳票を選択してください');
+      applySceneSetupAggregate();
+      sceneSetupDraft.docFieldLinks = normalizeDocFieldLinks(
+        sceneSetupDraft.docFieldLinks,
+        sceneSetupDraft.documents,
+      );
+      const err = validateSceneAggregateDraft(sceneSetupDraft);
+      if (err) {
+        flashSceneSetupLinkCheckResult();
+        ElementPlus.ElMessage.warning(err);
         return;
       }
+      const linkErr = getSceneLinkValidationError(
+        sceneSetupDraft.documents,
+        sceneSetupDraft.mainDocType,
+        sceneSetupDraft.docFieldLinks,
+        getDocDisplayLabel,
+      );
       flashSceneSetupLinkCheckResult();
-      const stats = sceneSetupLinkStats.value;
-      if (stats.unlinkedCount > 0) {
-        const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-        ElementPlus.ElMessage.warning(`${stats.unlinkedCount} 件の帳票が主帳票に未関連です：${names}`);
-      } else if (stats.total <= stats.mainDocCount) {
-        ElementPlus.ElMessage.success('主帳票のみの構成です');
-      } else {
-        ElementPlus.ElMessage.success('すべての帳票が主帳票に関連付けされています');
+      if (linkErr) {
+        ElementPlus.ElMessage.warning(linkErr);
       }
     }
 
@@ -5199,10 +5372,6 @@ const appOptions = {
       const summary = getWorkflowNodeCanvasSummary(node);
       const size = getWorkflowNodeDisplaySize(node, summary);
       const PORT = 6;
-      if (isHitlGateNode(node) && !wfCanvasNodesCollapsed.value) {
-        const metrics = getHitlGateLayoutMetricsForNode(node);
-        return { x: node.x - PORT, y: node.y + metrics.h / 2 };
-      }
       return { x: node.x - PORT, y: node.y + size.h / 2 };
     }
 
@@ -5324,7 +5493,7 @@ const appOptions = {
       return getHitlGateVisibleBranches(node);
     }
 
-    function getHitlGatePortStyle(node, branch) {
+    function getHitlGateBranchOutletStyle(node, branch) {
       const metrics = getHitlGateLayoutMetricsForNode(node);
       const match = metrics.rows.find((b) => b.key === branch);
       const yCenter = match?.yCenter ?? metrics.h / 2;
@@ -5332,6 +5501,10 @@ const appOptions = {
         top: `${Math.round(yCenter)}px`,
         transform: 'translateY(-50%)',
       };
+    }
+
+    function getHitlGatePortStyle(node, branch) {
+      return getHitlGateBranchOutletStyle(node, branch);
     }
 
     function getDecisionPortStyle(node, branch) {
@@ -5540,6 +5713,9 @@ const appOptions = {
         wf.edges.push(edge);
       }
       normalizeWorkflowEdgeRoute(wf, edge);
+      if (isHitlGateNode(to)) {
+        to.hitlContext = inferHitlContext(to, wf);
+      }
       connectWorkflowEdge.lastBackflow = isBackflow || isWorkflowBackflowEdge(wf, fromId, toId);
       return true;
     }
@@ -5932,10 +6108,7 @@ const appOptions = {
         const variableItem = {
           id: opt.value,
           text: formatDecisionVariableCascaderLabel(opt),
-          title: [formatDecisionVariableCascaderLabel(opt), opt.description || opt.label].filter(Boolean).join(' · '),
-          scope: opt.scope || '',
-          dataType: opt.dataType || '',
-          description: opt.description || opt.label || '',
+          title: formatDecisionVariableCascaderLabel(opt),
         };
         if (opt.nodeType === 'ocr' && String(opt.value || '').includes('ocrFields')) {
           const seenFields = new Set();
@@ -5943,10 +6116,7 @@ const appOptions = {
             getDocSchema(docType).fields.map((field) => ({
               id: `${opt.value}.${docType}.${field}`,
               text: field,
-              title: `${getDocDisplayLabel(docType)} · ${field}`,
-              scope: 'ファイル',
-              dataType: 'String',
-              description: `${getDocDisplayLabel(docType)}のOCR抽出フィールド`,
+              title: field,
             })).filter((item) => {
               if (seenFields.has(item.text)) return false;
               seenFields.add(item.text);
@@ -6015,7 +6185,8 @@ const appOptions = {
       if (/confirmAction$/.test(variable)) {
         if (branchText.includes('修正')) return 'request_fix';
         if (branchText.includes('補件')) return 'request_supplement';
-        if (branchText.includes('異常')) return 'reject';
+        if (branchText.includes('案件終止') || branchText.includes('異常')) return 'reject';
+        if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
         return 'approve';
       }
       if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
@@ -6366,6 +6537,13 @@ const appOptions = {
       return String(label || '').replace(/\n/g, ' ');
     }
 
+    function getWorkflowNodeInfoTip(node) {
+      if (!node || isWorkflowTerminalNode(node)) return '';
+      const summary = getWorkflowNodeCanvasSummary(node);
+      if (summary) return summary;
+      return getWorkflowNodeMeta(node.type)?.desc || '';
+    }
+
     function getWorkflowNodeDisplayLabel(node) {
       if (!node) return '';
       return getWorkflowNodeMeta(node.type).title;
@@ -6387,6 +6565,9 @@ const appOptions = {
       };
       if (node?.type === 'decision' || isHitlGateNode(node)) {
         style.height = `${size.h}px`;
+      }
+      if (isHitlGateNode(node)) {
+        style.overflow = 'visible';
       }
       return style;
     }
@@ -7920,7 +8101,7 @@ const appOptions = {
 
     function openDocPicker() {
       if (sceneSetupDraft.documents.length >= MAX_DOCS) {
-        ElementPlus.ElMessage.warning(`帳票は最大 ${MAX_DOCS} 件までです`);
+        ElementPlus.ElMessage.warning('帳票は最大20件までです');
         return;
       }
       docPickerMode.value = 'setup';
@@ -7939,7 +8120,7 @@ const appOptions = {
       const remaining = MAX_DOCS - targetDocs.length;
       const toAdd = ids.slice(0, remaining);
       if (toAdd.length < ids.length) {
-        ElementPlus.ElMessage.warning(`帳票は最大 ${MAX_DOCS} 件までです。${toAdd.length} 件を追加しました`);
+        ElementPlus.ElMessage.warning(`帳票は最大20件までです。${toAdd.length} 件を追加しました`);
       }
       toAdd.forEach((typeId) => {
         targetDocs.push({ type: typeId, submission: '必須', group: '', linkField: '' });
@@ -8709,6 +8890,92 @@ const appOptions = {
       ElementPlus.ElMessage.success('下書きを保存しました');
     }
 
+
+    const workflowTestCaseSummary = computed(() => {
+      const tc = workflowTestDraft.testCase || {};
+      if (tc.source === 'upload' && tc.uploadFileName) return tc.uploadFileName;
+      const count = Array.isArray(tc.files) ? tc.files.length : 0;
+      return `${tc.caseNo || '—'} · ${tc.caseLabel || '—'} · ${count}${t('件')}`;
+    });
+
+    const workflowTestIsCustom = computed(() =>
+      workflowTestDraft.testCase?.source === 'upload');
+
+    function ensureFormWorkflowTestCase() {
+      if (typeof normalizeWorkflowTestCase !== 'function') return;
+      form.workflowTestCase = normalizeWorkflowTestCase(form.workflowTestCase);
+    }
+
+    function applyWorkflowTestCaseToDraft(testCase) {
+      const normalized = normalizeWorkflowTestCase(testCase);
+      Object.keys(normalized).forEach((key) => {
+        if (key === 'files') {
+          workflowTestDraft.testCase.files = normalized.files.map((f) => ({ ...f }));
+        } else {
+          workflowTestDraft.testCase[key] = normalized[key];
+        }
+      });
+    }
+
+    function persistWorkflowTestCase(testCase) {
+      if (typeof normalizeWorkflowTestCase !== 'function') return;
+      form.workflowTestCase = normalizeWorkflowTestCase(
+        JSON.parse(JSON.stringify(testCase)),
+      );
+      form.workflowTestCase.savedAt = Date.now();
+      saveStorage(currentSceneId.value, form);
+      applyWorkflowTestCaseToDraft(form.workflowTestCase);
+      resetWorkflowTestProgress();
+      refreshWorkflowTestRun();
+    }
+
+    function loadWorkflowTestCaseIntoDraft() {
+      ensureFormWorkflowTestCase();
+      if (!form.workflowTestCase && typeof cloneWorkflowTestCaseDefault === 'function') {
+        form.workflowTestCase = cloneWorkflowTestCaseDefault();
+      }
+      applyWorkflowTestCaseToDraft(form.workflowTestCase || cloneWorkflowTestCaseDefault());
+    }
+
+    async function handleWorkflowTestUpload(event) {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+      const ext = String(file.name || '').split('.').pop()?.toLowerCase();
+      if (!['zip', 'json'].includes(ext)) {
+        ElementPlus.ElMessage.warning('ZIP または JSON を選択してください');
+        event.target.value = '';
+        return;
+      }
+      let parsed = null;
+      if (ext === 'json') {
+        try {
+          const text = await file.text();
+          parsed = JSON.parse(text);
+        } catch {
+          ElementPlus.ElMessage.warning('JSON の形式が正しくありません');
+          event.target.value = '';
+          return;
+        }
+      }
+      const testCase = typeof buildWorkflowTestCaseFromUpload === 'function'
+        ? buildWorkflowTestCaseFromUpload(file.name, parsed)
+        : normalizeWorkflowTestCase({
+          ...(cloneWorkflowTestCaseDefault?.() || {}),
+          source: 'upload',
+          uploadFileName: file.name,
+        });
+      persistWorkflowTestCase(testCase);
+      workflowTestDraft.samplePanelOpen = false;
+      ElementPlus.ElMessage.success(`テストデータを更新しました：${file.name}`);
+      event.target.value = '';
+    }
+
+    function resetWorkflowTestCaseToDefault() {
+      if (typeof cloneWorkflowTestCaseDefault !== 'function') return;
+      persistWorkflowTestCase(cloneWorkflowTestCaseDefault());
+      ElementPlus.ElMessage.success(t('テスト用データを初期値に戻しました'));
+    }
+
     function openWorkflowTestDialog() {
       if (workflowTestRunTimer) {
         window.clearInterval(workflowTestRunTimer);
@@ -8717,6 +8984,8 @@ const appOptions = {
       workflowTestRunning.value = false;
       workflowTestDraft.hasRun = false;
       workflowTestDraft.summary = null;
+      workflowTestDraft.samplePanelOpen = true;
+      loadWorkflowTestCaseIntoDraft();
       refreshWorkflowTestRun();
       workflowTestDraft.steps = workflowTestDraft.steps.map((step) => ({
         ...step,
@@ -8725,36 +8994,12 @@ const appOptions = {
         errorReason: '',
         needsHuman: false,
       }));
-      const uploadStep = workflowTestDraft.steps.find((step) => step.phase === 'upload');
-      workflowTestDraft.selectedStepId = uploadStep?.id || workflowTestDraft.steps[0]?.id || '';
+      const startStep = workflowTestDraft.steps.find((step) => step.type === 'start');
+      workflowTestDraft.selectedStepId = startStep?.id || workflowTestDraft.steps[0]?.id || '';
       workflowTestDialogVisible.value = true;
       nextTick(() => {
         if (uiLanguage.value === 'zh') scheduleApplyUiLanguage();
       });
-    }
-
-    function triggerWorkflowTestFilePick() {
-      const input = document.getElementById('wf-test-file-input');
-      if (input) input.click();
-    }
-
-    function onWorkflowTestFileSelected(event) {
-      const file = event?.target?.files?.[0];
-      if (!file) return;
-      refreshWorkflowTestRun();
-      if (workflowTestDraft.artifacts?.upload) {
-        workflowTestDraft.artifacts.upload.name = file.name;
-        workflowTestDraft.artifacts.upload.sizeLabel = file.size > 1024 * 1024
-          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-          : `${Math.max(1, Math.round(file.size / 1024))} KB`;
-      }
-      workflowTestDraft.hasRun = false;
-      workflowTestDraft.summary = null;
-      resetWorkflowTestProgress();
-      const uploadStep = workflowTestDraft.steps.find((step) => step.phase === 'upload');
-      if (uploadStep) workflowTestDraft.selectedStepId = uploadStep.id;
-      event.target.value = '';
-      ElementPlus.ElMessage.success('テストファイルを選択しました');
     }
 
     function scrollWorkflowTestStepIntoView(stepId) {
@@ -8778,8 +9023,14 @@ const appOptions = {
     }
 
     function runWorkflowTest() {
+      const err = validateWorkflowTestCase(workflowTestDraft.testCase);
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        workflowTestDraft.samplePanelOpen = true;
+        return;
+      }
       if (workflowTestRunning.value) return;
-      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.caseType);
+      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase);
       workflowTestDraft.steps = steps.map((step) => ({
         ...step,
         status: 'pending',
@@ -8787,7 +9038,7 @@ const appOptions = {
         errorReason: '',
         needsHuman: false,
       }));
-      workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.caseType);
+      workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.testCase);
       workflowTestDraft.hasRun = true;
       workflowTestRunning.value = true;
       workflowTestDraft.runningStepId = '';
@@ -8800,8 +9051,7 @@ const appOptions = {
           workflowTestDraft.runningStepId = '';
           workflowTestDraft.summary = buildWorkflowTestSummary(
             workflowTestDraft.steps,
-            workflowTestDraft.caseType,
-            workflowTestDraft.artifacts?.upload,
+            workflowTestDraft.testCase,
           );
           workflowTestDraft.selectedStepId = workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
             || workflowTestDraft.selectedStepId;
@@ -8837,6 +9087,37 @@ const appOptions = {
       }));
     });
     const workflowTestSummary = computed(() => workflowTestDraft.summary);
+    const workflowTestLocatableErrorStep = computed(() => {
+      const errStep = workflowTestStepRows.value.find((step) => step.status === 'error' || step.errorReason);
+      if (errStep) return errStep;
+      if (workflowTestSummary.value?.overallStatus === 'error') {
+        return workflowTestStepRows.value[workflowTestStepRows.value.length - 1] || null;
+      }
+      return null;
+    });
+
+    function canLocateWorkflowTestStep(step) {
+      if (!step?.id) return false;
+      return getActiveWf()?.nodes?.some((node) => node.id === step.id);
+    }
+
+    function locateWorkflowTestError(stepOrNodeId) {
+      const step = typeof stepOrNodeId === 'string'
+        ? workflowTestStepRows.value.find((item) => item.id === stepOrNodeId)
+        : stepOrNodeId;
+      if (!canLocateWorkflowTestStep(step)) return;
+      workflowTestDialogVisible.value = false;
+      nextTick(() => {
+        selectWorkflowNode(step.id);
+        workflowTestHighlightNodeId.value = step.id;
+        focusWorkflowNodeOnCanvas(step.id);
+        if (workflowTestHighlightTimer) window.clearTimeout(workflowTestHighlightTimer);
+        workflowTestHighlightTimer = window.setTimeout(() => {
+          clearWorkflowTestHighlight();
+        }, 3200);
+      });
+    }
+
     const workflowTestArtifacts = computed(() => workflowTestDraft.artifacts);
     const localizedWorkflowTestArtifacts = computed(() => {
       const artifacts = workflowTestArtifacts.value;
@@ -8854,9 +9135,10 @@ const appOptions = {
         ? 'running'
         : (step.status || 'pending');
       const isPreview = displayStatus === 'pending' || displayStatus === 'running';
-      if (step.phase === 'upload') return { kind: 'upload', isPreview };
-      if (step.phase === 'aggregate') return { kind: 'aggregate', isPreview };
-      const detail = buildWorkflowTestNodeDetail(step, workflowTestDraft.caseType);
+      const detail = buildWorkflowTestNodeDetail(
+        step,
+        workflowTestDraft.testCase,
+      );
       if (detail) {
         return {
           kind: 'node',
@@ -8886,6 +9168,11 @@ const appOptions = {
     const workflowTestNeedsHumanContinue = computed(() =>
       workflowTestStepRows.value.some((step) => step.needsHuman
         && ['success', 'warning', 'skipped'].includes(step.status)));
+    function touchWorkflowTestCase() {
+      resetWorkflowTestProgress();
+      refreshWorkflowTestRun();
+    }
+
     function resetWorkflowTestProgress() {
       workflowTestDraft.hasRun = false;
       workflowTestDraft.runningStepId = '';
@@ -8900,11 +9187,11 @@ const appOptions = {
     }
 
     function refreshWorkflowTestRun() {
-      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.caseType);
+      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase);
       workflowTestDraft.steps = steps;
-      workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.caseType);
+      workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.testCase);
       workflowTestDraft.summary = workflowTestDraft.hasRun
-        ? buildWorkflowTestSummary(steps, workflowTestDraft.caseType, workflowTestDraft.artifacts?.upload)
+        ? buildWorkflowTestSummary(steps, workflowTestDraft.testCase)
         : null;
       if (!workflowTestDraft.selectedStepId && steps[0]) {
         workflowTestDraft.selectedStepId = steps[0].id;
@@ -8930,19 +9217,6 @@ const appOptions = {
       if (status === 'skipped') return t('スキップ');
       return t('未実行');
     }
-
-    const workflowTestUploadSummaryText = computed(() => {
-      const upload = localizedWorkflowTestArtifacts.value?.upload;
-      if (!upload) return '';
-      const count = upload.fileCount;
-      if (upload.batchMode === 'multi' && workflowTestDraft.caseType === 'auto_supplement') {
-        return `${t('对案件 A（post_ai_verify）从主上传自动补件绑定批次2（共 ')}${count}${t(' 个原文件）。')}`;
-      }
-      if (upload.batchMode === 'multi') {
-        return `${t('批次1 新建案件 A 后，从主上传导入批次2（共 ')}${count}${t(' 个原文件）。')}`;
-      }
-      return `${t('ZIP を解凍し、')}${count}${t(' 原ファイルを取り込みました。')}`;
-    });
 
     function applyWorkflowTestContinue() {
       workflowTestDraft.hasRun = false;
@@ -9045,12 +9319,19 @@ const appOptions = {
       workflowTestRunning,
       workflowTestTimelineRef,
       workflowTestDraft,
+      workflowTestCaseSummary,
+      workflowTestIsCustom,
+      handleWorkflowTestUpload,
+      resetWorkflowTestCaseToDefault,
       workflowTestStepRows,
       localizedWorkflowTestStepRows,
       workflowTestSummary,
+      workflowTestLocatableErrorStep,
+      canLocateWorkflowTestStep,
+      locateWorkflowTestError,
+      workflowTestHighlightNodeId,
       workflowTestArtifacts,
       localizedWorkflowTestArtifacts,
-      workflowTestUploadSummaryText,
       workflowTestSelectedStep,
       workflowTestNodeDetail,
       workflowTestNeedsHumanContinue,
@@ -9070,8 +9351,6 @@ const appOptions = {
       isLastNode,
       saveButtonText,
       openWorkflowTestDialog,
-      triggerWorkflowTestFilePick,
-      onWorkflowTestFileSelected,
       isHitlVerificationContext,
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
@@ -9085,8 +9364,7 @@ const appOptions = {
       getSceneMainDocType,
       selectedHitlRoleHint,
       selectedHitlGateRoleHint,
-      onHitlGateContextChange,
-      onHitlGateConditionTypeChange: onHitlGateContextChange,
+      selectedHitlGatePreset,
       onJudgmentContextChange,
       onDecisionElseLabelChange,
       getNotifyRecipientsLabel,
@@ -9152,6 +9430,7 @@ const appOptions = {
       getHitlGateNodeVisibleBranches,
       getHitlGateBranchIndex,
       getHitlGatePortStyle,
+      getHitlGateBranchOutletStyle,
       getHitlGateBranchTargetId,
       getHitlGateBranchEdgeLabel,
       HITL_GATE_PRESETS,
@@ -9237,6 +9516,7 @@ const appOptions = {
       sceneSetupActiveTab,
       sceneSetupMode,
       sceneSetupDraft,
+      MAX_DOCS,
       configReuseDialogVisible,
       configReuseDraft,
       reusableSceneOptions,
@@ -9521,6 +9801,7 @@ const appOptions = {
       formatWorkflowOutputVarToken,
       WORKFLOW_NODE_OUTPUT_VAR_DEFS,
       CASE_WORKFLOW_START_TRIGGERS,
+      WORKFLOW_END_OUTCOMES,
       inspectorMode,
       workflowEdgePaths,
       selectWorkflowNode,
@@ -9555,6 +9836,7 @@ const appOptions = {
       getWorkflowFlowPreviewNodeStyle,
       getWorkflowNodeIconSvg,
       getWorkflowNodeCanvasSummary,
+      getWorkflowNodeInfoTip,
       getWorkflowNodeIoFooter,
       workflowOverviewSummary,
       WORKFLOW_WORKSHOP_CHECKLIST,

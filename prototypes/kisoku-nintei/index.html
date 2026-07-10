@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=579" />
+  <link rel="stylesheet" href="style.css?v=594" />
 </head>
 <body>
   <div id="app">
@@ -390,7 +390,7 @@
                 class="wf-check-links-btn"
                 :disabled="!sceneSetupDraft.documents.length || !sceneSetupDraft.mainDocType"
                 @click="checkSceneDocLinks"
-              >関連を確認</el-button>
+              >{{ t('関連チェック') }}</el-button>
               <el-button type="primary" @click="proceedToWorkflowStep">{{ sceneSetupConfirmLabel }}</el-button>
             </div>
           </div>
@@ -460,7 +460,7 @@
                     <div class="wf-step-card-head">
                       <span class="wf-step-card-index">2</span>
                       <inspector-title title="関連帳票" :hint="localizedInspectorHints.caseLinkDocs"></inspector-title>
-                      <span class="inspector-section-meta">選択済み {{ sceneSetupDraft.documents.length }}/10</span>
+                      <span class="inspector-section-meta">選択済み {{ sceneSetupDraft.documents.length }}/{{ MAX_DOCS }}</span>
                       <el-button class="wf-section-action-btn" @click="openSceneSetupDocPicker">+ 帳票追加</el-button>
                     </div>
                   <div class="wf-setup-docs-panel-body">
@@ -831,6 +831,7 @@
                     <p
                       v-if="getWorkflowNodeCanvasSummary(wfNodePlacementPreview)"
                       class="wf-node-summary"
+                      :title="getWorkflowNodeCanvasSummary(wfNodePlacementPreview)"
                     >{{ getWorkflowNodeCanvasSummary(wfNodePlacementPreview) }}</p>
                   </div>
                 </div>
@@ -842,6 +843,7 @@
                     'wf-node--' + node.type,
                     {
                       'is-selected': node.id === selectedWorkflowNodeId,
+                      'is-test-error-highlight': node.id === workflowTestHighlightNodeId,
                       'is-readonly': !isWorkflowTopologyEditable,
                       'wf-node--connect-target': isWorkflowConnectTarget(node.id),
                       'wf-node--connect-source': isConnectModeSource(node.id),
@@ -942,10 +944,11 @@
                         >×</button>
                       </div>
                       <p
-                        v-if="wfCanvasNodesCollapsed"
-                        class="wf-node-summary wf-node-summary--decision"
-                        :title="getDecisionNodeCanvasPreview(node, getDecisionCanvasVariableOptions(node))"
-                      >{{ getDecisionNodeCanvasPreview(node, getDecisionCanvasVariableOptions(node)) }}</p>
+                        v-if="getWorkflowNodeCanvasSummary(node)"
+                        class="wf-node-summary"
+                        :class="{ 'wf-node-summary--decision': wfCanvasNodesCollapsed }"
+                        :title="getWorkflowNodeCanvasSummary(node)"
+                      >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                       <div v-show="!wfCanvasNodesCollapsed" class="wf-ifelse-body">
                         <div
                           v-for="(decisionCase, caseIdx) in node.cases"
@@ -1015,7 +1018,7 @@
                       title="入力"
                     ></span>
                     <div
-                      class="wf-node-card wf-node-card--accent wf-node-card--ifelse"
+                      class="wf-node-card wf-node-card--accent wf-node-card--hitl"
                       :style="getWorkflowNodeAccentStyle(node.type)"
                     >
                       <div class="wf-node-header">
@@ -1032,20 +1035,25 @@
                         >×</button>
                       </div>
                       <p
-                        class="wf-node-summary wf-node-summary--hitl"
-                        :title="getHitlGateCanvasSummary(node)"
-                      >{{ getHitlGateCanvasSummary(node) }}</p>
-                      <div v-show="!wfCanvasNodesCollapsed" class="wf-ifelse-body wf-ifelse-body--hitl">
+                        v-if="getWorkflowNodeCanvasSummary(node)"
+                        class="wf-node-summary"
+                        :class="{ 'wf-node-summary--hitl': wfCanvasNodesCollapsed }"
+                        :title="getWorkflowNodeCanvasSummary(node)"
+                      >{{ getWorkflowNodeCanvasSummary(node) }}</p>
+                      <div
+                        v-show="!wfCanvasNodesCollapsed"
+                        class="wf-hitl-branches"
+                      >
                         <div
                           v-for="branch in getHitlGateNodeVisibleBranches(node)"
                           :key="branch.key"
-                          class="wf-ifelse-row wf-ifelse-row--hitl"
+                          class="wf-hitl-branch-row"
                         >
                           <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
                           <button
                             v-show="isWorkflowTopologyEditable"
                             type="button"
-                            class="wf-hitl-exit-btn"
+                            class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline"
                             :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
                             :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
                             @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
@@ -1235,17 +1243,10 @@
                       @mouseenter="wfNodePicker.hoveredLogic = item.type === 'decision' ? null : (item.defaultJudgmentContext || null)"
                     >
                       <span class="wf-node-picker-icon" v-html="getWorkflowNodeIconSvg(item.type)"></span>
-                      <span class="wf-node-picker-text">
-                        <span class="wf-node-picker-label">{{ item.label }}</span>
-                        <span class="wf-node-picker-summary">{{ getWorkflowNodePickerSummary(item.type) }}</span>
-                      </span>
+                      <span class="wf-node-picker-label">{{ item.label }}</span>
                     </button>
                   </template>
                   <p v-if="!wfNodePickerAvailableProcessGroups.length" class="wf-node-picker-empty">追加できるノードがありません</p>
-                </div>
-                <div v-if="wfNodePickerHoveredLogic" class="wf-node-picker-desc">
-                  <strong>{{ wfNodePickerHoveredLogic.label }}</strong>
-                  <span v-if="wfNodePickerHoveredLogic.value !== 'custom'">判断: {{ wfNodePickerHoveredLogic.label }}</span>
                 </div>
               </div>
             </main>
@@ -1280,7 +1281,7 @@
                   ></span>
                   <div class="idp-inspector-head-text">
                     <div class="idp-inspector-title-row">
-                    <h3 class="idp-inspector-title">{{ inspectorTitle }}</h3>
+                      <h3 class="idp-inspector-title">{{ inspectorTitle }}</h3>
                       <el-tooltip
                         v-if="inspectorHeadHint"
                         :content="inspectorHeadHint"
@@ -1288,10 +1289,10 @@
                         :show-after="200"
                         popper-class="idp-inspector-head-tooltip"
                       >
-                        <button type="button" class="inspector-field-tip" aria-label="説明">?</button>
+                        <button type="button" class="wf-node-info-btn" aria-label="説明" @click.stop>i</button>
                       </el-tooltip>
+                    </div>
                   </div>
-                </div>
                 </div>
                 <div v-if="!(selectedWorkflowNode && inspectorMode === 'node')" class="idp-inspector-title-row idp-inspector-title-row--solo">
                   <h3 class="idp-inspector-title">{{ inspectorTitle }}</h3>
@@ -1302,7 +1303,7 @@
                     :show-after="200"
                     popper-class="idp-inspector-head-tooltip"
                   >
-                    <button type="button" class="inspector-field-tip" aria-label="説明">?</button>
+                    <button type="button" class="wf-node-info-btn" aria-label="説明" @click.stop>i</button>
                   </el-tooltip>
                 </div>
                 <el-button
@@ -1338,7 +1339,7 @@
                   class="inspector-panel-section"
                 >
                   <inspector-module>
-                    <inspector-module-card title="コピー確認" desc="他シーンからコピーされた設定の確認状態です。">
+                    <inspector-module-card title="コピー確認">
                     <div class="reuse-review-banner-main">
                       <el-tag :type="selectedWorkflowNode.reuseStatus === 'ready' ? 'success' : 'warning'" effect="light">
                         {{ selectedWorkflowNode.reuseStatus === 'ready' ? '確認済' : '要確認' }}
@@ -1373,8 +1374,8 @@
                 <!-- ワークフロー概要 -->
                 <div v-show="inspectorMode === 'overview'" class="inspector-panel-section wf-overview-panel">
                   <inspector-module>
-                    <inspector-module-card title="ワークフロー概要" desc="キャンバス上のノードと接続の概要です。">
-                      <p class="inspector-field-hint">ノード {{ workflowOverviewSummary.nodeCount }} 件 · 接続 {{ workflowOverviewSummary.edgeCount }} 件</p>
+                    <inspector-module-card title="ワークフロー概要">
+                      <p class="wf-overview-meta">ノード {{ workflowOverviewSummary.nodeCount }} 件 · 接続 {{ workflowOverviewSummary.edgeCount }} 件</p>
                       <div v-if="workflowOverviewSummary.chainLabels.length" class="wf-overview-chain">
                         <span
                           v-for="item in workflowOverviewSummary.chainLabels"
@@ -1390,12 +1391,10 @@
                 <!-- 接続 -->
                 <div v-if="inspectorPanel === 'edge' && selectedWorkflowEdge" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="接続情報" desc="接続線の選択・削除・再接続の操作です。">
+                    <inspector-module-card title="接続情報">
                       <p class="inspector-edge-summary">{{ getWorkflowEdgeSummary(selectedWorkflowEdge) }}</p>
-                      <p v-if="isSelectedWorkflowEdgeBackflow()" class="inspector-field-hint">{{ t('この接続は上流への回流です。公開・テスト実行はブロックされません。') }}</p>
                     </inspector-module-card>
                     <inspector-module-card title="操作">
-                      <p class="inspector-field-hint">接続線をクリックで選択（ハイライト）。Backspace / Delete で削除。出力ポートをドラッグして再接続できます。</p>
                       <el-button v-if="isWorkflowTopologyEditable" type="danger" link @click="removeSelectedWorkflowEdge">この接続を削除</el-button>
                     </inspector-module-card>
                   </inspector-module>
@@ -1404,7 +1403,7 @@
                 <!-- IF/ELSE（カスタムのみ） -->
                 <div v-if="inspectorPanel === 'decision' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="分岐条件" desc="IF / ELIF / ELSE で変数に基づく分岐を設定します。">
+                    <inspector-module-card title="分岐条件">
                       <div class="inspector-ifelse-panel">
                   <template v-for="(decisionCase, caseIdx) in selectedWorkflowNode.cases" :key="decisionCase.id">
                     <div
@@ -1496,9 +1495,6 @@
                                   <template #default="{ node, data }">
                                     <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
                                       <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                                      <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                                        {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
-                                      </span>
                                     </div>
                                   </template>
                                 </el-cascader>
@@ -1570,7 +1566,7 @@
 
                 <div v-show="inspectorPanel === 'scene'" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="業務シーン" desc="業務シーン作成時、またはステップ1で関連帳票・案件集約・帳票間関連を設定します。">
+                    <inspector-module-card title="業務シーン">
                       <template #action>
                         <el-button type="primary" link @click="openEditCurrentSceneSettings">設定を変更</el-button>
                       </template>
@@ -1585,7 +1581,7 @@
                         </div>
                       </div>
                     </inspector-module-card>
-                    <inspector-module-card title="設定概要" desc="ステップ1で設定した関連帳票と紐付け情報です。">
+                    <inspector-module-card title="設定概要">
                       <div class="scene-settings-summary">
                         <div class="scene-summary-row">
                           <span class="scene-summary-label">関連帳票</span>
@@ -1618,7 +1614,7 @@
                 <!-- 前処理 -->
                 <div v-show="inspectorPanel === 'image'" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="前処理オプション" desc="画像回転・補正・画像分割・並び替えなど、OCR 前の処理を有効化します。">
+                    <inspector-module-card title="前処理オプション">
                       <div class="preprocess-settings-list">
                         <div
                           v-for="item in PREPROCESS_SETTING_ITEMS"
@@ -1671,7 +1667,7 @@
                 <!-- OCR抽出 -->
                 <div v-show="inspectorPanel === 'ocr'" class="inspector-panel-section ocr-extract-inspector">
                   <inspector-module>
-                    <inspector-module-card title="帳票別設定" desc="関連帳票ごとに OCR 抽出の有無を設定します。">
+                    <inspector-module-card title="帳票別設定">
                       <div class="ocr-extract-panel">
                     <div v-if="ocrExtractItems.length" class="ocr-extract-list">
                       <div
@@ -1727,7 +1723,7 @@
                 <!-- カスタム関数（Python） -->
                 <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="入力パラメータ" desc="スクリプトへ渡す引数を定義します。">
+                    <inspector-module-card title="入力変数">
                       <template #action>
                         <el-button type="primary" link @click="addCodeInputRow">+ 追加</el-button>
                       </template>
@@ -1747,7 +1743,7 @@
                         </li>
                       </ul>
                     </inspector-module-card>
-                    <inspector-module-card title="Python スクリプト" desc="main(inputs) 関数を実装します。">
+                    <inspector-module-card title="Python スクリプト">
                       <div class="inspector-field">
                         <el-input
                           v-model="selectedWorkflowNode.pythonCode"
@@ -1761,7 +1757,7 @@
                         />
                       </div>
                     </inspector-module-card>
-                    <inspector-module-card title="出力パラメータ" desc="戻り値の項目名とデータ型を定義します。">
+                    <inspector-module-card title="出力変数">
                       <template #action>
                         <el-button type="primary" link @click="addCodeOutputRow">+ 追加</el-button>
                       </template>
@@ -1778,9 +1774,9 @@
                           </div>
                         </li>
                       </ul>
-                      <p v-else class="verify-empty">出力パラメータがありません</p>
+                      <p v-else class="verify-empty">出力変数がありません</p>
                     </inspector-module-card>
-                    <inspector-module-card title="出力設定" desc="後続ノードへ公開する戻り値を制御します。">
+                    <inspector-module-card title="出力設定">
                       <div class="inspector-switch-row">
                         <inspector-field-label label="ユーザーへ出力" :hint="localizedInspectorHints.codeReturn"></inspector-field-label>
                         <el-switch v-model="selectedWorkflowNode.returnContent" @change="onCodeFieldChange" />
@@ -1833,22 +1829,10 @@
                 <!-- 人工確認（ワークフローノード） -->
                 <div v-if="inspectorPanel === 'hitl_gate' && selectedWorkflowNode" class="inspector-panel-section hitl-gate-inspector">
                   <inspector-module>
-                    <inspector-module-card title="ゲート設定" :desc="localizedInspectorHints.hitlGate">
-                      <div class="inspector-field">
-                        <label class="inspector-field-label">コンテキスト</label>
-                        <el-select
-                          :model-value="inferHitlContext(selectedWorkflowNode)"
-                          class="inspector-field-control"
-                          size="small"
-                          @change="onHitlGateContextChange"
-                        >
-                          <el-option
-                            v-for="opt in HITL_PRESET_OPTIONS"
-                            :key="opt.value"
-                            :label="opt.label"
-                            :value="opt.value"
-                          />
-                        </el-select>
+                    <inspector-module-card title="ゲート設定">
+                      <div class="inspector-field inspector-field--inline-readonly">
+                        <label class="inspector-field-label">確認対象</label>
+                        <span class="inspector-inline-readonly-value">{{ selectedHitlGatePreset?.label || '—' }}</span>
                       </div>
                       <div class="inspector-field">
                         <label class="inspector-field-label">審査ロール</label>
@@ -1863,7 +1847,7 @@
                 <!-- 開始ノード -->
                 <div v-if="inspectorPanel === 'start' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector">
                   <inspector-module>
-                    <inspector-module-card title="起動タイミング" :desc="localizedInspectorHints.startTriggers">
+                    <inspector-module-card title="起動条件">
                       <div class="wf-start-readonly-list">
                         <div
                           v-for="trigger in CASE_WORKFLOW_START_TRIGGERS"
@@ -1881,11 +1865,15 @@
                 <!-- 終了ノード -->
                 <div v-if="inspectorPanel === 'end' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector wf-end-inspector">
                   <inspector-module>
-                    <inspector-module-card title="終了情報" desc="この分岐の終了時に案件へ記録する状態です。">
+                    <inspector-module-card title="終了情報">
                       <div class="wf-start-readonly-list">
-                        <div class="wf-start-readonly-item">
-                          <span class="wf-start-readonly-label">案件状態</span>
-                          <span class="wf-start-readonly-value">{{ selectedWorkflowNode.status || '処理完了' }}</span>
+                        <div
+                          v-for="outcome in WORKFLOW_END_OUTCOMES"
+                          :key="outcome.key"
+                          class="wf-start-readonly-item"
+                        >
+                          <span class="wf-start-readonly-label">{{ outcome.label }}</span>
+                          <span class="wf-start-readonly-value" :title="outcome.hint">{{ outcome.value }}</span>
                         </div>
                       </div>
                     </inspector-module-card>
@@ -1895,7 +1883,7 @@
                 <!-- 通知 -->
                 <div v-if="inspectorPanel === 'notify' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="通知設定" desc="通知方式・宛先を指定します。">
+                    <inspector-module-card title="通知設定">
                       <div class="inspector-field">
                         <label class="inspector-field-label">通知方式</label>
                         <el-select
@@ -1935,7 +1923,7 @@
                         <span v-if="selectedWorkflowNode.channel === 'email'" class="inspector-field-help">複数指定する場合は ; で区切ります。</span>
                       </div>
                     </inspector-module-card>
-                    <inspector-module-card title="メッセージ内容" desc="件名・本文に変数を挿入できます。実行時に案件データへ置換されます。">
+                    <inspector-module-card title="メッセージ内容">
                       <div class="inspector-field">
                         <label class="inspector-field-label">件名</label>
                         <el-input v-model="selectedWorkflowNode.subject" class="inspector-field-control" placeholder="通知メールの件名" />
@@ -1980,9 +1968,6 @@
                           <template #default="{ node, data }">
                             <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
                               <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                              <span v-if="data.description || data.scope || data.dataType" class="inspector-ifelse-cascader-meta">
-                                {{ data.description || [data.scope, data.dataType].filter(Boolean).join(' · ') }}
-                              </span>
                             </div>
                           </template>
                         </el-cascader>
@@ -2018,7 +2003,6 @@
                                 <code class="workflow-output-var-name">{{ item.name }}</code>
                                 <span class="workflow-output-var-type">{{ item.dataType }}</span>
                               </div>
-                              <div class="workflow-output-var-description">{{ item.description }}</div>
                             </li>
                           </ul>
                         </section>
@@ -2241,6 +2225,11 @@
       destroy-on-close
     >
       <div class="wf-test-toolbar">
+        <el-button
+          v-if="workflowTestIsCustom"
+          :disabled="workflowTestRunning"
+          @click="resetWorkflowTestCaseToDefault"
+        >{{ t('初期値に戻す') }}</el-button>
         <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
           {{ workflowTestRunning ? '実行中…' : 'テスト実行' }}
         </el-button>
@@ -2248,136 +2237,57 @@
 
       <div class="wf-test-layout">
         <aside class="wf-test-left">
-          <div class="wf-test-upload">
-            <input
-              id="wf-test-file-input"
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.zip,.tiff,.tif"
-              class="wf-test-file-input"
-              @change="onWorkflowTestFileSelected"
-            />
-            <button type="button" class="wf-test-upload-zone" @click="triggerWorkflowTestFilePick">
-              <span class="wf-test-upload-icon">⇧</span>
-              <strong>テスト ZIP をアップロード</strong>
-              <span>PDF / PNG / JPG / ZIP に対応 · クリックして選択</span>
+          <section class="wf-test-sample-section">
+            <button
+              type="button"
+              class="wf-test-collapse-head"
+              :class="{ 'is-open': workflowTestDraft.samplePanelOpen }"
+              @click="workflowTestDraft.samplePanelOpen = !workflowTestDraft.samplePanelOpen"
+            >
+              <div class="wf-test-collapse-head-main">
+                <h5>{{ t('テスト用データ') }}</h5>
+                <p v-if="!workflowTestDraft.samplePanelOpen" class="wf-test-collapse-summary">
+                  {{ workflowTestCaseSummary }}
+                </p>
+              </div>
+              <span class="wf-test-collapse-action">{{ workflowTestDraft.samplePanelOpen ? t('收起') : t('展開') }}</span>
             </button>
-            <div v-if="workflowTestArtifacts" class="wf-test-upload-meta">
-              <span>{{ workflowTestArtifacts.upload.name }}</span>
-              <span>{{ workflowTestArtifacts.upload.sizeLabel }} · {{ workflowTestArtifacts.upload.fileCount }} 原ファイル</span>
+            <div v-show="workflowTestDraft.samplePanelOpen" class="wf-test-sample-body">
+              <div class="wf-test-sample-default">
+                <div class="wf-test-sample-default-head">
+                  <strong>{{ t(workflowTestDraft.testCase.label) }}</strong>
+                  <span v-if="workflowTestIsCustom" class="wf-test-sample-badge">{{ t('アップロード') }}</span>
+                </div>
+                <p class="wf-test-sample-meta">
+                  {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
+                </p>
+                <p v-if="workflowTestDraft.testCase.triggerType" class="wf-test-sample-meta">
+                  {{ t('トリガー種別') }}：{{ t(workflowTestDraft.testCase.triggerType) }}
+                </p>
+                <ul v-if="workflowTestDraft.testCase.files.length" class="wf-test-sample-includes">
+                  <li v-for="(file, i) in workflowTestDraft.testCase.files" :key="'wf-case-file-' + i">
+                    {{ file.name }} · {{ file.docType }} · {{ t(file.role) }}
+                  </li>
+                </ul>
+              </div>
+              <p class="wf-test-sample-divider">{{ t('または') }}</p>
+              <label class="wf-test-upload-zone wf-test-upload-zone--compact">
+                <input type="file" accept=".zip,.json,application/zip,application/json" class="wf-test-file-input" @change="handleWorkflowTestUpload">
+                <strong>{{ t('集約済みテストデータをアップロード') }}</strong>
+                <span>{{ t('ZIP / JSON（集約済みスナップショット）· クリックして選択') }}</span>
+                <span class="wf-test-upload-format-note">{{ t('直接アップロードは ZIP / JSON のみ。個別 PDF・TIFF・フォルダは不可（集約済みスナップショット内の帳票 PDF は含まれます）') }}</span>
+              </label>
+              <p v-if="workflowTestIsCustom && workflowTestDraft.testCase.uploadFileName" class="wf-test-upload-meta">
+                <span>{{ workflowTestDraft.testCase.uploadFileName }}</span>
+              </p>
             </div>
-          </div>
+          </section>
 
           <div class="wf-test-artifact-scroll">
             <template v-if="workflowTestRunning && workflowTestNodeDetail && workflowTestNodeDetail.isPreview">
               <div class="wf-test-artifact-empty is-running">
                 <p>「{{ workflowTestSelectedStep?.label }}」を実行中…</p>
               </div>
-            </template>
-
-            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'upload' && workflowTestArtifacts">
-              <section class="wf-test-artifact-section">
-                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
-                <h5>アップロード結果</h5>
-                <p class="wf-test-artifact-summary">
-                  <template v-if="workflowTestArtifacts.upload.batchMode === 'multi' && workflowTestDraft.caseType === 'auto_supplement'">
-                    案件 A（post_ai_verify）に対し、バッチ2 を主上传から自动补件绑定（計 {{ workflowTestArtifacts.upload.fileCount }} 原ファイル）。
-                  </template>
-                  <template v-else-if="workflowTestArtifacts.upload.batchMode === 'multi'">
-                    バッチ1 で案件 A を新規作成後、バッチ2 を主上传から取り込みました（計 {{ workflowTestArtifacts.upload.fileCount }} 原ファイル）。
-                  </template>
-                  <template v-else>
-                    ZIP を解凍し、{{ workflowTestArtifacts.upload.fileCount }} 原ファイルを取り込みました。
-                  </template>
-                </p>
-                <div v-if="workflowTestArtifacts.upload.batches && workflowTestArtifacts.upload.batches.length" class="wf-test-cross-batch-grid">
-                  <div v-for="batch in workflowTestArtifacts.upload.batches" :key="batch.id" class="wf-test-cross-batch-card">
-                    <strong>{{ batch.label }}</strong>
-                    <span>{{ batch.action }}</span>
-                    <span>{{ batch.extractedFiles.length }} 原ファイル</span>
-                  </div>
-                </div>
-                <table class="wf-test-artifact-table">
-                  <thead>
-                    <tr>
-                      <th>原ファイル</th>
-                      <th v-if="workflowTestArtifacts.upload.batchMode === 'multi'">批次</th>
-                      <th>ページ</th>
-                      <th>サイズ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="file in workflowTestArtifacts.upload.extractedFiles" :key="file.name + (file.batch || '')">
-                      <td>{{ file.name }}</td>
-                      <td v-if="workflowTestArtifacts.upload.batchMode === 'multi'">{{ file.batch || '—' }}</td>
-                      <td>{{ file.pages }}</td>
-                      <td>{{ file.sizeLabel }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </section>
-            </template>
-
-            <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'aggregate' && workflowTestArtifacts">
-              <section class="wf-test-artifact-section">
-                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
-                <h5>案件集約結果</h5>
-                <p class="wf-test-artifact-summary">{{ workflowTestArtifacts.aggregate.summary }}</p>
-                <div v-if="workflowTestArtifacts.aggregate.autoSupplement" class="wf-test-cross-batch-grid">
-                  <div class="wf-test-cross-batch-card is-supplement">
-                    <strong>补件候选池 · {{ workflowTestArtifacts.aggregate.autoSupplement.pool }}</strong>
-                    <span>{{ workflowTestArtifacts.aggregate.autoSupplement.batch2.action }}</span>
-                    <span>{{ workflowTestArtifacts.aggregate.autoSupplement.rerun }}</span>
-                  </div>
-                </div>
-                <div v-if="workflowTestArtifacts.aggregate.crossBatch" class="wf-test-cross-batch-grid">
-                  <div class="wf-test-cross-batch-card">
-                    <strong>{{ workflowTestArtifacts.aggregate.crossBatch.batch1.label }}</strong>
-                    <span>{{ workflowTestArtifacts.aggregate.crossBatch.batch1.action }}</span>
-                  </div>
-                  <div class="wf-test-cross-batch-card is-merge">
-                    <strong>{{ workflowTestArtifacts.aggregate.crossBatch.batch2.label }}</strong>
-                    <span>{{ workflowTestArtifacts.aggregate.crossBatch.batch2.action }}</span>
-                  </div>
-                </div>
-                <div v-if="workflowTestArtifacts.aggregate.touchpointDedup && workflowTestArtifacts.aggregate.touchpointDedup.length" class="wf-test-dedup-list">
-                  <h6>人工触点去重</h6>
-                  <div v-for="item in workflowTestArtifacts.aggregate.touchpointDedup" :key="item.node" class="wf-test-dedup-item">
-                    <strong>{{ item.node }}</strong>
-                    <span>{{ item.key }}</span>
-                    <span>{{ item.result }}</span>
-                  </div>
-                </div>
-                <div
-                  v-for="caseItem in workflowTestArtifacts.aggregate.cases"
-                  :key="caseItem.id"
-                  class="wf-test-case-card"
-                >
-                  <div class="wf-test-case-card-head">
-                    <strong>{{ caseItem.label }}</strong>
-                    <span v-if="caseItem.caseNo !== '—'">{{ caseItem.caseNo }}</span>
-                  </div>
-                  <div class="wf-test-case-meta-badges">
-                    <span v-if="caseItem.userStatus" class="wf-test-case-meta-badge is-status">{{ caseItem.userStatus }}</span>
-                    <span v-if="caseItem.routingStageLabel" class="wf-test-case-meta-badge is-routing">路由：{{ caseItem.routingStageLabel }}</span>
-                    <span v-if="caseItem.waitingHumanBuffer" class="wf-test-case-meta-badge is-buffer">等待人工缓冲</span>
-                  </div>
-                  <div class="wf-test-case-keys">
-                    <span v-for="key in caseItem.matchKeys" :key="caseItem.id + key.label">
-                      {{ key.label }}：{{ key.value }}
-                    </span>
-                  </div>
-                  <ul class="wf-test-case-files">
-                    <li v-for="file in caseItem.files" :key="caseItem.id + file.label">
-                      <span class="wf-test-case-file-role">{{ file.role }}</span>
-                      <span>{{ getDocDisplayLabel(file.docType) }} · {{ file.label }}</span>
-                      <span v-if="file.batch" class="wf-test-case-file-batch">{{ file.batch }}</span>
-                    </li>
-                  </ul>
-                  <ul v-if="caseItem.warnings && caseItem.warnings.length" class="wf-test-case-warnings">
-                    <li v-for="(warning, index) in caseItem.warnings" :key="caseItem.id + '-warn-' + index">{{ warning }}</li>
-                  </ul>
-                </div>
-              </section>
             </template>
 
             <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'node' && workflowTestNodeDetail.detail">
@@ -2415,7 +2325,7 @@
         <section class="wf-test-right">
           <div class="wf-test-result-head">
             <div class="wf-test-result-title">
-              <h4>実行パイプライン</h4>
+              <h4>Workflow 実行</h4>
               <span
                 v-if="workflowTestSummary"
                 class="wf-test-status-badge"
@@ -2426,9 +2336,14 @@
             <div v-if="workflowTestSummary" class="wf-test-result-meta">
               <span>処理時間：{{ workflowTestSummary.durationSec }}s</span>
               <span>通過：{{ workflowTestSummary.passedCount }}/{{ workflowTestSummary.totalCount }}</span>
-              <span>案件：{{ workflowTestSummary.caseCount }}</span>
+              <span>ノード：{{ workflowTestSummary.workflowNodeCount }}</span>
+              <el-button
+                v-if="workflowTestLocatableErrorStep && canLocateWorkflowTestStep(workflowTestLocatableErrorStep)"
+                type="danger"
+                link
+                @click="locateWorkflowTestError(workflowTestLocatableErrorStep)"
+              >{{ t('エラー箇所へ移動') }}</el-button>
             </div>
-            <p v-else class="wf-test-result-hint">{{ t('案件集約完了後、開始ノードから到達可能な順に実行します（環状パス上のノードは初回到達順で表示）') }}</p>
           </div>
 
           <div ref="workflowTestTimelineRef" class="wf-test-timeline">
@@ -2454,7 +2369,15 @@
                   <span>{{ workflowTestStatusLabel(getWorkflowTestStepDisplayStatus(step)) }}</span>
                 </div>
                 <p class="wf-test-timeline-summary">{{ step.summary }}</p>
-                <p v-if="step.errorReason" class="wf-test-step-error">{{ step.errorReason }}</p>
+                <div v-if="step.errorReason" class="wf-test-step-error-row">
+                  <p class="wf-test-step-error">{{ step.errorReason }}</p>
+                  <button
+                    v-if="canLocateWorkflowTestStep(step)"
+                    type="button"
+                    class="wf-test-locate-btn"
+                    @click.stop="locateWorkflowTestError(step)"
+                  >{{ t('エラー箇所へ移動') }}</button>
+                </div>
               </div>
             </button>
           </div>
@@ -2771,9 +2694,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=576"></script>
-  <script src="scripts/mock-data.js?v=548"></script>
-  <script src="scripts/scene-config.js?v=548"></script>
-  <script src="main.js?v=576"></script>
+  <script src="scripts/workflow-core.js?v=594"></script>
+  <script src="scripts/mock-data.js?v=594"></script>
+  <script src="scripts/scene-config.js?v=594"></script>
+  <script src="main.js?v=594"></script>
 </body>
 </html>

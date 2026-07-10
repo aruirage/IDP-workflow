@@ -17,7 +17,7 @@ const SCENES = [
   { id: '2064639102406844420', name: '保険金・給付金請求' },
 ];
 
-const MAX_DOCS = 10;
+const MAX_DOCS = 20;
 
 function cloneJson(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -1617,336 +1617,184 @@ function normalizeInputConfig(input) {
   return base;
 }
 
-const WORKFLOW_TEST_DEFAULT_ZIP = {
-  name: 'surgery_claim_batch.zip',
-  sizeLabel: '6.8 MB',
-  fileCount: 4,
-  extractedFiles: [
-    { name: 'claim_pack.pdf', pages: 8, sizeLabel: '2.4 MB' },
-    { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '1.1 MB' },
-    { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB' },
-    { name: 'memo_page.tiff', pages: 2, sizeLabel: '2.4 MB' },
-  ],
-};
+const WORKFLOW_TEST_SCOPE_NOTE = '案件集約は本テストの対象外。選択した案件は既に集約済みであり、Workflow のみ検証します。';
 
-const WORKFLOW_TEST_SYSTEM_STEPS = [
-  { id: 'sys-upload', label: 'アップロード', type: 'system', phase: 'upload' },
-  { id: 'sys-aggregate', label: '案件集約 / 路由', type: 'system', phase: 'aggregate' },
-];
-
-const ROUTING_STAGE_LABELS = {
-  pre_ai_verify: 'pre_ai_verify（AI 检证前）',
-  post_ai_verify: 'post_ai_verify（AI 检证后）',
-  closed: 'closed（已结束）',
-};
-
-function withCaseRoutingMeta(caseItem, {
-  routingStage = 'pre_ai_verify',
-  userStatus = '处理中',
-  waitingHumanBuffer = false,
-} = {}) {
-  return {
-    ...caseItem,
-    routingStage,
-    routingStageLabel: ROUTING_STAGE_LABELS[routingStage] || routingStage,
-    userStatus,
-    waitingHumanBuffer,
-  };
-}
-
-function buildWorkflowTestUploadArtifacts(caseType = 'normal') {
-  if (caseType === 'multi_batch' || caseType === 'hitl_wait') {
-    return {
-      name: 'multi_batch_demo.zip',
-      sizeLabel: '4.2 MB',
-      fileCount: 4,
-      batchMode: 'multi',
-      batches: [
-        {
-          id: 'upload-batch-1',
-          label: 'バッチ1',
-          action: '案件 A を新規作成',
-          extractedFiles: [
-            { name: 'claim_pack.pdf', pages: 4, sizeLabel: '1.8 MB' },
-            { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '0.9 MB' },
-          ],
-        },
-        {
-          id: 'upload-batch-2',
-          label: 'バッチ2',
-          action: '既存案件 A に并入（Open Case 池）',
-          extractedFiles: [
-            { name: 'id_card.jpg', pages: 1, sizeLabel: '0.8 MB' },
-            { name: 'income_proof.pdf', pages: 2, sizeLabel: '0.7 MB' },
-          ],
-        },
-      ],
-      extractedFiles: [
-        { name: 'claim_pack.pdf', pages: 4, sizeLabel: '1.8 MB', batch: 'バッチ1' },
-        { name: 'Medical Bill_11.JPG', pages: 1, sizeLabel: '0.9 MB', batch: 'バッチ1' },
-        { name: 'id_card.jpg', pages: 1, sizeLabel: '0.8 MB', batch: 'バッチ2' },
-        { name: 'income_proof.pdf', pages: 2, sizeLabel: '0.7 MB', batch: 'バッチ2' },
-      ],
-    };
-  }
-  if (caseType === 'auto_supplement') {
-    return {
-      name: 'auto_supplement_demo.zip',
-      sizeLabel: '2.1 MB',
-      fileCount: 3,
-      batchMode: 'multi',
-      batches: [
-        {
-          id: 'upload-batch-1',
-          label: 'バッチ1（既存）',
-          action: '案件 A 已处于 post_ai_verify',
-          extractedFiles: [],
-        },
-        {
-          id: 'upload-batch-2',
-          label: 'バッチ2',
-          action: '补件候选池 → 案件 A 自动补件绑定',
-          extractedFiles: [
-            { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB' },
-            { name: 'memo_page.tiff', pages: 2, sizeLabel: '1.2 MB' },
-          ],
-        },
-      ],
-      extractedFiles: [
-        { name: 'receipt_scan.png', pages: 1, sizeLabel: '0.9 MB', batch: 'バッチ2' },
-        { name: 'memo_page.tiff', pages: 2, sizeLabel: '1.2 MB', batch: 'バッチ2' },
-      ],
-    };
-  }
-  return { ...WORKFLOW_TEST_DEFAULT_ZIP, batchMode: 'single' };
-}
-
-function buildWorkflowTestAggregateArtifacts(caseType = 'normal') {
-  if (caseType === 'multi_batch') {
-    return {
-      status: 'success',
-      statusLabel: '成功',
-      summary: 'バッチ1で案件 A を新規作成（pre_ai_verify）。バッチ2は Open Case 池で唯一命中 → 案件 A に并入。案件 B は未作成。',
-      crossBatch: {
-        batch1: { label: 'バッチ1', action: '案件 A を新規作成' },
-        batch2: { label: 'バッチ2', action: 'Open Case 池 → 案件 A に并入', matchedCaseId: 'case-1' },
-      },
-      touchpointDedup: [
-        { node: 'OCR 人工確認', key: '案件A + OCR確認ノード', result: 'open 待办 1 件（バッチ2 分を追記、新規待办なし）' },
-        { node: '通知', key: '案件A + 通知ノード', result: '同一 workflow 周期内 1 回のみ送信' },
-      ],
-      cases: [
-        withCaseRoutingMeta({
-          id: 'case-1',
-          label: '高橋誠_手術請求',
-          caseNo: 'REQ-2025-0018890',
-          mainDocType: '保険金請求書',
-          mergedBatches: ['upload-batch-1', 'upload-batch-2'],
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 真由美' },
-          ],
-          files: [
-            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票', batch: 'バッチ1' },
-            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票', batch: 'バッチ1' },
-            { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票', batch: 'バッチ1' },
-            { label: '本人確認書類_001.jpg', docType: '本人確認書類', role: '関連帳票', batch: 'バッチ2' },
-            { label: '収入証明_p1-2.pdf', docType: '収入証明', role: '関連帳票', batch: 'バッチ2' },
-          ],
-          warnings: [],
-        }),
-      ],
-    };
-  }
-  if (caseType === 'hitl_wait') {
-    return {
-      status: 'success',
-      statusLabel: '成功',
-      summary: 'バッチ2 并入後、前処理・OCR 人工確認で 30 分缓冲。各触点 pending 项合并，缓冲结束各触发 1 条待办。',
-      crossBatch: {
-        batch1: { label: 'バッチ1', action: '案件 A を新規作成' },
-        batch2: { label: 'バッチ2', action: 'Open Case 池 → 案件 A に并入', matchedCaseId: 'case-1' },
-      },
-      touchpointDedup: [
-        { node: '前処理人工確認', key: '前処理確認 + 30min', result: '缓冲期内 sliding 延长；列表仍显示处理中 + 等待人工缓冲' },
-        { node: 'OCR 人工確認', key: 'OCR人工確認 + 30min', result: '缓冲结束 → open 待办 1 件（两批合并）' },
-      ],
-      cases: [
-        withCaseRoutingMeta({
-          id: 'case-1',
-          label: '高橋誠_手術請求',
-          caseNo: 'REQ-2025-0018890',
-          mainDocType: '保険金請求書',
-          mergedBatches: ['upload-batch-1', 'upload-batch-2'],
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 真由美' },
-          ],
-          files: [
-            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票', batch: 'バッチ1' },
-            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票', batch: 'バッチ1' },
-            { label: '本人確認書類_001.jpg', docType: '本人確認書類', role: '関連帳票', batch: 'バッチ2' },
-          ],
-          warnings: [],
-        }, { waitingHumanBuffer: true }),
-      ],
-    };
-  }
-  if (caseType === 'auto_supplement') {
-    return {
-      status: 'success',
-      statusLabel: '成功',
-      summary: 'バッチ2は补件候选池（post_ai_verify）に唯一命中 → 案件 A へ自动补件绑定。新規案件なし、案件集约跳过。从前处理重跑到 AI 检证。',
-      autoSupplement: {
-        pool: 'post_ai_verify',
-        batch2: { label: 'バッチ2', action: '自动补件绑定 → 案件 A', matchedCaseId: 'case-1' },
-        rerun: '前处理 → OCR → Data Mapping → AI 检证',
-      },
-      cases: [
-        withCaseRoutingMeta({
-          id: 'case-1',
-          label: '高橋誠_手術請求',
-          caseNo: 'REQ-2025-0018890',
-          mainDocType: '保険金請求書',
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 真由美' },
-          ],
-          files: [
-            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
-            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
-            { label: '領収書_入院費.png', docType: '診療明細書', role: '补件文件', batch: 'バッチ2' },
-            { label: '補足説明_p1-2.tiff', docType: 'その他', role: '补件文件', batch: 'バッチ2' },
-          ],
-          warnings: [],
-        }, { routingStage: 'post_ai_verify' }),
-      ],
-    };
-  }
-  if (caseType === 'supplement') {
-    return {
-      status: 'warning',
-      statusLabel: '要確認',
-      summary: '1 案件を生成しました。関連帳票の不足候補があります（案件详情补件兜底入口）。',
-      cases: [
-        withCaseRoutingMeta({
-          id: 'case-1',
-          label: '高橋誠_手術請求',
-          caseNo: 'REQ-2025-0018890',
-          mainDocType: '保険金請求書',
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 真由美' },
-          ],
-          files: [
-            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
-            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
-            { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
-          ],
-          warnings: ['領収書・診療明細書が未紐付け（補填候補）'],
-        }, { userStatus: '等待补件' }),
-      ],
-    };
-  }
-  if (caseType === 'abnormal') {
-    return {
-      status: 'warning',
-      statusLabel: '要確認',
-      summary: '案件候補が複数件。人工集約確認が必要です。',
-      cases: [
-        withCaseRoutingMeta({
-          id: 'case-candidate-a',
-          label: '候補 A：高橋誠_手術請求',
-          caseNo: '—',
-          mainDocType: '保険金請求書',
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 真由美' },
-          ],
-          files: [
-            { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
-            { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
-          ],
-          warnings: ['候補案件（信頼度 0.78）'],
-        }),
-        withCaseRoutingMeta({
-          id: 'case-candidate-b',
-          label: '候補 B：同一証券・別請求',
-          caseNo: '—',
-          mainDocType: '保険金請求書',
-          matchKeys: [
-            { label: '証券番号', value: '02468135-008-002' },
-            { label: '被保険者氏名', value: '高橋 誠' },
-          ],
-          files: [
-            { label: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
-          ],
-          warnings: ['契約者氏名が不一致'],
-        }),
-      ],
-    };
-  }
-  return {
-    status: 'success',
-    statusLabel: '成功',
-    summary: '1 案件を生成し、6 処理ファイルを紐付けました。',
-    cases: [
-      withCaseRoutingMeta({
-        id: 'case-1',
-        label: '高橋誠_手術請求',
-        caseNo: 'REQ-2025-0018890',
-        mainDocType: '保険金請求書',
-        matchKeys: [
-          { label: '証券番号', value: '02468135-008-002' },
-          { label: '被保険者氏名', value: '高橋 真由美' },
-        ],
-        files: [
-          { label: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
-          { label: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
-          { label: '領収書_p5-6.pdf', docType: '診療明細書', role: '関連帳票' },
-          { label: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
-          { label: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
-          { label: '補足説明_p1-2.tiff', docType: 'その他', role: '参考資料' },
-        ],
-        warnings: [],
-      }),
+const WORKFLOW_TEST_SAMPLES = {
+  normal: {
+    id: 'normal',
+    label: '標準集約済み案件',
+    fixtureName: 'surgery_claim_post_aggregate.zip',
+    description: '案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。',
+    includes: [
+      '起動：新規起動 · 6 ファイル',
+      '主帳票・関連帳票を含む標準構成',
     ],
+    caseNo: 'REQ-2025-0018890',
+    caseLabel: '高橋誠_手術請求',
+    triggerType: '新規起動',
+    fileCount: 6,
+    files: [
+      { name: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
+      { name: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
+      { name: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
+      { name: '領収書_p5-6.pdf', docType: '診療明細書', role: '関連帳票' },
+      { name: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
+      { name: '補足説明_p1-2.tiff', docType: 'その他', role: '参考資料' },
+    ],
+    scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
+  },
+  custom: {
+    id: 'custom',
+    label: 'ユーザーアップロード',
+    fixtureName: '',
+    description: 'アップロードした集約済みテストデータを入力前提として使用します（本プロトタイプはファイル内容を解析せず mock 実行）。',
+    includes: [
+      '形式：ZIP / JSON（集約済み案件スナップショット）',
+      'トリガー種別・案件情報はファイル内メタデータから取得（実装時）',
+    ],
+    expectedOutcome: 'テスト成功（終了ノード到達）',
+    caseNo: '—',
+    caseLabel: 'アップロード案件',
+    triggerType: '新規起動',
+    fileCount: 0,
+    files: [],
+    scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
+  },
+};
+
+const WORKFLOW_TEST_TRIGGER_TYPES = new Set(['新規起動', '続行', '再実行']);
+
+const WORKFLOW_TEST_LEGACY_TRIGGER_TYPE_MAP = {
+  初回アップロード: '新規起動',
+  クロスバッチアップロード: '続行',
+  自動補件紐付け: '続行',
+  手動補件紐付け: '続行',
+};
+
+const WORKFLOW_TEST_FILE_ROLES = ['主帳票', '関連帳票', '参考資料'];
+
+function normalizeWorkflowTestTriggerType(raw, fallback = '新規起動') {
+  const value = String(raw || '').trim();
+  if (WORKFLOW_TEST_TRIGGER_TYPES.has(value)) return value;
+  return WORKFLOW_TEST_LEGACY_TRIGGER_TYPE_MAP[value] || fallback;
+}
+
+function cloneWorkflowTestCaseDefault() {
+  const base = WORKFLOW_TEST_SAMPLES.normal;
+  return {
+    label: base.label,
+    caseNo: base.caseNo,
+    caseLabel: base.caseLabel,
+    triggerType: base.triggerType,
+    files: (base.files || []).map((f) => ({ ...f })),
+    source: 'builtin',
+    uploadFileName: '',
+    savedAt: null,
   };
 }
 
-function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
+function buildWorkflowTestCaseFromUpload(fileName, parsed = null) {
+  const base = parsed && typeof parsed === 'object'
+    ? parsed
+    : cloneWorkflowTestCaseDefault();
+  const normalized = normalizeWorkflowTestCase({
+    ...base,
+    source: 'upload',
+    uploadFileName: fileName,
+    caseLabel: parsed?.caseLabel || fileName.replace(/\.(zip|json)$/i, '') || base.caseLabel,
+  });
+  normalized.source = 'upload';
+  normalized.uploadFileName = fileName;
+  return normalized;
+}
+
+function normalizeWorkflowTestCase(raw) {
+  const def = cloneWorkflowTestCaseDefault();
+  if (!raw || typeof raw !== 'object') return def;
+  const triggerType = normalizeWorkflowTestTriggerType(raw.triggerType || raw.triggerEvent, def.triggerType);
+  const files = Array.isArray(raw.files) && raw.files.length
+    ? raw.files.map((f) => ({
+        name: String(f?.name || '').trim() || 'document.pdf',
+        docType: String(f?.docType || 'その他').trim() || 'その他',
+        role: WORKFLOW_TEST_FILE_ROLES.includes(f?.role) ? f.role : '関連帳票',
+      }))
+    : def.files.map((f) => ({ ...f }));
+  return {
+    label: String(raw.label || def.label).trim() || def.label,
+    caseNo: String(raw.caseNo || def.caseNo).trim() || def.caseNo,
+    caseLabel: String(raw.caseLabel || def.caseLabel).trim() || def.caseLabel,
+    triggerType,
+    files,
+    source: raw.source === 'upload' ? 'upload' : 'builtin',
+    uploadFileName: String(raw.uploadFileName || '').trim(),
+    savedAt: raw.savedAt || null,
+  };
+}
+
+function validateWorkflowTestCase(testCase) {
+  const tc = normalizeWorkflowTestCase(testCase);
+  if (!tc.caseNo.trim()) return '案件番号を入力してください';
+  if (!tc.caseLabel.trim()) return '案件名を入力してください';
+  if (!tc.files.length) return '紐付ファイルを1件以上追加してください';
+  if (tc.files.some((f) => !f.name.trim())) return 'ファイル名が空の行があります';
+  return '';
+}
+
+function getWorkflowTestSampleList() {
+  return [WORKFLOW_TEST_SAMPLES.normal].filter(Boolean);
+}
+
+function buildWorkflowTestInputContext(testCase) {
+  const tc = normalizeWorkflowTestCase(testCase);
+  return {
+    ...tc,
+    fileCount: tc.files.length,
+    description: tc.source === 'upload' && tc.uploadFileName
+      ? `アップロードした「${tc.uploadFileName}」をテスト入力として使用します。`
+      : '内蔵の集約済み案件スナップショットをテスト入力として使用します。',
+    scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
+  };
+}
+
+
+function buildWorkflowTestNodeDetail(step, testCase) {
   const type = step?.type || '';
+  const input = buildWorkflowTestInputContext(testCase);
+  const fileCount = input.fileCount || 0;
+  if (type === 'start') {
+    return {
+      title: '開始ノード',
+      rows: [
+        { label: 'テスト案件', value: input.caseLabel || '—' },
+        { label: 'トリガー種別', value: input.triggerType },
+        { label: '案件番号', value: input.caseNo },
+        { label: '案件名', value: input.caseLabel },
+        { label: '紐付ファイル', value: `${input.fileCount} 件` },
+      ],
+      issues: [],
+    };
+  }
   if (type === 'preprocess') {
     return {
       title: '前処理結果',
       rows: [
-        { label: '成功ファイル', value: caseType === 'abnormal' ? '5 / 6' : (caseType === 'multi_batch' ? '5 / 5' : '6 / 6') },
-        { label: '失敗ファイル', value: caseType === 'abnormal' ? '1（補足説明_p1-2.tiff）' : '0' },
-        { label: '回転補正', value: '4 件適用' },
-        { label: '透視補正', value: '2 件適用' },
+        { label: '成功ファイル', value: `${fileCount} / ${fileCount}` },
+        { label: '失敗ファイル', value: '0' },
+        { label: '回転補正', value: `${Math.min(fileCount, 4)} 件適用` },
+        { label: '透視補正', value: `${Math.min(fileCount, 2)} 件適用` },
       ],
-      issues: caseType === 'abnormal' ? ['補足説明_p1-2.tiff：画像破損のため前処理失敗'] : [],
+      issues: [],
     };
   }
   if (type === 'ocr') {
-    const rows = [
-      { label: '抽出フィールド', value: caseType === 'multi_batch' ? '48 件' : '42 件' },
-      { label: '低信頼フィールド', value: caseType === 'abnormal' ? '3 件' : '0 件' },
-      { label: '帳票タイプ別', value: caseType === 'multi_batch'
-        ? '保険金請求書 11 / 診断書 9 / 診療明細書 12 / 本人確認 8 / 収入証明 8'
-        : '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
-    ];
-    if (caseType === 'multi_batch' || caseType === 'hitl_wait') {
-      rows.push({ label: '人工確認待办', value: caseType === 'hitl_wait'
-        ? '缓冲中（等待人工缓冲）；结束 → 1 件 open'
-        : '1 件 open（バッチ2 追記、重複待办なし）' });
-    }
     return {
       title: 'OCR 抽出結果',
-      rows,
-      issues: caseType === 'abnormal'
-        ? ['診療明細書.医療機関名：信頼度 0.62（閾値 0.75）']
-        : [],
+      rows: [
+        { label: '抽出フィールド', value: '42 件' },
+        { label: '低信頼フィールド', value: '0 件' },
+        { label: '帳票タイプ別', value: '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
+      ],
+      issues: [],
     };
   }
   if (type === 'data_mapping') {
@@ -1954,26 +1802,13 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
       title: 'データマッピング結果',
       rows: [
         { label: '標準フィールド', value: '11 件' },
-        { label: '競合フィールド', value: caseType === 'abnormal' ? '1 件' : '0 件' },
+        { label: '競合フィールド', value: '0 件' },
         { label: '未マッピング', value: '0 件' },
       ],
-      issues: caseType === 'abnormal'
-        ? ['claimAmount：保険金請求書 420,000 と診療明細合計 128,400 が不一致']
-        : [],
+      issues: [],
     };
   }
   if (type === 'notify') {
-    if (caseType === 'multi_batch') {
-      return {
-        title: '通知送信結果',
-        rows: [
-          { label: '送信回数', value: '1 回（去重済）' },
-          { label: '去重键', value: '案件 A + 通知ノード ID' },
-          { label: 'バッチ2 追加分', value: '再送信なし（同一周期内）' },
-        ],
-        issues: [],
-      };
-    }
     return {
       title: '通知送信結果',
       rows: [
@@ -1984,31 +1819,6 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
     };
   }
   if (type === 'ai_verify') {
-    if (caseType === 'supplement') {
-      return {
-        title: 'AI 検証結果',
-        rows: [
-          { label: '総合判定', value: '要確認' },
-          { label: '必要書類', value: '領収書・診療明細書 不足候補' },
-          { label: 'データ検証', value: '2 / 3 通過' },
-        ],
-        issues: ['必要書類チェック：領収書・診療明細書が案件に未紐付け'],
-      };
-    }
-    if (caseType === 'abnormal') {
-      return {
-        title: 'AI 検証結果',
-        rows: [
-          { label: '総合判定', value: '不通過' },
-          { label: 'データ検証', value: '1 / 3 通過' },
-          { label: '署名・印鑑', value: '通過' },
-        ],
-        issues: [
-          'c2：{{保険金請求書.請求金額}} ≠ {{診療明細書.合計金額}}',
-          '必須フィールド：入院日が空値',
-        ],
-      };
-    }
     return {
       title: 'AI 検証結果',
       rows: [
@@ -2027,17 +1837,6 @@ function buildWorkflowTestNodeDetail(step, caseType = 'normal') {
       rows: [
         { label: '確認対象', value: step.label || '人工確認' },
         { label: 'テスト状態', value: 'このノードで停止し、待確認内容を表示します' },
-      ],
-      issues: [],
-    };
-  }
-  if (type === 'notify') {
-    return {
-      title: '通知結果',
-      rows: [
-        { label: '送信先', value: 'reviewer@example.com' },
-        { label: '件名', value: '【テスト】案件処理完了通知' },
-        { label: '送信状態', value: '成功（テスト標識付き）' },
       ],
       issues: [],
     };
@@ -2065,25 +1864,12 @@ function getWorkflowTestHitlBranchLabel(workflow, nodeId) {
   return label ? `分岐: ${label}` : '';
 }
 
-function workflowTestStepResultText(step, caseType) {
+function workflowTestStepResultText(step, testCase) {
   const label = step.label || '';
   const type = step.type || '';
-  const phase = step.phase || '';
-  if (phase === 'upload') {
-    if (caseType === 'multi_batch' || caseType === 'hitl_wait') return 'バッチ1・バッチ2 を順次取り込み（計 4 原ファイル）';
-    if (caseType === 'auto_supplement') return 'バッチ2 を主上传取り込み（案件 A は post_ai_verify）';
-    return 'ZIP を解凍し 4 原ファイルを取り込みました';
-  }
-  if (phase === 'aggregate') {
-    if (caseType === 'abnormal') return '案件候補が複数件。人工集約確認が必要です';
-    if (caseType === 'supplement') return '1 案件を生成。関連帳票の不足候補あり';
-    if (caseType === 'auto_supplement') return '补件候选池命中 → 案件 A 自动补件绑定。不新建';
-    if (caseType === 'hitl_wait') return 'バッチ2 Open Case 并入 A；前処理・OCR 人工確認缓冲 30 分钟合并 pending';
-    if (caseType === 'multi_batch') return 'バッチ2 Open Case 并入 A。案件 B 未作成';
-    return '1 案件 REQ-2025-0018890 に 6 ファイルを紐付けました';
-  }
+  const input = buildWorkflowTestInputContext(testCase);
   const summaries = {
-    start: 'Workflow を起動しました',
+    start: `トリガー種別: ${input.triggerType} — Workflow を起動しました`,
     preprocess: '画像補正・回転・画像分割を完了しました',
     ocr: '帳票タイプ別に公式フィールドを抽出しました',
     data_mapping: '標準フィールドへマッピングしました',
@@ -2095,26 +1881,10 @@ function workflowTestStepResultText(step, caseType) {
     mcp: '外部連携を完了しました',
     code: 'コード実行を完了しました',
   };
-  if (caseType === 'supplement' && type === 'ai_verify') return '不足書類を検出しました（補填候補）';
-  if (caseType === 'multi_batch' && type === 'notify') return '同一案件・同一通知ノードのため 1 回のみ送信';
-  if ((caseType === 'multi_batch' || caseType === 'hitl_wait') && type === 'hitl_gate') {
-    if (caseType === 'hitl_wait' && (step.id === 'wf-hu-pre' || step.id === 'wf-hu-ocr' || /OCR|前処理|前处理/.test(label))) {
-      return '30 分钟缓冲中；列表显示处理中 + 等待人工缓冲';
-    }
-    return caseType === 'hitl_wait'
-      ? '缓冲结束 → open 待办 1 件（两批合并）'
-      : 'open 待办 1 件（バッチ2 追記、新規待办なし）';
-  }
-  if (caseType === 'auto_supplement' && type === 'preprocess') return '补件文件のみ前处理実行（既存ファイルは再実行なし）';
-  if (caseType === 'abnormal' && type === 'ai_verify') return '必須フィールド不一致を検出しました';
-  if (caseType === 'abnormal' && type === 'ocr') return '低信頼フィールドが閾値を下回りました';
   return summaries[type] || `${label} を完了しました`;
 }
 
-function workflowTestStepErrorReason(step, caseType) {
-  if (caseType !== 'abnormal') return '';
-  if (step.type === 'ocr') return '抽出信頼度 0.62 < 閾値 0.75（医療機関名）';
-  if (step.type === 'ai_verify') return 'データ検証 c2：請求金額と診療明細合計が不一致';
+function workflowTestStepErrorReason(step) {
   return '';
 }
 
@@ -2138,7 +1908,7 @@ function getWorkflowTestReachableNodeIds(workflow) {
   return ids;
 }
 
-function buildWorkflowTestSteps(workflow, caseType = 'normal') {
+function buildWorkflowTestSteps(workflow, testCase) {
   const wf = workflow || { nodes: [], edges: [] };
   const chainIds = getWorkflowTestReachableNodeIds(wf);
   const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
@@ -2159,36 +1929,20 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
       type: node.type || 'custom',
     };
   });
-  const allSteps = [...WORKFLOW_TEST_SYSTEM_STEPS, ...wfSteps];
+  const allSteps = wfSteps;
   const hitlIssues = Object.fromEntries(validateWorkflowTestHitlContext(wf).map((issue) => [issue.nodeId, issue.message]));
-  const errorStepId = caseType === 'abnormal'
-    ? (allSteps.find((step) => step.type === 'ocr')?.id
-      || allSteps.find((step) => step.type === 'ai_verify')?.id
-      || allSteps[allSteps.length - 2]?.id)
-    : '';
-  const warningStepId = caseType === 'supplement'
-    ? allSteps.find((step) => step.type === 'ai_verify')?.id
-    : (caseType === 'abnormal' ? allSteps.find((step) => step.phase === 'aggregate')?.id : '');
   const skippedTypes = new Set(['hitl_gate']);
 
   return allSteps.map((step) => {
     let status = 'success';
     if (skippedTypes.has(step.type)) status = 'skipped';
-    if (step.id === warningStepId && caseType !== 'abnormal') status = 'warning';
-    if (step.id === warningStepId && caseType === 'abnormal' && step.phase === 'aggregate') status = 'warning';
-    if (step.id === errorStepId) status = 'error';
     if (hitlIssues[step.id]) status = 'error';
-    if (status === 'error' && errorStepId) {
-      const errorIndex = allSteps.findIndex((item) => item.id === errorStepId);
-      const stepIndex = allSteps.findIndex((item) => item.id === step.id);
-      if (stepIndex > errorIndex) status = 'pending';
-    }
     return {
       ...step,
       status,
       onCycle: cycleNodeIds.has(step.id),
       summary: (() => {
-        let text = status === 'pending' ? '未実行' : workflowTestStepResultText(step, caseType);
+        let text = status === 'pending' ? '未実行' : workflowTestStepResultText(step, testCase);
         if (step.type === 'hitl_gate' && status !== 'pending') {
           const branchLabel = getWorkflowTestHitlBranchLabel(wf, step.id);
           if (branchLabel) text = `${text}（${branchLabel}）`;
@@ -2198,19 +1952,18 @@ function buildWorkflowTestSteps(workflow, caseType = 'normal') {
         }
         return text;
       })(),
-      errorReason: hitlIssues[step.id] || (status === 'error' ? workflowTestStepErrorReason(step, caseType) : ''),
+      errorReason: hitlIssues[step.id] || (status === 'error' ? workflowTestStepErrorReason(step) : ''),
       needsHuman: false,
     };
   });
 }
 
-function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_TEST_DEFAULT_ZIP) {
+function buildWorkflowTestSummary(steps, testCase) {
   const list = steps || [];
-  const passed = list.filter((step) => ['success', 'skipped', 'warning'].includes(step.status)).length;
+  const passed = list.filter((step) => ['success', 'skipped'].includes(step.status)).length;
   const hasError = list.some((step) => step.status === 'error');
-  const hasWarning = list.some((step) => step.status === 'warning');
   const endStep = [...list].reverse().find((step) => step.type === 'end');
-  const reachedEnd = !!endStep && ['success', 'warning', 'skipped'].includes(endStep.status);
+  const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
   let overallStatus = 'success';
   let overallLabel = '成功';
   if (hasError) {
@@ -2219,31 +1972,23 @@ function buildWorkflowTestSummary(steps, caseType = 'normal', upload = WORKFLOW_
   } else if (!reachedEnd) {
     overallStatus = 'error';
     overallLabel = '終了未到達';
-  } else if (hasWarning || caseType === 'supplement') {
-    overallStatus = 'warning';
-    overallLabel = '要確認';
   }
-  const aggregate = buildWorkflowTestAggregateArtifacts(caseType);
+  const input = buildWorkflowTestInputContext(testCase);
   return {
     overallStatus,
     overallLabel,
-    durationSec: caseType === 'abnormal' ? 12.6
-      : (caseType === 'supplement' ? 16.2
-        : (caseType === 'auto_supplement' ? 14.5
-          : (caseType === 'hitl_wait' ? 21.2
-            : (caseType === 'multi_batch' ? 19.8 : 18.4)))),
+    durationSec: 18.4,
     passedCount: passed,
     totalCount: list.length,
-    uploadFileCount: upload.fileCount,
-    caseCount: aggregate.cases?.length || 0,
+    workflowNodeCount: list.length,
+    inputFileCount: input.fileCount,
     reachedEnd,
   };
 }
 
-function buildWorkflowTestArtifacts(caseType = 'normal') {
+function buildWorkflowTestArtifacts(testCase) {
   return {
-    upload: buildWorkflowTestUploadArtifacts(caseType),
-    aggregate: buildWorkflowTestAggregateArtifacts(caseType),
+    input: buildWorkflowTestInputContext(testCase),
   };
 }
 
@@ -2278,18 +2023,19 @@ function validateWorkflowTestHitlContext(workflow) {
   const wf = workflow || { nodes: [], edges: [] };
   const hitlNodes = (wf.nodes || []).filter((node) => node.type === 'hitl_gate');
   const issues = [];
+  const allowedTypes = ['preprocess', 'ocr', 'ai_verify'];
   hitlNodes.forEach((node) => {
-    const context = node.hitlContext || 'ocr';
-    const rule = WORKFLOW_TEST_HITL_CONTEXT_RULES[context] || WORKFLOW_TEST_HITL_CONTEXT_RULES.ocr;
-    const sources = collectWorkflowTestHitlSourceTypes(wf, node.id);
-    const matched = sources.some((source) => rule.allowedTypes.includes(source.type));
+    const sources = typeof collectHitlUpstreamSources === 'function'
+      ? collectHitlUpstreamSources(wf, node.id)
+      : collectWorkflowTestHitlSourceTypes(wf, node.id);
+    const matched = sources.some((source) => allowedTypes.includes(source.type));
     if (!matched) {
       const sourceLabels = sources.length
         ? sources.map((source) => source.label || source.type).join('、')
         : '上流ノードなし';
       issues.push({
         nodeId: node.id,
-        message: `${node.label || '人工確認'}：コンテキスト「${rule.label}」に対して、上流が ${sourceLabels} です。前処理/OCR/AI検証以外、または一致しない上流から人工確認へ接続されています。`,
+        message: `${node.label || '人工確認'}：前処理・OCR・AI検証のいずれか直後に接続してください。現在の上流は ${sourceLabels} です。`,
       });
     }
   });
@@ -2321,7 +2067,7 @@ function buildWorkflowTestDiagnostics(workflow) {
     })(),
     hitlContext: hitlIssues.length
       ? hitlIssues.map((issue) => issue.message).join('\n')
-      : '人工確認コンテキストと上流ノードの不一致は検出されませんでした。',
+      : '人工確認ノードの上流接続に問題は検出されませんでした。',
     hasError: hitlIssues.length > 0,
   };
 }

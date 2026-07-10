@@ -937,6 +937,9 @@ function sceneForm(sceneOrId) {
   data.workflows = {
     case: buildDefaultCaseWorkflow(),
   };
+  data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
+    ? cloneWorkflowTestCaseDefault()
+    : null;
   return data;
 }
 
@@ -963,6 +966,9 @@ function sceneFormByScene(scene) {
   data.workflows = {
     case: buildDefaultCaseWorkflow(),
   };
+  data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
+    ? cloneWorkflowTestCaseDefault()
+    : null;
   return data;
 }
 
@@ -998,6 +1004,9 @@ function normalizeLoadedForm(form) {
   form.output = normalizeOutputConfig(form.output, form.scene.documents, form.master.mappings, form.master.knowledgeSource);
   syncOcrExtractTypesOnForm(form);
   ensureFormWorkflows(form, { force: true });
+  if (typeof normalizeWorkflowTestCase === 'function') {
+    form.workflowTestCase = normalizeWorkflowTestCase(form.workflowTestCase);
+  }
   return form;
 }
 
