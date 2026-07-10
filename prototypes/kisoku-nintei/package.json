@@ -1,7 +1,9 @@
 {
   "scripts": {
     "build": "node tools/sync-public.mjs",
-    "serve": "python3 -m http.server 4175 --directory public --bind 127.0.0.1"
+    "build:prd": "node tools/build-prd.mjs",
+    "serve": "python3 -m http.server 4175 --directory public --bind 127.0.0.1",
+    "serve:prd": "npm run build:prd && python3 -m http.server 4176 --directory prd-public --bind 127.0.0.1"
   }
 }
 

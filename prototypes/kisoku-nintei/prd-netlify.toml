@@ -1,0 +1,3 @@
+[build]
+  publish = "prd-public"
+  command = "npm run build:prd"
