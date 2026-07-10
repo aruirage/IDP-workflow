@@ -1757,12 +1757,86 @@ function buildWorkflowTestInputContext(testCase) {
 }
 
 
-function buildWorkflowTestNodeDetail(step, testCase) {
+function buildWorkflowTestDecisionDetail(step, workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const node = (wf.nodes || []).find((n) => n.id === step.id);
+  if (!node) return null;
+  const variableOptions = typeof getDecisionCanvasVariableOptions === 'function'
+    ? getDecisionCanvasVariableOptions(node)
+    : [];
+  const outEdges = (wf.edges || []).filter((edge) => edge.from === node.id && !edge.visualHidden);
+  const rows = [
+    { label: '評価結果', value: '成立（テスト模擬）' },
+  ];
+  const issues = [];
+  let hitBranch = '';
+
+  (node.cases || []).forEach((decisionCase, index) => {
+    const branchKey = decisionCase.kind === 'if' || index === 0
+      ? 'if'
+      : (decisionCase.id || `elif_${index}`);
+    const edge = outEdges.find((item) => item.branch === branchKey || item.branch === decisionCase.id);
+    const preview = typeof getDecisionCaseCanvasPreview === 'function'
+      ? getDecisionCaseCanvasPreview(node, decisionCase)
+      : (typeof decisionConditionPreview === 'function'
+        ? decisionConditionPreview(decisionCase, variableOptions)
+        : (decisionCase.label || '条件未設定'));
+    const branchLabel = decisionCase.label || (index === 0 ? 'IF' : `ELIF ${index}`);
+    rows.push({
+      label: branchLabel,
+      value: preview || '条件未設定',
+    });
+    if (!hitBranch && edge) {
+      const target = (wf.nodes || []).find((item) => item.id === edge.to);
+      hitBranch = `${branchLabel} → ${target?.label || edge.to}`;
+    }
+  });
+
+  if (node.elseLabel || outEdges.some((edge) => edge.branch === 'else')) {
+    const elseEdge = outEdges.find((edge) => edge.branch === 'else');
+    const elseTarget = elseEdge
+      ? (wf.nodes || []).find((item) => item.id === elseEdge.to)
+      : null;
+    rows.push({
+      label: 'ELSE',
+      value: node.elseLabel || '条件に該当しない場合',
+    });
+    if (!hitBranch && elseEdge) {
+      hitBranch = `ELSE → ${elseTarget?.label || elseEdge.to}`;
+    }
+  }
+
+  rows.splice(1, 0, {
+    label: '命中分岐',
+    value: hitBranch || rows[1]?.label || 'IF（テスト模擬）',
+  });
+
+  if ((node.cases || []).some((decisionCase) => !decisionCase.conditions?.some((c) => c.variable))) {
+    issues.push('未設定の条件分岐があります。公開前に IF/ELIF 条件を確認してください。');
+  }
+
+  return {
+    title: step.label || '条件分岐結果',
+    rows,
+    issues,
+  };
+}
+
+function appendWorkflowTestDetailIssues(detail, step) {
+  if (!detail) return detail;
+  const issues = [...(detail.issues || [])];
+  if (step?.errorReason && !issues.includes(step.errorReason)) {
+    issues.push(step.errorReason);
+  }
+  return { ...detail, issues };
+}
+
+function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
   const type = step?.type || '';
   const input = buildWorkflowTestInputContext(testCase);
   const fileCount = input.fileCount || 0;
   if (type === 'start') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: '開始ノード',
       rows: [
         { label: 'テスト案件', value: input.caseLabel || '—' },
@@ -1772,10 +1846,10 @@ function buildWorkflowTestNodeDetail(step, testCase) {
         { label: '紐付ファイル', value: `${input.fileCount} 件` },
       ],
       issues: [],
-    };
+    }, step);
   }
   if (type === 'preprocess') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: '前処理結果',
       rows: [
         { label: '成功ファイル', value: `${fileCount} / ${fileCount}` },
@@ -1784,7 +1858,7 @@ function buildWorkflowTestNodeDetail(step, testCase) {
         { label: '透視補正', value: `${Math.min(fileCount, 2)} 件適用` },
       ],
       issues: [],
-    };
+    }, step);
   }
   if (type === 'ocr') {
     return {
@@ -1831,15 +1905,18 @@ function buildWorkflowTestNodeDetail(step, testCase) {
       issues: [],
     };
   }
+  if (type === 'decision') {
+    return appendWorkflowTestDetailIssues(buildWorkflowTestDecisionDetail(step, workflow), step);
+  }
   if (type === 'hitl_gate') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: '人工確認待ち',
       rows: [
         { label: '確認対象', value: step.label || '人工確認' },
         { label: 'テスト状態', value: 'このノードで停止し、待確認内容を表示します' },
       ],
       issues: [],
-    };
+    }, step);
   }
   if (type === 'end') {
     return {
@@ -1884,8 +1961,186 @@ function workflowTestStepResultText(step, testCase) {
   return summaries[type] || `${label} を完了しました`;
 }
 
-function workflowTestStepErrorReason(step) {
-  return '';
+function getWorkflowTestSceneContext(sceneContext) {
+  return {
+    processing: sceneContext?.processing || {},
+    documents: sceneContext?.documents || [],
+  };
+}
+
+function isWorkflowTestPreprocessConfigured(processing) {
+  const img = processing?.image || {};
+  return !!(img.rotate || img.perspective || img.split || img.sort);
+}
+
+function isWorkflowTestOcrConfigured(processing, documents) {
+  const docs = documents || [];
+  return (processing?.ocrExtract?.enabledTypes || [])
+    .filter((type) => docs.some((doc) => doc.type === type))
+    .length > 0;
+}
+
+function collectWorkflowTestBranchIssues(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const edges = (wf.edges || []).filter((edge) => !edge.visualHidden);
+  const issues = {};
+  const mark = (nodeId, message) => {
+    if (!issues[nodeId]) issues[nodeId] = message;
+  };
+
+  (wf.nodes || []).forEach((node) => {
+    if (node.type === 'decision') {
+      (node.cases || []).forEach((decisionCase, index) => {
+        const branchKey = decisionCase.kind === 'if' || index === 0
+          ? 'if'
+          : (decisionCase.id || `elif_${index}`);
+        if (!edges.some((edge) => edge.from === node.id && edge.branch === branchKey)) {
+          mark(node.id, '分岐が未接続です');
+        }
+      });
+      const needsElse = !!(node.elseLabel || edges.some((edge) => edge.from === node.id && edge.branch === 'else'));
+      if (needsElse && !edges.some((edge) => edge.from === node.id && edge.branch === 'else')) {
+        mark(node.id, '分岐が未接続です');
+      }
+    }
+    if (node.type === 'hitl_gate') {
+      const actions = typeof normalizeHitlGateActions === 'function'
+        ? normalizeHitlGateActions(node.actions)
+        : ['approve', 'request_supplement', 'reject'];
+      const hasConnectedBranch = actions.some((branch) =>
+        edges.some((edge) => edge.from === node.id && edge.branch === branch));
+      if (!hasConnectedBranch) {
+        mark(node.id, '分岐が未接続です');
+      }
+    }
+  });
+  return issues;
+}
+
+function analyzeWorkflowTestCanvas(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const nodes = wf.nodes || [];
+  const edges = (wf.edges || []).filter((edge) => !edge.visualHidden);
+  const reachableIds = getWorkflowTestReachableNodeIds(wf);
+  const reachable = new Set(reachableIds);
+  const startNodes = nodes.filter((node) => node.type === 'start');
+  const endNodes = nodes.filter((node) => node.type === 'end');
+  const branchIssues = collectWorkflowTestBranchIssues(wf);
+  const canvasHighlights = [];
+
+  nodes.forEach((node) => {
+    if (node.type === 'start' || node.type === 'end') return;
+    const hasIn = edges.some((edge) => edge.to === node.id);
+    const hasOut = edges.some((edge) => edge.from === node.id);
+    if (!hasIn && !hasOut) {
+      canvasHighlights.push({
+        nodeId: node.id,
+        kind: 'isolated',
+        message: '接続のないノードがあります',
+      });
+      return;
+    }
+    if (!reachable.has(node.id)) {
+      canvasHighlights.push({
+        nodeId: node.id,
+        kind: 'unreachable',
+        message: '開始ノードから到達できません',
+      });
+    }
+  });
+
+  const timelineIssues = { ...branchIssues };
+  if (startNodes.length > 1) {
+    const primaryStart = typeof getWorkflowStartNode === 'function'
+      ? getWorkflowStartNode(wf)
+      : startNodes[0];
+    if (primaryStart?.id) {
+      timelineIssues[primaryStart.id] = '開始ノードが複数あります';
+    }
+  }
+
+  return {
+    canvasHighlights,
+    timelineIssues,
+    branchIssues,
+    hasEndNode: endNodes.length > 0,
+    multipleStartNodes: startNodes.length > 1,
+  };
+}
+
+function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const node = (wf.nodes || []).find((item) => item.id === step.id);
+  if (!node) return '';
+  const { processing, documents } = getWorkflowTestSceneContext(sceneContext);
+
+  switch (node.type) {
+    case 'preprocess':
+      if (!isWorkflowTestPreprocessConfigured(processing)) {
+        return '前処理オプションを1件以上有効にしてください';
+      }
+      return '';
+    case 'ocr':
+      if (!isWorkflowTestOcrConfigured(processing, documents)) {
+        return 'OCR 対象帳票を1件以上有効にしてください';
+      }
+      return '';
+    case 'ai_verify': {
+      if (typeof normalizeAiVerifyNode !== 'function' || typeof AI_VERIFY_MODULE_OPTIONS === 'undefined') {
+        return '';
+      }
+      const normalized = normalizeAiVerifyNode(node, wf);
+      const enabledCount = AI_VERIFY_MODULE_OPTIONS
+        .filter((opt) => normalized.moduleEnabled?.[opt.key] !== false).length;
+      if (!enabledCount) return '検証モジュールを1件以上有効にしてください';
+      return '';
+    }
+    case 'decision': {
+      const hasEmptyBranch = (node.cases || []).some((decisionCase) =>
+        !(decisionCase.conditions || []).some((cond) => cond.variable));
+      if (hasEmptyBranch) return '未設定の条件分岐があります';
+      return '';
+    }
+    case 'hitl_gate': {
+      if (!String(node.role || '').trim()) return '審査ロールを選択してください';
+      return '';
+    }
+    case 'notify': {
+      if (typeof normalizeNotifyNode !== 'function' || typeof validateNotifyRecipients !== 'function') {
+        return '';
+      }
+      const normalized = normalizeNotifyNode(node, wf);
+      const raw = String(normalized.recipients || '').trim();
+      if (!raw) return '送信先を設定してください';
+      const result = validateNotifyRecipients(normalized.channel, raw);
+      if (!result.ok) return result.message || '送信先を設定してください';
+      return '';
+    }
+    case 'code': {
+      if (typeof normalizeCodeNode !== 'function') return '';
+      const normalized = normalizeCodeNode(node, wf);
+      if (!String(normalized.pythonCode || '').trim()) {
+        return 'Python スクリプトを入力してください';
+      }
+      const missingInput = (normalized.inputs || []).some((row) => row.required
+        && row.source === 'reference'
+        && !String(row.variable || '').trim());
+      if (missingInput) return '入力変数が未設定です';
+      const outputs = normalized.outputParams || [];
+      if (!outputs.length) return '出力変数が不正です';
+      const names = outputs.map((row) => row.name);
+      if (new Set(names).size !== names.length) return '出力変数が不正です';
+      return '';
+    }
+    default:
+      return '';
+  }
+}
+
+function workflowTestStepErrorReason(step, workflow, sceneContext, canvasAnalysis) {
+  const timelineIssue = canvasAnalysis?.timelineIssues?.[step.id];
+  const configIssue = validateWorkflowTestNodeConfig(workflow, step, sceneContext);
+  return timelineIssue || configIssue || '';
 }
 
 function getWorkflowTestReachableNodeIds(workflow) {
@@ -1908,7 +2163,7 @@ function getWorkflowTestReachableNodeIds(workflow) {
   return ids;
 }
 
-function buildWorkflowTestSteps(workflow, testCase) {
+function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   const wf = workflow || { nodes: [], edges: [] };
   const chainIds = getWorkflowTestReachableNodeIds(wf);
   const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
@@ -1930,20 +2185,24 @@ function buildWorkflowTestSteps(workflow, testCase) {
     };
   });
   const allSteps = wfSteps;
+  const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
   const hitlIssues = Object.fromEntries(validateWorkflowTestHitlContext(wf).map((issue) => [issue.nodeId, issue.message]));
   const skippedTypes = new Set(['hitl_gate']);
 
   return allSteps.map((step) => {
+    const errorReason = hitlIssues[step.id]
+      || workflowTestStepErrorReason(step, wf, sceneContext, canvasAnalysis)
+      || '';
     let status = 'success';
-    if (skippedTypes.has(step.type)) status = 'skipped';
-    if (hitlIssues[step.id]) status = 'error';
+    if (skippedTypes.has(step.type) && !errorReason) status = 'skipped';
+    if (errorReason) status = 'error';
     return {
       ...step,
       status,
       onCycle: cycleNodeIds.has(step.id),
       summary: (() => {
         let text = status === 'pending' ? '未実行' : workflowTestStepResultText(step, testCase);
-        if (step.type === 'hitl_gate' && status !== 'pending') {
+        if (step.type === 'hitl_gate' && status === 'skipped') {
           const branchLabel = getWorkflowTestHitlBranchLabel(wf, step.id);
           if (branchLabel) text = `${text}（${branchLabel}）`;
         }
@@ -1952,21 +2211,24 @@ function buildWorkflowTestSteps(workflow, testCase) {
         }
         return text;
       })(),
-      errorReason: hitlIssues[step.id] || (status === 'error' ? workflowTestStepErrorReason(step) : ''),
+      errorReason,
       needsHuman: false,
     };
   });
 }
 
-function buildWorkflowTestSummary(steps, testCase) {
+function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) {
   const list = steps || [];
+  const wf = workflow || { nodes: [], edges: [] };
+  const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
   const passed = list.filter((step) => ['success', 'skipped'].includes(step.status)).length;
   const hasError = list.some((step) => step.status === 'error');
   const endStep = [...list].reverse().find((step) => step.type === 'end');
   const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
+  const hasCanvasIssue = canvasAnalysis.canvasHighlights.length > 0;
   let overallStatus = 'success';
   let overallLabel = '成功';
-  if (hasError) {
+  if (hasError || hasCanvasIssue) {
     overallStatus = 'error';
     overallLabel = '失敗';
   } else if (!reachedEnd) {
@@ -1974,6 +2236,7 @@ function buildWorkflowTestSummary(steps, testCase) {
     overallLabel = '終了未到達';
   }
   const input = buildWorkflowTestInputContext(testCase);
+  const structureMessages = [...new Set(canvasAnalysis.canvasHighlights.map((item) => item.message))];
   return {
     overallStatus,
     overallLabel,
@@ -1983,6 +2246,10 @@ function buildWorkflowTestSummary(steps, testCase) {
     workflowNodeCount: list.length,
     inputFileCount: input.fileCount,
     reachedEnd,
+    canvasHighlights: canvasAnalysis.canvasHighlights,
+    structureNote: structureMessages.length
+      ? `構造エラー：${structureMessages.join('、')}`
+      : '',
   };
 }
 
@@ -2046,16 +2313,21 @@ function buildWorkflowTestDiagnostics(workflow) {
   const wf = workflow || { nodes: [], edges: [] };
   const nodeLabels = (wf.nodes || []).map((node) => node.label || node.type);
   const hitlIssues = validateWorkflowTestHitlContext(wf);
+  const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
   const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
     ? getWorkflowCycleNodeIds(wf)
     : new Set();
+  const structureLines = canvasAnalysis.canvasHighlights.map((item) => item.message);
   return {
     variableRefs: nodeLabels.length
       ? '未生成ノードまたは存在しない帳票タイプ・フィールドへの変数参照は検出されませんでした。'
       : 'Workflow ノードが未設定のため、変数参照チェックをスキップしました。',
     branchChecks: (() => {
       const parts = [];
-      if ((wf.edges || []).some((edge) => edge.branch)) {
+      const branchIssueCount = Object.keys(canvasAnalysis.branchIssues).length;
+      if (branchIssueCount) {
+        parts.push(`未接続分岐を ${branchIssueCount} ノードで検出しました。`);
+      } else if ((wf.edges || []).some((edge) => edge.branch)) {
         parts.push('IF/ELSE 分岐先・入力値・型不一致は検出されませんでした。');
       } else {
         parts.push('条件分岐ノードがないため、分岐チェックをスキップしました。');
@@ -2068,6 +2340,10 @@ function buildWorkflowTestDiagnostics(workflow) {
     hitlContext: hitlIssues.length
       ? hitlIssues.map((issue) => issue.message).join('\n')
       : '人工確認ノードの上流接続に問題は検出されませんでした。',
-    hasError: hitlIssues.length > 0,
+    structureChecks: structureLines.length
+      ? structureLines.join('\n')
+      : '孤立ノード・不可達ノードは検出されませんでした。',
+    hasError: hitlIssues.length > 0 || canvasAnalysis.canvasHighlights.length > 0
+      || Object.keys(canvasAnalysis.branchIssues).length > 0,
   };
 }

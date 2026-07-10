@@ -73,7 +73,7 @@ const INSPECTOR_HINTS = {
   nodeOutputOcr: 'OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。',
   nodeOutputVerify: 'AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。',
   nodeOutputStart: 'Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル範囲・帳票タイプ一覧。',
-  nodeOutputEnd: '分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。',
+  nodeOutputEnd: '案件状態提案・最終処理結果・未完了事項・成果ファイル状態・終了時刻。',
   nodeOutputHitl: '人工確認タスク・缓冲等待状態・open 待办数・待確認ファイル/フィールド件数・確認結果・補件/異常判定。',
   nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。',
   mcpOutput: 'Tool 実行後に後続ノードへ渡される出力変数です。IF/ELSE やマスタ照合の入力として参照できます。',
@@ -723,127 +723,111 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
+const WORKFLOW_OUTPUT_VALUE_SPECS = {
+  nodeStatus: 'success / warning / failed / skipped',
+  triggerType: '新規起動 / 続行 / 再実行',
+  caseStatus: '新規 / 処理中 / 人工確認 / 補件待ち / 処理完了 / 処理中止 / 異常 / 保留',
+  finalResult: '正常完了 / 補件待ち / 異常 / 中止',
+  boolean: 'true / false',
+  runtimeCount: '运行时写入，非负整数，无固定上限',
+  runtimeString: '运行时写入，无固定取值',
+  runtimeDateTime: '运行时写入，ISO 8601 日期时间',
+  resultFileStatus: '対象外 / 待機 / 生成中 / 完了 / 失敗',
+  verifyModuleStatus: 'success / warning / failed / skipped / missing',
+  confirmStatus: 'created / completed / failed / timeout',
+  confirmAction: 'approve / request_fix / reject / request_supplement',
+  notifySendStatus: 'success / failed / skipped / deduplicated',
+  notifyType: '不備通知 / 処理完了通知 / 異常通知',
+  codeStatus: 'success / failed',
+  dynamicObjectKeys: '键集合运行时生成，无固定枚举',
+  dynamicArrayItems: '元素结构由运行时结果决定',
+};
+
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   start: [
-    { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', description: 'Workflow 対象の案件番号' },
-    { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', description: 'Step1 で設定した業務シーン名' },
-    { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', description: '新規起動 / 続行 / 再実行' },
-    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', description: '処理中・人工確認・補件などユーザー可視状態' },
-    { id: 'case.caseDataVersion', label: '案件データバージョン', scope: '案件', type: 'String', description: '現在処理している案件データ版' },
-    { id: 'case.pendingFileCount', label: '待処理ファイル件数', scope: '案件', type: 'Number', description: '今回 Workflow で処理するファイル数' },
-    { id: 'case.pendingFileScope', label: '待処理ファイル範囲', scope: '案件', type: 'Array', description: '今回処理対象のファイル ID 一覧' },
-    { id: 'docTypes[].docTypeList', label: '帳票タイプ一覧', scope: '帳票タイプ', type: 'Array', description: '本案件に含まれる Step1 登録帳票タイプ' },
+    { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Workflow 対象の案件番号' },
+    { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 で設定した業務シーン名' },
+    { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.triggerType, description: '起動トリガー種別' },
+    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: '起動時の案件リスト聚合状態' },
+    { id: 'case.pendingFileCount', label: '待処理ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '今回 Workflow で処理するファイル数' },
+    { id: 'docTypes[].docTypeList', label: '帳票タイプ一覧', scope: '帳票タイプ', type: 'Array', valueSpec: 'Step1 登録帳票タイプ ID の配列', description: '本案件に含まれる Step1 登録帳票タイプ' },
   ],
   end: [
-    { id: 'case.branchStatus', label: '分岐ステータス', scope: '案件', type: 'Enum', description: 'この Workflow 分岐の終了結果' },
-    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', description: '処理完了・補件待ち・処理中止などの最終提案' },
-    { id: 'case.finalResult', label: '最終処理結果', scope: '案件', type: 'Enum', description: '正常完了 / 補件待ち / 異常 / 中止' },
-    { id: 'case.hasOpenItems', label: '未完了事項あり', scope: '案件', type: 'Boolean', description: '未完了ファイル・フィールド・待办が残っているか' },
-    { id: 'case.resultFileStatus', label: '成果ファイル状態', scope: '案件', type: 'Enum', description: 'Step3 出力ファイルの生成状態' },
-    { id: 'case.endedAt', label: '終了時刻', scope: '案件', type: 'DateTime', description: '分岐が終了した時刻' },
-    { id: 'case.executionSummary', label: '実行サマリー', scope: '案件', type: 'Object', description: '到達経路と主要結果の概要' },
+    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: '案件状態机への最終提案' },
+    { id: 'case.finalResult', label: '最終処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.finalResult, description: '分岐の業務終了区分' },
+    { id: 'case.hasOpenItems', label: '未完了事項あり', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '未完了ファイル・フィールド・待办の有無' },
+    { id: 'case.resultFileStatus', label: '成果ファイル状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.resultFileStatus, description: 'Step3 出力ファイルの生成状態' },
+    { id: 'case.endedAt', label: '終了時刻', scope: '案件', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '分岐が終了した時刻' },
   ],
   preprocess: [
-    { id: 'case.preprocessStatus', label: '前処理ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
-    { id: 'case.preprocessSuccessCount', label: '前処理成功件数', scope: '案件', type: 'Number', description: '前処理が成功したファイル数' },
-    { id: 'case.preprocessFailedCount', label: '前処理失敗件数', scope: '案件', type: 'Number', description: '前処理が失敗したファイル数' },
-    { id: 'case.hasPreprocessFailure', label: '前処理失敗あり', scope: '案件', type: 'Boolean', description: '1 件以上の前処理失敗があるか' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', description: '後続人工確認分岐で参照する案件級判定' },
-    { id: 'case.lastFailureReason', label: '最終失敗原因', scope: '案件', type: 'String', description: '直近の前処理失敗理由' },
-    { id: 'case.fileCandidateCount', label: '候補ファイル件数', scope: '案件', type: 'Number', description: '前処理後に案件へ紐付く候補ファイル数' },
-    { id: 'case.classificationWarnings', label: '分類警告', scope: '案件', type: 'Array', description: '分類の曖昧、低信頼などを案件単位で集約した明細' },
-    { id: 'files[].classificationConfidence', label: 'ファイル分類信頼度', scope: 'ファイル', type: 'Number', description: 'ファイル単位の分類信頼度' },
-    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', description: '補正・回転・画像分割後のファイル' },
-    { id: 'files[].preprocessStatus', label: '前処理状態', scope: 'ファイル', type: 'Enum', description: 'ファイル単位の前処理結果' },
-    { id: 'files[].preprocessWarnings', label: '前処理警告', scope: 'ファイル', type: 'Array', description: '傾き補正不可、分類曖昧などの明細' },
+    { id: 'case.preprocessStatus', label: '前処理ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '前処理全体の集約状態' },
+    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '後続人工確認分岐で参照する案件級判定' },
+    { id: 'case.lastFailureReason', label: '最終失敗原因', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '直近の前処理失敗理由' },
+    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', valueSpec: 'ファイル参照；実行時に確定', description: '補正・回転・画像分割後のファイル' },
+    { id: 'files[].preprocessStatus', label: '前処理状態', scope: 'ファイル', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'ファイル単位の前処理結果' },
+    { id: 'files[].preprocessWarnings', label: '前処理警告', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '傾き補正不可、分類曖昧などの明細' },
   ],
   ocr: [
-    { id: 'case.ocrStatus', label: 'OCRステータス', scope: '案件', type: 'Enum', description: 'OCR 全体の処理状態' },
-    { id: 'case.ocrSuccessCount', label: 'OCR成功件数', scope: '案件', type: 'Number', description: 'OCR が成功したファイル数' },
-    { id: 'case.ocrFailedCount', label: 'OCR失敗件数', scope: '案件', type: 'Number', description: 'OCR が失敗したファイル数' },
-    { id: 'case.lowConfidenceFieldCount', label: '低信頼フィールド件数', scope: '案件', type: 'Number', description: '低信頼 OCR フィールドの合計' },
-    { id: 'case.hasLowConfidence', label: '低信頼あり', scope: '案件', type: 'Boolean', description: '低信頼フィールドが 1 件以上あるか' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', description: '後続人工確認分岐で参照する案件級判定' },
-    { id: 'case.ocrFields', label: 'OCRフィールド集約', scope: '案件', type: 'Object', description: '案件単位に集約した OCR 抽出結果' },
-    { id: 'files[].ocrFields', label: 'OCRフィールド', scope: 'ファイル', type: 'Object', description: 'ファイル単位の OCR 抽出結果' },
-    { id: 'files[].ocrStatus', label: 'OCR状態', scope: 'ファイル', type: 'Enum', description: 'ファイル単位の OCR 成否' },
-    { id: 'files[].lowConfidenceCount', label: '低信頼件数', scope: 'ファイル', type: 'Number', description: 'ファイル単位の低信頼フィールド数' },
+    { id: 'case.ocrStatus', label: 'OCRステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'OCR 全体の処理状態' },
+    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '後続人工確認分岐で参照する案件級判定' },
+    { id: 'case.ocrFields', label: 'OCRフィールド集約', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件単位に集約した OCR 抽出結果' },
+    { id: 'files[].ocrFields', label: 'OCRフィールド', scope: 'ファイル', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'ファイル単位の OCR 抽出結果' },
+    { id: 'files[].ocrStatus', label: 'OCR状態', scope: 'ファイル', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'ファイル単位の OCR 成否' },
   ],
   data_mapping: [
-    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', description: '案件級の標準フィールドビュー' },
-    { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
-    { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', description: '案件級に集約したフィールド競合' },
-    { id: 'files[].standardFields', label: '標準フィールド', scope: 'ファイル', type: 'Object', description: 'ファイル単位の標準化結果' },
-    { id: 'files[].mappingConflicts', label: 'ファイル別競合', scope: 'ファイル', type: 'Array', description: 'ファイル単位の競合明細' },
-    { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', description: 'ルール不適用、字段缺失、変換失敗の明細' },
+    { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マッピング全体の集約状態' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級の標準フィールドビュー' },
+    { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級に集約したフィールド競合' },
+    { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ルール不適用、字段缺失、変換失敗の明細' },
   ],
   master_match: [
-    { id: 'case.masterStatus', label: 'マスタ照合ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
-    { id: 'case.masterMatchResults', label: '照合結果', scope: '案件', type: 'Array', description: '案件級の照合結果汇总' },
-    { id: 'case.masterReviewRequired', label: '人工確認推奨', scope: '案件', type: 'Boolean', description: '未命中・低信頼・多候補により確認が必要' },
-    { id: 'case.masterNoHitCount', label: '未命中件数', scope: '案件', type: 'Number', description: 'マスタ未命中数' },
-    { id: 'case.masterLowScoreCount', label: '低信頼件数', scope: '案件', type: 'Number', description: '低スコア照合数' },
-    { id: 'case.masterMultiCandidateCount', label: '複数候補件数', scope: '案件', type: 'Number', description: '複数候補返却数' },
-    { id: 'files[].masterMatchResults', label: '照合結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の照合明細' },
+    { id: 'case.masterStatus', label: 'マスタ照合ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マスタ照合全体の集約状態' },
+    { id: 'case.masterReviewRequired', label: '人工確認推奨', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '未命中・低信頼・多候補により確認が必要' },
+    { id: 'case.masterMatchResults', label: '照合結果', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級の照合結果汇总' },
+    { id: 'files[].masterMatchResults', label: '照合結果', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位の照合明細' },
   ],
   decision: [
-    { id: 'case.branchName', label: '分岐名', scope: '案件', type: 'String', description: '命中した IF / ELIF / ELSE 分岐名' },
-    { id: 'case.branchResult', label: '分岐結果', scope: '案件', type: 'Boolean', description: '条件が成立したか' },
-    { id: 'case.branchMissReason', label: '未命中理由', scope: '案件', type: 'String', description: 'どの条件が不成立だったかの概要' },
-    { id: 'case.matchedFileCount', label: '命中ファイル件数', scope: '案件', type: 'Number', description: 'ファイル級条件で命中した件数' },
+    { id: 'case.branchName', label: '分岐名', scope: '案件', type: 'String', valueSpec: '画布 IF/ELIF/ELSE 分支名；运行时写入', description: '命中した IF / ELIF / ELSE 分岐名' },
+    { id: 'case.branchResult', label: '分岐結果', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '条件が成立したか' },
+    { id: 'case.matchedFileCount', label: '命中ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'ファイル級条件で命中した件数' },
   ],
   ai_verify: [
-    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', description: 'success / warning / failed / skipped' },
-    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', description: '補件分岐に使う案件級判定' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', description: '人工確認分岐に使う案件級判定' },
-    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', description: '異常処理分岐に使う案件級判定' },
-    { id: 'case.requiredFieldStatus', label: '必須フィールド状態', scope: '案件', type: 'Enum', description: '必須フィールド検証の聚合状態' },
-    { id: 'case.requiredDocumentStatus', label: '必要書類状態', scope: '案件', type: 'Enum', description: '必要書類検証の聚合状態' },
-    { id: 'case.textValidationStatus', label: 'テキスト検証状態', scope: '案件', type: 'Enum', description: 'テキスト検証の聚合状態' },
-    { id: 'case.dataValidationStatus', label: 'データ検証状態', scope: '案件', type: 'Enum', description: 'データ検証の聚合状態' },
-    { id: 'case.mappingConflictStatus', label: 'マッピング競合検証状態', scope: '案件', type: 'Enum', description: 'データマッピング競合検証の集約状態' },
-    { id: 'case.mappingConflictCount', label: 'マッピング競合件数', scope: '案件', type: 'Number', description: '検出された標準フィールドと OCR フィールドの競合数' },
-    { id: 'case.signatureSealStatus', label: '署名・印鑑検証状態', scope: '案件', type: 'Enum', description: '署名・印鑑検証の聚合状態' },
-    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', description: 'AI検証の詳細結果' },
-    { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', description: '必要書類の不足明細' },
-    { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', description: '必須フィールドの不足明細' },
-    { id: 'files[].validationResults', label: '検証結果', scope: 'ファイル', type: 'Array', description: 'ファイル単位の検証結果' },
-    { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', description: 'ファイル単位で違反したルール' },
+    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'AI検証全体の集約状態' },
+    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '補件分岐に使う案件級判定' },
+    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認分岐に使う案件級判定' },
+    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '異常処理分岐に使う案件級判定' },
+    { id: 'case.requiredFieldStatus', label: '必須フィールド状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus, description: '必須フィールド検証の聚合状態' },
+    { id: 'case.requiredDocumentStatus', label: '必要書類状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus, description: '必要書類検証の聚合状態' },
+    { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', valueSpec: '账票类型名称字符串数组；无不足时为空数组', description: '必要書類の不足明細' },
+    { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', valueSpec: '标准字段或 OCR 字段名数组；无不足时为空数组', description: '必須フィールドの不足明細' },
+    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', valueSpec: '含各检证模块明细；键与结构由开启模块决定', description: 'AI検証の詳細結果' },
+    { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位で違反したルール' },
   ],
   hitl_gate: [
-    { id: 'case.confirmTaskId', label: '確認タスクID', scope: '案件', type: 'String', description: '生成した人工確認タスク ID' },
-    { id: 'case.confirmStatus', label: '確認状態', scope: '案件', type: 'Enum', description: 'created / waiting_buffer / completed / failed / timeout' },
-    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', description: 'approve / request_fix / reject / request_supplement' },
-    { id: 'case.assigneeRole', label: '担当ロール', scope: '案件', type: 'String', description: 'タスク分派ロール' },
-    { id: 'case.waitingHumanBuffer', label: '人工確認缓冲中', scope: '案件', type: 'Boolean', description: '待处理事项.等待人工缓冲 = 是' },
-    { id: 'case.hitlResumeAt', label: '缓冲終了予定', scope: '案件', type: 'DateTime', description: '缓冲等待の終了予定時刻（滑动延長あり）' },
-    { id: 'case.openConfirmTaskCount', label: 'open確認待办数', scope: '案件', type: 'Number', description: '同一去重键で未完了の人工待办数（通常 0 または 1）' },
-    { id: 'case.pendingConfirmFileCount', label: '待確認ファイル件数', scope: '案件', type: 'Number', description: '人工確認対象の未確認ファイル数' },
-    { id: 'case.pendingConfirmFieldCount', label: '待確認フィールド件数', scope: '案件', type: 'Number', description: '人工確認対象の未確認フィールド数' },
-    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', description: '人工確認結果が補件要求か' },
-    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', description: '人工確認結果が異常扱いか' },
-    { id: 'case.confirmComment', label: '確認コメント', scope: '案件', type: 'String', description: '審査者の処理意見' },
-    { id: 'files[].manualEdits', label: '修正摘要', scope: 'ファイル', type: 'Array', description: 'ファイル単位の人工修正摘要' },
-    { id: 'files[].confirmedFiles', label: '確認済みファイル', scope: 'ファイル', type: 'Array', description: '人工確認で承認されたファイル' },
+    { id: 'case.confirmStatus', label: '確認状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.confirmStatus, description: '人工確認タスクの処理状態' },
+    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.confirmAction, description: '審査者が選択した出口アクション' },
+    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認結果が補件要求か' },
+    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認結果が異常扱いか' },
+    { id: 'case.pendingConfirmFileCount', label: '待確認ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '人工確認対象の未確認ファイル数' },
+    { id: 'case.pendingConfirmFieldCount', label: '待確認フィールド件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '人工確認対象の未確認フィールド数' },
+    { id: 'files[].manualEdits', label: '修正摘要', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位の人工修正摘要' },
   ],
   notify: [
-    { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', description: 'success / failed / skipped / deduplicated' },
-    { id: 'case.notifyType', label: '通知タイプ', scope: '案件', type: 'String', description: '不備通知 / 処理完了通知 / 異常通知' },
-    { id: 'case.notifiedAt', label: '送信日時', scope: '案件', type: 'DateTime', description: '通知送信時刻' },
-    { id: 'case.notifyRecipients', label: '送信先', scope: '案件', type: 'Array', description: '実際に送信した宛先一覧' },
-    { id: 'case.notifyFailureReason', label: '送信失敗理由', scope: '案件', type: 'String', description: '送信失敗時のエラー詳細' },
-    { id: 'case.notifyRetryRequired', label: '再送必要', scope: '案件', type: 'Boolean', description: '後続条件で再送判定に使う' },
-    { id: 'case.notifyDeduplicated', label: '重複抑制', scope: '案件', type: 'Boolean', description: '同一案件・同一通知ノードで既送信のためスキップしたか' },
+    { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifySendStatus, description: '通知送信の成否' },
+    { id: 'case.notifyType', label: '通知タイプ', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifyType, description: '送信した通知テンプレート種別' },
+    { id: 'case.notifiedAt', label: '送信日時', scope: '案件', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '通知送信時刻' },
+    { id: 'case.notifyFailureReason', label: '送信失敗理由', scope: '案件', type: 'String', valueSpec: '送信失敗時のみ写入；无固定取值', description: '送信失敗時のエラー詳細' },
+    { id: 'case.notifyDeduplicated', label: '重複抑制', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '同一案件・同一通知ノードで既送信のためスキップしたか' },
   ],
   code: [
-    { id: 'case.result', label: 'result', scope: '案件', type: 'Object', optional: true, description: 'Python 関数の戻り値' },
-    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', description: '成功 / 失敗' },
-    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', description: '実行失敗時の詳細' },
+    { id: 'case.result', label: 'result', scope: '案件', type: 'Object', optional: true, valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'Python 関数の戻り値' },
+    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否' },
+    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細' },
   ],
   mcp: [
-    { id: 'case.result', label: 'Tool 実行結果', scope: '案件', type: 'Object', description: 'MCP Tool の返却値' },
-    { id: 'case.status', label: 'HTTP / 実行ステータス', scope: '案件', type: 'Enum', description: '実行ステータス' },
-    { id: 'case.latencyMs', label: 'レイテンシ (ms)', scope: '案件', type: 'Number', description: 'Tool 実行時間' },
+    { id: 'case.result', label: 'Tool 実行結果', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'MCP Tool の返却値' },
+    { id: 'case.status', label: 'HTTP / 実行ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'Tool 実行ステータス' },
+    { id: 'case.latencyMs', label: 'レイテンシ (ms)', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'Tool 実行時間（ミリ秒）' },
   ],
 };
 
@@ -868,8 +852,8 @@ const WORKFLOW_NODE_OUTPUT_HINT_KEYS = {
 
 function getCodeNodeOutputVarDefs(node) {
   const systemDefs = [
-    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', description: '成功 / 失敗' },
-    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', description: '実行失敗時の詳細' },
+    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否' },
+    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細' },
   ];
   if (!node?.returnContent) return systemDefs;
   const params = Array.isArray(node.outputParams) && node.outputParams.length
@@ -878,11 +862,19 @@ function getCodeNodeOutputVarDefs(node) {
   const userDefs = params.map((row) => {
     const name = (row?.name || 'result').trim() || 'result';
     const typeMap = { string: 'String', int: 'Number', float: 'Number', dict: 'Object', array: 'Array' };
+    const mappedType = typeMap[row?.dataType] || 'Object';
+    const valueSpecByType = {
+      String: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString,
+      Number: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount,
+      Object: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys,
+      Array: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems,
+    };
     return {
       id: `case.${name}`,
       label: name,
       scope: '案件',
-      type: typeMap[row?.dataType] || 'Object',
+      type: mappedType,
+      valueSpec: valueSpecByType[mappedType] || WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys,
       description: 'Python 関数の戻り値',
     };
   });
@@ -917,7 +909,7 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
   const items = getWorkflowNodeOutputVarItems(node, workflow);
   if (!items.length) return;
   const meta = getWorkflowNodeMeta(node.type);
-  const title = node.label || meta.title;
+  const title = meta.title;
   items.forEach((item) => {
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
@@ -3148,7 +3140,7 @@ function normalizeDecisionNode(node, workflow = null, verifyConfig = null) {
   }
   return {
     ...node,
-    label: node.label || '条件判断',
+    label: getWorkflowNodeMeta('decision').title,
     description: node.description || '',
     judgmentContext: 'custom',
     conditionType: 'custom',
@@ -3612,7 +3604,7 @@ function buildDefaultCaseWorkflow() {
 
   place({ id: 'wf-start', type: 'start', label: '開始' });
   place({ id: 'wf-pp', type: 'preprocess', label: '前処理' });
-  place({ id: 'wf-d-pre', type: 'decision', label: '前処理条件判断', judgmentContext: 'custom' });
+  place({ id: 'wf-d-pre', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-pre',
     type: 'hitl_gate',
@@ -3621,7 +3613,7 @@ function buildDefaultCaseWorkflow() {
     role: '入力オペレータ',
   });
   place({ id: 'wf-oc', type: 'ocr', label: 'OCR抽出' });
-  place({ id: 'wf-d-ocr', type: 'decision', label: 'OCR条件判断', judgmentContext: 'custom' });
+  place({ id: 'wf-d-ocr', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-ocr',
     type: 'hitl_gate',
@@ -3631,7 +3623,7 @@ function buildDefaultCaseWorkflow() {
   });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
-  place({ id: 'wf-d-final', type: 'decision', label: 'AI検証条件判断', judgmentContext: 'custom' });
+  place({ id: 'wf-d-final', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
   place({
     id: 'wf-hu-final',
     type: 'hitl_gate',
@@ -3804,8 +3796,15 @@ function isMinimalPlaceholderCaseWorkflow(workflow) {
   return nodes.length === 1 && nodes[0]?.type === 'start';
 }
 
+function markWorkflowTopologyEdited(workflow) {
+  if (!workflow) return;
+  workflow.isTemplate = false;
+  workflow.topologyCustomized = true;
+}
+
 function shouldMigrateCaseWorkflowToDefault(workflow) {
   if (!workflow?.nodes?.length) return true;
+  if (workflow.topologyCustomized) return false;
   if (isMinimalPlaceholderCaseWorkflow(workflow)) return true;
   if (isDefaultCaseWorkflowTemplate(workflow)) return false;
   if (isLegacyCaseWorkflowTemplate(workflow)) return true;

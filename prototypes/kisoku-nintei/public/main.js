@@ -695,6 +695,23 @@ const appOptions = {
       ['完全性チェック不備分岐が終了ノードに明示接続されていない。', '完整性检查不备分支未显式连接到终了节点。'],
       ['人工確認コンテキスト不一致', '人工确认上下文不一致'],
       ['人工確認の確認タイプと上流ノード種別が一致しない（例：OCR確認に前処理のみ接続）。', '人工确认的确认类型与上游节点类型不一致（例：OCR 确认仅连接前处理）。'],
+      ['開始ノードが複数あります', '存在多个开始节点'],
+      ['接続のないノードがあります', '存在未连接的孤立节点'],
+      ['開始ノードから到達できません', '从开始节点不可达'],
+      ['分岐が未接続です', '分支未连接'],
+      ['前処理オプションを1件以上有効にしてください', '请至少启用一项前处理选项'],
+      ['OCR 対象帳票を1件以上有効にしてください', '请至少启用一个 OCR 对象账票'],
+      ['検証モジュールを1件以上有効にしてください', '请至少启用一项检证模块'],
+      ['未設定の条件分岐があります', '存在未设置的条件分支'],
+      ['審査ロールを選択してください', '请选择审查角色'],
+      ['送信先を設定してください', '请配置通知收件人'],
+      ['通知先を選択してください', '请选择通知对象'],
+      ['メールアドレスの形式を確認してください', '请检查邮件地址格式'],
+      ['Python スクリプトを入力してください', '请输入 Python 脚本'],
+      ['入力変数が未設定です', '存在未配置的输入变量'],
+      ['出力変数が不正です', '输出变量配置不正确'],
+      ['エラー箇所へ移動', '定位错误位置'],
+      ['構造エラー：', '结构错误：'],
       ['変数参照・分岐型不一致', '变量引用・分支类型不一致'],
       ['未生成ノード・存在しない帳票タイプ/フィールドへの変数参照、または IF/ELSE 入力値・型不一致。', '引用未生成节点・不存在的账票类型/字段，或 IF/ELSE 输入值・类型不一致。'],
       ['低信頼分岐が人工確認未接続', '低置信分支未接人工确认'],
@@ -763,12 +780,12 @@ const appOptions = {
       ['行を追加', '添加行'],
       ['削除', '删除'],
       ['初期値に戻す', '恢复默认值'],
-      ['エラー箇所へ移動', '定位错误'],
       ['テスト用データを保存', '保存测试数据'],
       ['主帳票', '主账票'],
       ['関連帳票', '相关账票'],
       ['参考資料', '参考资料'],
       ['標準集約済み案件', '标准集约済み案件'],
+      ['内蔵', '内置'],
       ['内蔵の集約済みスナップショットを既定入力とします。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '使用内置集约済み快照作为默认输入。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
       ['案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。', '案件集约済み的固定快照。缺件与检证结果在 Workflow 执行时（AI 检证节点）判定。'],
       ['主帳票・関連帳票を含む標準構成', '含主账票与相关账票的标准构成'],
@@ -2087,7 +2104,7 @@ const appOptions = {
       const meta = JUDGMENT_CONTEXT_OPTIONS.find((o) => o.value === contextValue) || JUDGMENT_CONTEXT_OPTIONS[0];
       node.judgmentContext = meta.value;
       node.conditionType = meta.value;
-      node.label = meta.label;
+      node.label = getWorkflowNodeMeta('decision').title;
       node.elseLabel = JUDGMENT_ELSE_LABELS[meta.value] || 'ELSE';
       node.elseDescription = node.elseLabel;
       if (meta.value !== 'custom' || force) {
@@ -2548,9 +2565,7 @@ const appOptions = {
       if (inspectorPanel.value === 'start') return '開始';
       if (inspectorPanel.value === 'end') return '終了';
       const node = selectedWorkflowNode.value;
-      if (node?.label) return node.label;
-      const lib = FLOW_NODE_OPTIONS[getFlowNodeKey()]?.find((l) => l.type === node?.type);
-      return lib?.label || getWorkflowNodeMeta(node?.type).title || 'ノード設定';
+      return getWorkflowNodeDisplayLabel(node) || 'ノード設定';
     });
 
     const inspectorHeadHint = computed(() => {
@@ -5301,7 +5316,7 @@ const appOptions = {
         ElementPlus.ElMessage.warning('開始ノードは削除できません。');
         return;
       }
-      const name = `${getWorkflowNodeMeta(node.type).title} · ${formatWfNodeLabel(node.label)}`;
+      const name = getWorkflowNodeDisplayLabel(node);
       ElementPlus.ElMessageBox.confirm(
         `「${name}」を削除しますか？関連する接続も削除されます。`,
         'ノード削除',
@@ -5806,6 +5821,7 @@ const appOptions = {
     function removeWorkflowNode(id) {
       const wf = getActiveWf();
       if (!wf) return;
+      markWorkflowTopologyEdited(wf);
       wf.nodes = wf.nodes.filter((n) => n.id !== id);
       wf.edges = wf.edges.filter((e) => e.from !== id && e.to !== id);
       if (selectedWorkflowNodeId.value === id) {
@@ -5966,7 +5982,7 @@ const appOptions = {
         .filter((n) => n.id !== nodeId && n.x <= self.x + 20)
         .map((n) => ({
           value: n.id,
-          label: `${getWorkflowNodeMeta(n.type).title} · ${formatWfNodeLabel(n.label)}`,
+          label: getWorkflowNodeDisplayLabel(n),
         }));
     }
 
@@ -8893,13 +8909,35 @@ const appOptions = {
 
     const workflowTestCaseSummary = computed(() => {
       const tc = workflowTestDraft.testCase || {};
-      if (tc.source === 'upload' && tc.uploadFileName) return tc.uploadFileName;
+      if (isWorkflowTestCaseCustom(tc) && tc.uploadFileName) return tc.uploadFileName;
       const count = Array.isArray(tc.files) ? tc.files.length : 0;
       return `${tc.caseNo || '—'} · ${tc.caseLabel || '—'} · ${count}${t('件')}`;
     });
 
+    function isWorkflowTestCaseCustom(testCase) {
+      const tc = testCase || {};
+      return tc.source === 'upload' || Boolean(String(tc.uploadFileName || '').trim());
+    }
+
     const workflowTestIsCustom = computed(() =>
-      workflowTestDraft.testCase?.source === 'upload');
+      isWorkflowTestCaseCustom(workflowTestDraft.testCase));
+
+    const workflowTestBuiltinSample = computed(() => {
+      if (typeof getWorkflowTestSampleList === 'function') {
+        const list = getWorkflowTestSampleList();
+        if (list.length) return list[0];
+      }
+      if (typeof cloneWorkflowTestCaseDefault === 'function') {
+        return cloneWorkflowTestCaseDefault();
+      }
+      return {
+        label: '標準集約済み案件',
+        caseNo: '—',
+        caseLabel: '—',
+        files: [],
+        includes: [],
+      };
+    });
 
     function ensureFormWorkflowTestCase() {
       if (typeof normalizeWorkflowTestCase !== 'function') return;
@@ -8908,13 +8946,10 @@ const appOptions = {
 
     function applyWorkflowTestCaseToDraft(testCase) {
       const normalized = normalizeWorkflowTestCase(testCase);
-      Object.keys(normalized).forEach((key) => {
-        if (key === 'files') {
-          workflowTestDraft.testCase.files = normalized.files.map((f) => ({ ...f }));
-        } else {
-          workflowTestDraft.testCase[key] = normalized[key];
-        }
-      });
+      workflowTestDraft.testCase = {
+        ...normalized,
+        files: normalized.files.map((f) => ({ ...f })),
+      };
     }
 
     function persistWorkflowTestCase(testCase) {
@@ -8965,7 +9000,7 @@ const appOptions = {
           uploadFileName: file.name,
         });
       persistWorkflowTestCase(testCase);
-      workflowTestDraft.samplePanelOpen = false;
+      workflowTestDraft.samplePanelOpen = true;
       ElementPlus.ElMessage.success(`テストデータを更新しました：${file.name}`);
       event.target.value = '';
     }
@@ -8973,7 +9008,13 @@ const appOptions = {
     function resetWorkflowTestCaseToDefault() {
       if (typeof cloneWorkflowTestCaseDefault !== 'function') return;
       persistWorkflowTestCase(cloneWorkflowTestCaseDefault());
+      workflowTestDraft.samplePanelOpen = true;
       ElementPlus.ElMessage.success(t('テスト用データを初期値に戻しました'));
+    }
+
+    function selectWorkflowTestBuiltinDefault() {
+      if (!workflowTestIsCustom.value) return;
+      resetWorkflowTestCaseToDefault();
     }
 
     function openWorkflowTestDialog() {
@@ -9022,6 +9063,24 @@ const appOptions = {
       });
     }
 
+    function getWorkflowTestSceneContext() {
+      return {
+        processing: form.processing,
+        documents: form.scene?.documents || [],
+      };
+    }
+
+    function applyWorkflowTestCanvasHighlights(summary) {
+      clearWorkflowTestHighlight();
+      const highlights = summary?.canvasHighlights || [];
+      if (!highlights.length) return;
+      workflowTestHighlightNodeId.value = highlights[0].nodeId;
+      if (workflowTestHighlightTimer) window.clearTimeout(workflowTestHighlightTimer);
+      workflowTestHighlightTimer = window.setTimeout(() => {
+        clearWorkflowTestHighlight();
+      }, 4200);
+    }
+
     function runWorkflowTest() {
       const err = validateWorkflowTestCase(workflowTestDraft.testCase);
       if (err) {
@@ -9030,7 +9089,8 @@ const appOptions = {
         return;
       }
       if (workflowTestRunning.value) return;
-      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase);
+      const sceneContext = getWorkflowTestSceneContext();
+      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase, sceneContext);
       workflowTestDraft.steps = steps.map((step) => ({
         ...step,
         status: 'pending',
@@ -9052,7 +9112,10 @@ const appOptions = {
           workflowTestDraft.summary = buildWorkflowTestSummary(
             workflowTestDraft.steps,
             workflowTestDraft.testCase,
+            getActiveWf(),
+            sceneContext,
           );
+          applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
           workflowTestDraft.selectedStepId = workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
             || workflowTestDraft.selectedStepId;
           workflowTestRunTimer = null;
@@ -9090,6 +9153,15 @@ const appOptions = {
     const workflowTestLocatableErrorStep = computed(() => {
       const errStep = workflowTestStepRows.value.find((step) => step.status === 'error' || step.errorReason);
       if (errStep) return errStep;
+      const canvasIssue = workflowTestSummary.value?.canvasHighlights?.[0];
+      if (canvasIssue?.nodeId) {
+        const node = getActiveWf()?.nodes?.find((item) => item.id === canvasIssue.nodeId);
+        return {
+          id: canvasIssue.nodeId,
+          label: node?.label || canvasIssue.nodeId,
+          errorReason: canvasIssue.message,
+        };
+      }
       if (workflowTestSummary.value?.overallStatus === 'error') {
         return workflowTestStepRows.value[workflowTestStepRows.value.length - 1] || null;
       }
@@ -9138,6 +9210,7 @@ const appOptions = {
       const detail = buildWorkflowTestNodeDetail(
         step,
         workflowTestDraft.testCase,
+        getActiveWf(),
       );
       if (detail) {
         return {
@@ -9187,11 +9260,12 @@ const appOptions = {
     }
 
     function refreshWorkflowTestRun() {
-      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase);
+      const sceneContext = getWorkflowTestSceneContext();
+      const steps = buildWorkflowTestSteps(getActiveWf(), workflowTestDraft.testCase, sceneContext);
       workflowTestDraft.steps = steps;
       workflowTestDraft.artifacts = buildWorkflowTestArtifacts(workflowTestDraft.testCase);
       workflowTestDraft.summary = workflowTestDraft.hasRun
-        ? buildWorkflowTestSummary(steps, workflowTestDraft.testCase)
+        ? buildWorkflowTestSummary(steps, workflowTestDraft.testCase, getActiveWf(), sceneContext)
         : null;
       if (!workflowTestDraft.selectedStepId && steps[0]) {
         workflowTestDraft.selectedStepId = steps[0].id;
@@ -9321,8 +9395,10 @@ const appOptions = {
       workflowTestDraft,
       workflowTestCaseSummary,
       workflowTestIsCustom,
+      workflowTestBuiltinSample,
       handleWorkflowTestUpload,
       resetWorkflowTestCaseToDefault,
+      selectWorkflowTestBuiltinDefault,
       workflowTestStepRows,
       localizedWorkflowTestStepRows,
       workflowTestSummary,
@@ -9334,6 +9410,7 @@ const appOptions = {
       localizedWorkflowTestArtifacts,
       workflowTestSelectedStep,
       workflowTestNodeDetail,
+      localizedWorkflowTestNodeDetail,
       workflowTestNeedsHumanContinue,
       scenes,
       nodes,

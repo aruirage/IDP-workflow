@@ -1050,17 +1050,20 @@
                           class="wf-hitl-branch-row"
                         >
                           <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
-                          <button
-                            v-show="isWorkflowTopologyEditable"
-                            type="button"
-                            class="wf-node-add-btn wf-node-add-btn--branch wf-node-add-btn--branch-inline"
-                            :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
-                            :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
-                            @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
-                          >+</button>
                         </div>
                       </div>
                     </div>
+                    <button
+                      v-for="branch in getHitlGateNodeVisibleBranches(node)"
+                      :key="'hitl-port-' + branch.key"
+                      v-show="isWorkflowTopologyEditable"
+                      type="button"
+                      class="wf-node-add-btn wf-node-add-btn--branch"
+                      :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
+                      :style="getHitlGatePortStyle(node, branch.key)"
+                      :title="getHitlGateBranchCanvasLabel(branch.key) + ' 分岐にノードを接続'"
+                      @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
+                    >+</button>
                   </template>
                   <template v-else>
                     <button
@@ -2003,6 +2006,7 @@
                                 <code class="workflow-output-var-name">{{ item.name }}</code>
                                 <span class="workflow-output-var-type">{{ item.dataType }}</span>
                               </div>
+                              <div class="workflow-output-var-label">{{ item.label }}</div>
                             </li>
                           </ul>
                         </section>
@@ -2337,27 +2341,33 @@
               <span>処理時間：{{ workflowTestSummary.durationSec }}s</span>
               <span>通過：{{ workflowTestSummary.passedCount }}/{{ workflowTestSummary.totalCount }}</span>
               <span>ノード：{{ workflowTestSummary.workflowNodeCount }}</span>
+              <p v-if="workflowTestSummary.structureNote" class="wf-test-structure-note">{{ workflowTestSummary.structureNote }}</p>
               <el-button
                 v-if="workflowTestLocatableErrorStep && canLocateWorkflowTestStep(workflowTestLocatableErrorStep)"
                 type="danger"
                 link
+                size="small"
+                class="wf-test-locate-btn"
                 @click="locateWorkflowTestError(workflowTestLocatableErrorStep)"
               >{{ t('エラー箇所へ移動') }}</el-button>
             </div>
           </div>
 
           <div ref="workflowTestTimelineRef" class="wf-test-timeline">
-            <button
+            <div
               v-for="(step, index) in workflowTestStepRows"
               :key="step.id"
-              type="button"
               class="wf-test-timeline-node"
               :data-step-id="step.id"
+              role="button"
+              tabindex="0"
               :class="[
                 'is-' + getWorkflowTestStepDisplayStatus(step),
                 { 'is-selected': workflowTestSelectedStep && workflowTestSelectedStep.id === step.id },
               ]"
               @click="selectWorkflowTestStep(step.id)"
+              @keydown.enter.prevent="selectWorkflowTestStep(step.id)"
+              @keydown.space.prevent="selectWorkflowTestStep(step.id)"
             >
               <div class="wf-test-timeline-rail">
                 <span class="wf-test-timeline-dot" :class="'is-' + getWorkflowTestStepDisplayStatus(step)"></span>
@@ -2371,15 +2381,17 @@
                 <p class="wf-test-timeline-summary">{{ step.summary }}</p>
                 <div v-if="step.errorReason" class="wf-test-step-error-row">
                   <p class="wf-test-step-error">{{ step.errorReason }}</p>
-                  <button
+                  <el-button
                     v-if="canLocateWorkflowTestStep(step)"
-                    type="button"
+                    type="danger"
+                    link
+                    size="small"
                     class="wf-test-locate-btn"
                     @click.stop="locateWorkflowTestError(step)"
-                  >{{ t('エラー箇所へ移動') }}</button>
+                  >{{ t('エラー箇所へ移動') }}</el-button>
                 </div>
               </div>
-            </button>
+            </div>
           </div>
         </section>
       </div>
