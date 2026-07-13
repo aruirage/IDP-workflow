@@ -213,7 +213,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/13 15:42:41</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/13 15:44:56</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -295,7 +295,7 @@
 <p>典型接法：仅「完成」→ 继续处理；或「完成 + 補件 + 案件终止」三分支分别接不同下游。未接线出口不出现在待办 action 列表中。</p>
 <h4 class="subsection-heading">条件判断 / 通知 / 自定义函数</h4>
 <p>控制类节点仅输出案件级，无 files[]。</p>
-<table><thead><tr><th>节点</th><th>变量键</th><th>界面文案（日语）</th><th>类型</th><th>作用域</th><th>备注</th></tr></thead><tbody><tr><td>条件判断</td><td>branchName</td><td>分岐名</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>条件判断</td><td>branchResult</td><td>分岐結果</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>条件判断</td><td>matchedFileCount</td><td>命中ファイル件数</td><td>Number</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>sendStatus</td><td>送信状態</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>notifyType</td><td>通知タイプ</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>sentAt</td><td>送信日時</td><td>DateTime</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>sendFailureReason</td><td>送信失敗理由</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>status</td><td>ステータス</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>errorMessage</td><td>エラーメッセージ</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>（用户定义）</td><td>—</td><td>—</td><td>案件</td><td>配置端出参表定义</td></tr></tbody></table>
+<table><thead><tr><th>节点</th><th>变量键</th><th>界面文案（日语）</th><th>类型</th><th>作用域</th><th>备注</th></tr></thead><tbody><tr><td>条件判断</td><td>branchName</td><td>分岐名</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>条件判断</td><td>branchResult</td><td>分岐結果</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>条件判断</td><td>matchedFileCount</td><td>命中ファイル件数</td><td>Number</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>notifySendStatus</td><td>送信状態</td><td>Enum</td><td>案件</td><td>success / failed / skipped</td></tr><tr><td>通知</td><td>notifyType</td><td>通知タイプ</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>notifiedAt</td><td>送信日時</td><td>DateTime</td><td>案件</td><td>—</td></tr><tr><td>通知</td><td>notifyFailureReason</td><td>送信失敗理由</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>status</td><td>ステータス</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>errorMessage</td><td>エラーメッセージ</td><td>String</td><td>案件</td><td>—</td></tr><tr><td>自定义函数</td><td>（用户定义）</td><td>—</td><td>—</td><td>案件</td><td>配置端出参表定义</td></tr></tbody></table>
 <h4 class="subsection-heading">工作流测试</h4>
 <p>输入：仅内置标准集约済み用例，打开弹窗即加载，只读；不支持上传、选案或弹窗内编辑。</p>
 <p>执行：用户点一次「テスト実行」→ 用例校验 → 沿可达路径模拟（人工确认标记跳过）→ 全画布扫描结论。成功=无失败节点且到达结束；否则失败。结论回写业务场景测试状态。</p>

@@ -359,10 +359,10 @@
 | 条件判断  | branchName        | 分岐名      | String   | 案件  | —        |
 | 条件判断  | branchResult      | 分岐結果     | Enum     | 案件  | —        |
 | 条件判断  | matchedFileCount  | 命中ファイル件数 | Number   | 案件  | —        |
-| 通知    | sendStatus        | 送信状態     | Enum     | 案件  | —        |
-| 通知    | notifyType        | 通知タイプ    | Enum     | 案件  | —        |
-| 通知    | sentAt            | 送信日時     | DateTime | 案件  | —        |
-| 通知    | sendFailureReason | 送信失敗理由   | String   | 案件  | —        |
+| 通知    | notifySendStatus    | 送信状態     | Enum     | 案件  | success / failed / skipped |
+| 通知    | notifyType          | 通知タイプ    | Enum     | 案件  | —        |
+| 通知    | notifiedAt          | 送信日時     | DateTime | 案件  | —        |
+| 通知    | notifyFailureReason | 送信失敗理由   | String   | 案件  | —        |
 | 自定义函数 | status            | ステータス    | Enum     | 案件  | —        |
 | 自定义函数 | errorMessage      | エラーメッセージ | String   | 案件  | —        |
 | 自定义函数 | （用户定义）            | —        | —        | 案件  | 配置端出参表定义 |
