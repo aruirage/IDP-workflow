@@ -1545,10 +1545,10 @@ function compileNaturalToExpression(text, docTypes) {
     return 'ANY({{ocr.fields.confidence}}) < {{ocr.threshold}}';
   }
   if (/AI検証.*PASS|検証.*通過/i.test(t)) {
-    return '{{verify.status}} = PASS AND {{verify.warning_count}} = 0';
+    return '{{verify.status}} = PASS';
   }
-  if (/検証.*NG|Master.*未一致|WARNING/i.test(t)) {
-    return '{{verify.status}} IN (NG, WARNING) OR {{master.match}} = UNMATCHED';
+  if (/検証.*NG|Master.*未一致/i.test(t)) {
+    return '{{verify.status}} = NG OR {{master.match}} = UNMATCHED';
   }
   if (/不備通知|補件.*通知/i.test(t)) {
     return '{{case.has_deficiency}} = true';

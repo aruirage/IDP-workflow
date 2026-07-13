@@ -56,7 +56,7 @@ const INSPECTOR_HINTS = {
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
   masterMatchInput: '標準フィールドは上流データマッピングから自動連携します。照合対象フィールドは標準フィールドまたは OCR 抽出フィールドから指定します。',
-  masterMatchOutput: '正規化フィールド：案件データセットへ書き戻し。参照 JSON：照合結果を JSON 出力。分段列表：检索分段 + メタデータを配列出力。',
+  masterMatchOutput: '照合結果・全ファイル对象配列（files[]）・人工確認推奨・ステータス。後続ノードで参照できます。',
   masterMatchOutputFields: '照合・正規化結果を書き込む出力フィールドを指定します。',
   masterMatchFields: '帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。',
   masterMatchScope: '同一帳票タイプに複数ファイルがある場合の照合単位です。インスタンス別＝ファイルごと、帳票タイプ集約＝タイプ単位、案件集約＝案件全体で1回照合します。',
@@ -69,15 +69,15 @@ const INSPECTOR_HINTS = {
   mcpAdminTools: 'Tool ごとにパラメータ schema と既定値（定数 / 上流変数参照）を設定します。保存後、当該 Server / Tool を使う Workflow ノードに反映されます。',
   mcpError: 'タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。',
   nodeOutput: '後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
-  nodeOutputPreprocess: '前処理総状態・成功/失敗件数・人工確認要否・処理済みファイル・分類警告。',
-  nodeOutputOcr: 'OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。',
-  nodeOutputVerify: 'AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。',
-  nodeOutputStart: 'Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル範囲・帳票タイプ一覧。',
+  nodeOutputPreprocess: '前処理総状態・全ファイル对象配列（files[]）。各文件含 status/url。人工分岐は条件ノードで preprocessStatus 等を参照。',
+  nodeOutputOcr: 'OCR 総状態・低信頼件数・files[]（含 files[].ocrFields）。人工分岐は条件ノードで lowConfidenceFieldCount 等を参照。',
+  nodeOutputVerify: 'AI検証総状態・6 類検証結果・全ファイル对象配列（files[]）・不足書類/項目明細。',
+  nodeOutputStart: 'Step1 案件变量 + docTypes[]（账票类型清单）+ files[]。账票字段仅在条件选择时从 Step1 模板加载。',
   nodeOutputEnd: '案件状態提案・最終処理結果・未完了事項・成果ファイル状態・終了時刻。',
-  nodeOutputHitl: '人工確認タスク・缓冲等待状態・open 待办数・待確認ファイル/フィールド件数・確認結果・補件/異常判定。',
-  nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。',
+  nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
+  nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由。',
   mcpOutput: 'Tool 実行後に後続ノードへ渡される出力変数です。IF/ELSE やマスタ照合の入力として参照できます。',
-  dataMappingOutput: '標準フィールド・競合件数・未マッピング件数・ステータス。後続の照合・検証で参照できます。',
+  dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时二级展开：映射节点 → 标准字段名。',
   externalApiIo: '前工程から自動連携される入力です。',
   knowledgeSelect: 'ナレッジ数据源を選択します。+ ボタンから新規作成（文档上传 / Web Site API）ができます。',
   knowledgeRetrieval: 'Vector Search の類似度・Top N・参照文字数上限を設定します（Dify Knowledge Retrieval 相当）。',
@@ -94,7 +94,7 @@ const INSPECTOR_HINTS = {
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
-  hitlGate: '案件レベルの人工確認タスクを生成します。審査ロールを指定し、完成・補件・案件終止の 3 出口から下流を接続してください。確認対象は上流ノードから自動判定されます。',
+  hitlGate: '案件レベルの人工確認タスクを生成します。審査ロールを指定し、必要な出口だけ下流へ接続してください（未接続の出口は自動的に不要扱い）。確認対象は上流ノードから自動判定されます。',
   hitlContext: '前処理・OCR 抽出・AI 検証の直後に接続すると、確認対象が自動判定されます。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
@@ -214,7 +214,7 @@ function autoGenerateWorkflowNodeVarName(node, workflow = null) {
 }
 
 function ensureWorkflowNodeVarName(node, workflow = null) {
-  if (!node || (!WORKFLOW_PROCESSING_NODE_TYPES.has(node.type) && node.type !== 'master_match')) return node;
+  if (!node || !WORKFLOW_PROCESSING_NODE_TYPES.has(node.type)) return node;
   return { ...node, varName: autoGenerateWorkflowNodeVarName(node, workflow) };
 }
 
@@ -270,7 +270,7 @@ const REMOVED_WORKFLOW_NODE_TYPES = new Set([
   'doc_classify', 'doc_process_rules', 'doc_effect_test', 'doc_store', 'doc_subflow',
   'supplement_upload', 'case_pool_update', 'verify_rerun', 'status_update',
   'case_link', 'scene_aggregate', 'scene_completeness',
-  'input', 'output', 'fraud_detect',
+  'input', 'output', 'fraud_detect', 'master_match',
 ]);
 
 const WORKFLOW_INSPECTOR_MAP = {
@@ -280,7 +280,6 @@ const WORKFLOW_INSPECTOR_MAP = {
   ocr: 'ocr',
   ai_verify: 'ai_verify',
   data_mapping: 'data_mapping',
-  master_match: 'master_match',
   decision: 'decision',
   hitl_gate: 'hitl_gate',
   notify: 'notify',
@@ -555,15 +554,6 @@ const WORKFLOW_NODE_META = {
     output: 'External Data',
     accent: '#175cd3',
   },
-  master_match: {
-    icon: '照',
-    title: 'マスタ照合',
-    desc: '照合ルール・マスタ辞書参照',
-    tasks: ['マスタ設定', '照合方式'],
-    input: 'Standard Fields',
-    output: 'Match Result',
-    accent: '#0ea5e9',
-  },
   decision: {
     icon: 'IF',
     title: '条件判断',
@@ -724,8 +714,30 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
+/** AI 检证六模块 → 案件级 status 输出（关模块运行时写 skipped） */
+const AI_VERIFY_MODULE_STATUS_FIELDS = [
+  { moduleKey: 'required_fields', id: 'case.requiredFieldStatus', label: '必須フィールド状態' },
+  { moduleKey: 'required_documents', id: 'case.requiredDocumentStatus', label: '必要書類状態' },
+  { moduleKey: 'text', id: 'case.textValidationStatus', label: 'テキスト検証状態' },
+  { moduleKey: 'data', id: 'case.dataValidationStatus', label: 'データ検証状態' },
+  { moduleKey: 'mapping_conflict', id: 'case.mappingConflictStatus', label: 'マッピング競合検証状態' },
+  { moduleKey: 'signature_seal', id: 'case.signatureSealStatus', label: '署名・印鑑検証状態' },
+];
+
+function aiVerifyModuleStatusOutputFields() {
+  return AI_VERIFY_MODULE_STATUS_FIELDS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    scope: '案件',
+    type: 'Enum',
+    valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus,
+    description: '画布で当該モジュール OFF の場合 skipped；ON 時のみ success / failed / missing',
+    moduleKey: item.moduleKey,
+  }));
+}
+
 const WORKFLOW_OUTPUT_VALUE_SPECS = {
-  nodeStatus: 'success / warning / failed / skipped',
+  nodeStatus: 'success / failed / skipped',
   triggerType: '新規起動 / 続行 / 再実行',
   caseStatus: '新規 / 処理中 / 人工確認 / 補件待ち / 処理完了 / 処理中止 / 異常 / 保留',
   finalResult: '正常完了 / 補件待ち / 異常 / 中止',
@@ -734,24 +746,110 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   runtimeString: '运行时写入，无固定取值',
   runtimeDateTime: '运行时写入，ISO 8601 日期时间',
   resultFileStatus: '対象外 / 待機 / 生成中 / 完了 / 失敗',
-  verifyModuleStatus: 'success / warning / failed / skipped / missing',
+  verifyModuleStatus: 'success / failed / skipped / missing',
   confirmStatus: 'created / completed / failed / timeout',
-  confirmAction: 'approve / request_fix / reject / request_supplement',
-  notifySendStatus: 'success / failed / skipped / deduplicated',
+  confirmAction: 'approve（完成）/ request_supplement（補件）/ reject（案件終止）',
+  notifySendStatus: 'success / failed / skipped',
   notifyType: '不備通知 / 処理完了通知 / 異常通知',
   codeStatus: 'success / failed',
   dynamicObjectKeys: '键集合运行时生成，无固定枚举',
   dynamicArrayItems: '元素结构由运行时结果决定',
+  fileEntryStatus: 'Processed / Processing / Pending / Failed',
 };
+
+const WORKFLOW_STEP1_CASE_FIELDS = [
+  { id: 'case.caseId', label: '案件ID', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 案件唯一标识' },
+  { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Workflow 対象の案件番号' },
+  { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 で設定した業務シーン名' },
+  { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: 'Step1 案件列表聚合状态' },
+  { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.triggerType, description: '起動トリガー種別' },
+];
+
+const WORKFLOW_DOCTYPE_OUTPUT_NODES = new Set(['start']);
+
+/** 账票类型清单（仅开始节点输出；不含各字段运行时值） */
+const WORKFLOW_STEP1_DOCTYPE_DEF = [
+  { id: 'docTypes[]', label: '帳票タイプ一覧', scope: '帳票タイプ', type: 'Array', valueSpec: 'Step1 登録帳票タイプ ID の配列', description: 'Step1 关联账票类型列表/定义；不含各字段值' },
+];
+
+/** 节点输出目录中排除的键（改由 Step1 / 二级选择器提供；files[] 为数组不可直接比较） */
+const DECISION_CATALOG_SKIP_IDS = new Set([
+  'case.ocrFields',
+  'case.standardFields',
+  'docTypes[]',
+  'files[]',
+]);
+
+function isDecisionCatalogFileScopeVar(item) {
+  if (!item) return false;
+  if (item.scope === 'ファイル') return true;
+  const id = String(item.id || '');
+  return id === 'files[]' || id.startsWith('files[].');
+}
+
+/** files[] 数组元素字段定义（供 PRD / 文档；配置端出力変数面板不逐条展示） */
+const WORKFLOW_FILE_ENTRY_FIELD_SCHEMA = [
+  { id: 'files[].id', label: 'ファイルID', scope: 'ファイル', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'ファイル一意識別子' },
+  { id: 'files[].name', label: 'ファイル名', scope: 'ファイル', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: '元ファイル名' },
+  { id: 'files[].type', label: 'ファイルタイプ', scope: 'ファイル', type: 'String', valueSpec: 'pdf / jpg / png / tiff 等', description: 'MIME または拡張子種別' },
+  { id: 'files[].extension', label: '拡張子', scope: 'ファイル', type: 'String', valueSpec: '.pdf / .jpg 等', description: 'ファイル拡張子' },
+  { id: 'files[].url', label: 'ファイルURL', scope: 'ファイル', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: '本ノード時点のストレージ参照 URL（前処理後は変わる場合あり）' },
+  { id: 'files[].size', label: 'ファイルサイズ', scope: 'ファイル', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'バイト単位のファイルサイズ' },
+  { id: 'files[].caseId', label: '案件ID', scope: 'ファイル', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: '所属案件 ID' },
+  { id: 'files[].classificationResult', label: '分類結果', scope: 'ファイル', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: '帳票タイプ分類ラベル' },
+  { id: 'files[].status', label: 'ファイル状態', scope: 'ファイル', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.fileEntryStatus, description: '本ノード時点のファイル処理状態' },
+  { id: 'files[].uploadedAt', label: 'アップロード日時', scope: 'ファイル', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: 'アップロード日時' },
+  { id: 'files[].updatedAt', label: '更新日時', scope: 'ファイル', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '本ノード処理後の最終更新日時' },
+];
+
+const WORKFLOW_FILE_NODE_EXTRA_SCHEMA = {
+  ocr: [
+    { id: 'files[].ocrFields', label: 'OCRフィールド', scope: 'ファイル', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'ファイル単位の OCR 抽出結果' },
+  ],
+  ai_verify: [
+    { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位で違反した検証ルール' },
+  ],
+  hitl_gate: [
+    { id: 'files[].manualEdits', label: '修正摘要', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位の人工修正摘要' },
+  ],
+};
+
+/** @deprecated 兼容旧引用；元素结构见 WORKFLOW_FILE_ENTRY_FIELD_SCHEMA */
+const WORKFLOW_FILE_BASE_FIELDS = [
+  { id: 'files[]', label: 'ファイル一覧', scope: 'ファイル', type: 'Array', valueSpec: '本ノード処理後の全ファイル对象配列', description: '本ノード実行後の案件内全ファイル（状態・URL 等を含む）' },
+  ...WORKFLOW_FILE_ENTRY_FIELD_SCHEMA,
+];
+
+const WORKFLOW_FILE_NODE_EXTRA_FIELDS = WORKFLOW_FILE_NODE_EXTRA_SCHEMA;
+
+const WORKFLOW_FILE_ARRAY_OUTPUT_NOTES = {
+  preprocess: '各元素含 id / name / url / status / classificationResult 等',
+  ocr: '各元素含 ocrFields（OCR 抽出結果）',
+  data_mapping: '透传上游文件对象（含 ocrFields）',
+  ai_verify: '各元素含 failedRules',
+  hitl_gate: '各元素含 manualEdits',
+  start: '各元素含 classificationResult 等基础字段',
+};
+
+function workflowNodeFileOutputFields(nodeType) {
+  const note = WORKFLOW_FILE_ARRAY_OUTPUT_NOTES[nodeType];
+  return [{
+    id: 'files[]',
+    label: 'ファイル一覧',
+    scope: 'ファイル',
+    type: 'Array',
+    valueSpec: '本ノード処理後の全ファイル对象配列',
+    description: note
+      ? `案件内全ファイル配列。${note}`
+      : '本ノード実行後の案件内全ファイル（状態・URL 等を含む）',
+  }];
+}
 
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   start: [
-    { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Workflow 対象の案件番号' },
-    { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 で設定した業務シーン名' },
-    { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.triggerType, description: '起動トリガー種別' },
-    { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: '起動時の案件リスト聚合状態' },
-    { id: 'case.pendingFileCount', label: '待処理ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '今回 Workflow で処理するファイル数' },
-    { id: 'docTypes[].docTypeList', label: '帳票タイプ一覧', scope: '帳票タイプ', type: 'Array', valueSpec: 'Step1 登録帳票タイプ ID の配列', description: '本案件に含まれる Step1 登録帳票タイプ' },
+    ...WORKFLOW_STEP1_CASE_FIELDS,
+    ...WORKFLOW_STEP1_DOCTYPE_DEF,
+    ...workflowNodeFileOutputFields('start'),
   ],
   end: [
     { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: '案件状態机への最終提案' },
@@ -762,30 +860,20 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   preprocess: [
     { id: 'case.preprocessStatus', label: '前処理ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '前処理全体の集約状態' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '後続人工確認分岐で参照する案件級判定' },
     { id: 'case.lastFailureReason', label: '最終失敗原因', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '直近の前処理失敗理由' },
-    { id: 'files[].processedFile', label: '処理済みファイル', scope: 'ファイル', type: 'File', valueSpec: 'ファイル参照；実行時に確定', description: '補正・回転・画像分割後のファイル' },
-    { id: 'files[].preprocessStatus', label: '前処理状態', scope: 'ファイル', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'ファイル単位の前処理結果' },
-    { id: 'files[].preprocessWarnings', label: '前処理警告', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '傾き補正不可、分類曖昧などの明細' },
+    ...workflowNodeFileOutputFields('preprocess'),
   ],
   ocr: [
     { id: 'case.ocrStatus', label: 'OCRステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'OCR 全体の処理状態' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '後続人工確認分岐で参照する案件級判定' },
-    { id: 'case.ocrFields', label: 'OCRフィールド集約', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件単位に集約した OCR 抽出結果' },
-    { id: 'files[].ocrFields', label: 'OCRフィールド', scope: 'ファイル', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'ファイル単位の OCR 抽出結果' },
-    { id: 'files[].ocrStatus', label: 'OCR状態', scope: 'ファイル', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'ファイル単位の OCR 成否' },
+    { id: 'case.lowConfidenceFieldCount', label: '低信頼フィールド件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '閾値未満の OCR フィールド件数（条件分岐用）' },
+    ...workflowNodeFileOutputFields('ocr'),
   ],
   data_mapping: [
     { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マッピング全体の集約状態' },
-    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級の標準フィールドビュー' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級标准字段（条件选择：映射节点 → 字段名）' },
     { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級に集約したフィールド競合' },
     { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ルール不適用、字段缺失、変換失敗の明細' },
-  ],
-  master_match: [
-    { id: 'case.masterStatus', label: 'マスタ照合ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マスタ照合全体の集約状態' },
-    { id: 'case.masterReviewRequired', label: '人工確認推奨', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '未命中・低信頼・多候補により確認が必要' },
-    { id: 'case.masterMatchResults', label: '照合結果', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級の照合結果汇总' },
-    { id: 'files[].masterMatchResults', label: '照合結果', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位の照合明細' },
+    ...workflowNodeFileOutputFields('data_mapping'),
   ],
   decision: [
     { id: 'case.branchName', label: '分岐名', scope: '案件', type: 'String', valueSpec: '画布 IF/ELIF/ELSE 分支名；运行时写入', description: '命中した IF / ELIF / ELSE 分岐名' },
@@ -793,32 +881,24 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.matchedFileCount', label: '命中ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'ファイル級条件で命中した件数' },
   ],
   ai_verify: [
-    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'AI検証全体の集約状態' },
-    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '補件分岐に使う案件級判定' },
-    { id: 'case.manualReviewRequired', label: '人工確認必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認分岐に使う案件級判定' },
+    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '已开启模块的聚合状态；全关→skipped' },
     { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '異常処理分岐に使う案件級判定' },
-    { id: 'case.requiredFieldStatus', label: '必須フィールド状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus, description: '必須フィールド検証の聚合状態' },
-    { id: 'case.requiredDocumentStatus', label: '必要書類状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus, description: '必要書類検証の聚合状態' },
-    { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', valueSpec: '账票类型名称字符串数组；无不足时为空数组', description: '必要書類の不足明細' },
-    { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', valueSpec: '标准字段或 OCR 字段名数组；无不足时为空数组', description: '必須フィールドの不足明細' },
-    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', valueSpec: '含各检证模块明细；键与结构由开启模块决定', description: 'AI検証の詳細結果' },
-    { id: 'files[].failedRules', label: '失敗ルール', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位で違反したルール' },
+    ...aiVerifyModuleStatusOutputFields(),
+    { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', valueSpec: '账票类型名称字符串数组；无不足时为空数组', description: '必要書類モジュールの不足明細' },
+    { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', valueSpec: '标准字段或 OCR 字段名数组；无不足时为空数组', description: '必須フィールドモジュールの不足明細' },
+    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', valueSpec: '各模块 enabled/status/violations；仅已开启模块写键', description: 'AI検証の詳細結果（模块级明细）' },
+    ...workflowNodeFileOutputFields('ai_verify'),
   ],
   hitl_gate: [
     { id: 'case.confirmStatus', label: '確認状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.confirmStatus, description: '人工確認タスクの処理状態' },
-    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.confirmAction, description: '審査者が選択した出口アクション' },
-    { id: 'case.supplementRequired', label: '補件必要', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認結果が補件要求か' },
-    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '人工確認結果が異常扱いか' },
-    { id: 'case.pendingConfirmFileCount', label: '待確認ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '人工確認対象の未確認ファイル数' },
-    { id: 'case.pendingConfirmFieldCount', label: '待確認フィールド件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: '人工確認対象の未確認フィールド数' },
-    { id: 'files[].manualEdits', label: '修正摘要', scope: 'ファイル', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ファイル単位の人工修正摘要' },
+    { id: 'case.confirmAction', label: '確認アクション', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.confirmAction, description: '審査者が選択した出口（画布三分岐と同一：完成/補件/案件終止）' },
+    ...workflowNodeFileOutputFields('hitl_gate'),
   ],
   notify: [
     { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifySendStatus, description: '通知送信の成否' },
     { id: 'case.notifyType', label: '通知タイプ', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifyType, description: '送信した通知テンプレート種別' },
     { id: 'case.notifiedAt', label: '送信日時', scope: '案件', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '通知送信時刻' },
     { id: 'case.notifyFailureReason', label: '送信失敗理由', scope: '案件', type: 'String', valueSpec: '送信失敗時のみ写入；无固定取值', description: '送信失敗時のエラー詳細' },
-    { id: 'case.notifyDeduplicated', label: '重複抑制', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '同一案件・同一通知ノードで既送信のためスキップしたか' },
   ],
   code: [
     { id: 'case.result', label: 'result', scope: '案件', type: 'Object', optional: true, valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'Python 関数の戻り値' },
@@ -847,7 +927,6 @@ const WORKFLOW_NODE_OUTPUT_HINT_KEYS = {
   hitl_gate: 'nodeOutputHitl',
   notify: 'nodeOutputNotify',
   mcp: 'mcpOutput',
-  master_match: 'masterMatchOutput',
   code: 'codeOutput',
 };
 
@@ -912,6 +991,8 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
   const meta = getWorkflowNodeMeta(node.type);
   const title = meta.title;
   items.forEach((item) => {
+    if (DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
+    if (isDecisionCatalogFileScopeVar(item)) return;
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
       label: item.label,
@@ -923,8 +1004,135 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
       nodeType: node.type,
       nodeId: node.id,
       varName: getWorkflowNodeVarName(node, workflow),
+      pickerGroup: 'node',
     });
   });
+}
+
+function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options) {
+  if (!Array.isArray(docTypes) || !docTypes.length) return;
+  const schemaFn = typeof getDocSchemaFn === 'function' ? getDocSchemaFn : () => ({ fields: [] });
+  docTypes.forEach((docType) => {
+    const fields = schemaFn(docType)?.fields || [];
+    fields.forEach((field) => {
+      appendDecisionVarOption(options, {
+        value: `docTypes.${docType}.${field}`,
+        label: `${docType} · ${field}`,
+        displayName: field,
+        group: '帳票フィールド（Step1）',
+        scope: '帳票タイプ',
+        dataType: 'String',
+        description: '条件用字段选择（非节点输出变量）；运行时按 files[].classificationResult + files[].ocrFields 取值',
+        nodeType: 'step1_template',
+        nodeId: 'step1',
+        varName: '',
+        pickerGroup: 'step1_doc',
+        pickerDocType: docType,
+        pickerField: field,
+      });
+    });
+  });
+}
+
+function appendDataMappingStandardFieldCatalog(node, workflow, options) {
+  if (!node || node.type !== 'data_mapping') return;
+  const varName = getWorkflowNodeVarName(node, workflow);
+  const meta = getWorkflowNodeMeta(node.type);
+  DATA_MAPPING_STANDARD_FIELDS.forEach((field) => {
+    appendDecisionVarOption(options, {
+      value: `${varName}.case.standardFields.${field.value}`,
+      label: field.label,
+      displayName: field.label,
+      group: meta.title,
+      scope: '案件',
+      dataType: field.dataType || 'String',
+      description: 'データマッピング標準フィールド',
+      nodeType: node.type,
+      nodeId: node.id,
+      varName,
+      pickerGroup: 'standard_field',
+      pickerStandardFieldId: field.value,
+      pickerStandardFieldLabel: field.label,
+    });
+  });
+}
+
+function buildDecisionVariableCascaderTree(options) {
+  const nodeMap = new Map();
+  const step1DocMap = new Map();
+  const standardMap = new Map();
+
+  (options || []).forEach((opt) => {
+    if (opt.pickerGroup === 'step1_doc') {
+      const docType = opt.pickerDocType || '帳票';
+      if (!step1DocMap.has(docType)) {
+        step1DocMap.set(docType, { id: `step1:${docType}`, text: docType, title: docType, items: [] });
+      }
+      step1DocMap.get(docType).items.push({
+        id: opt.value,
+        text: opt.pickerField || opt.displayName,
+        title: opt.pickerField || opt.displayName,
+        scope: opt.scope,
+        dataType: opt.dataType,
+      });
+      return;
+    }
+    if (opt.pickerGroup === 'standard_field') {
+      const nodeKey = opt.nodeId || opt.group;
+      if (!standardMap.has(nodeKey)) {
+        standardMap.set(nodeKey, {
+          id: `std-node:${nodeKey}`,
+          text: opt.group || 'データマッピング',
+          title: opt.group || 'データマッピング',
+          items: [],
+        });
+      }
+      standardMap.get(nodeKey).items.push({
+        id: opt.value,
+        text: opt.pickerStandardFieldLabel || opt.displayName,
+        title: opt.pickerStandardFieldLabel || opt.displayName,
+        scope: opt.scope,
+        dataType: opt.dataType,
+      });
+      return;
+    }
+    const nodeKey = opt.nodeId || opt.group || 'unknown';
+    if (!nodeMap.has(nodeKey)) {
+      nodeMap.set(nodeKey, {
+        id: `node:${nodeKey}`,
+        text: opt.group || '上流ノード',
+        title: opt.group || '上流ノード',
+        items: [],
+      });
+    }
+    nodeMap.get(nodeKey).items.push({
+      id: opt.value,
+      text: opt.displayName || opt.label,
+      title: opt.displayName || opt.label,
+      scope: opt.scope,
+      dataType: opt.dataType,
+    });
+  });
+
+  const tree = [];
+  if (step1DocMap.size) {
+    tree.push({
+      id: 'group:step1',
+      text: '帳票フィールド（Step1）',
+      title: '帳票フィールド（Step1）',
+      items: [...step1DocMap.values()],
+    });
+  }
+  nodeMap.forEach((group) => tree.push(group));
+  standardMap.forEach((group) => {
+    tree.push({
+      id: group.id,
+      text: group.text,
+      title: group.title,
+      items: group.items,
+    });
+  });
+  return tree;
 }
 
 const MCP_SERVER_STATUS_META = {
@@ -1071,7 +1279,7 @@ const MCP_REGISTRY = MCP_SERVER_SEEDS;
 const WORKFLOW_WORKSHOP_CHECKLIST = [
   { id: 'k1', topic: 'マスタ照合', question: '必須の知识源：内部文档库 / 行业标准 API / Web Search / 客户自建 MCP Search？' },
   { id: 'k2', topic: 'マスタ照合', question: '照合输出：仅返回候选参考文本，还是写回 OCR 字段的标准化值？' },
-  { id: 'k3', topic: 'マスタ照合', question: '低置信度时：自动 HITL / 条件判断 / WARNING 继续？' },
+  { id: 'k3', topic: 'マスタ照合', question: '低置信度时：自动 HITL 还是条件判断？' },
   { id: 'k4', topic: 'マスタ照合', question: '是否允许多知识源同时检索再合并（multi-knowledge）？' },
   { id: 'm1', topic: 'MCP', question: '需要哪些 MCP Server（DB / RPA / CRM / 自定义 HTTP）？' },
   { id: 'm2', topic: 'MCP', question: 'Tool 调用是编排固定顺序，还是将来 Agent 式自动选 Tool？（Fixed-only vs 预留 Auto）' },
@@ -1725,14 +1933,14 @@ const DECISION_CONDITION_TYPES = [
     value: 'verify_hitl',
     label: 'AI検証結果の要確認',
     defaultLabel: 'AI検証確認必要？',
-    yesRule: '検証ルール違反・WARNING・Master未一致',
+    yesRule: '検証ルール違反・Master未一致',
     noRule: '検証 PASS（自動確定）',
   },
   {
     value: 'verify_pass',
     label: 'AI検証通過判断',
     defaultLabel: 'AI検証通過？',
-    yesRule: '検証ルール ALL PASS・WARNING なし',
+    yesRule: '検証ルール ALL PASS',
     noRule: '検証 NG または要確認あり',
   },
   {
@@ -2358,6 +2566,30 @@ function getHitlGateBranchIndex(node, branchKey) {
   return match?.index ?? branches.findIndex((b) => b.key === branchKey);
 }
 
+/** 已接下游连线的出口 action 键（去重） */
+function getHitlGateConnectedBranchKeys(workflow, nodeId) {
+  return [...new Set(
+    (workflow?.edges || [])
+      .filter((e) => e.from === nodeId && e.branch && !e.visualHidden)
+      .map((e) => normalizeHitlGateActionValue(e.branch))
+      .filter(Boolean),
+  )];
+}
+
+/** 运行时/待办仅提供已接线的 action；配置期若尚未接线则仍展示全部出口供连接 */
+function getHitlGateEnabledActions(workflow, node) {
+  if (!node?.id) return [...HITL_DEFAULT_ACTIONS];
+  const connected = getHitlGateConnectedBranchKeys(workflow, node.id);
+  return connected.length ? connected : [...HITL_DEFAULT_ACTIONS];
+}
+
+/** 已有至少一条出口接线后，未接下游的分支标为不要（不需要） */
+function isHitlGateBranchMarkedOptional(workflow, nodeId, branchKey) {
+  const connected = getHitlGateConnectedBranchKeys(workflow, nodeId);
+  if (!connected.length) return false;
+  return !connected.includes(normalizeHitlGateActionValue(branchKey));
+}
+
 function isHitlGateBranchNode(node) {
   return isHitlGateNode(node);
 }
@@ -2795,14 +3027,20 @@ function appendDecisionVarOption(options, spec) {
   });
 }
 
-function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null) {
+function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null, sceneContext = null) {
   const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
   const options = [];
   getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
     const n = nodeMap[id];
     if (!n || n.type === 'decision') return;
     appendNodeOutputVarCatalog(n, workflow, options);
+    if (n.type === 'data_mapping') appendDataMappingStandardFieldCatalog(n, workflow, options);
   });
+  const docTypes = sceneContext?.docTypes || [];
+  const getDocSchemaFn = sceneContext?.getDocSchema;
+  if (docTypes.length) {
+    appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options);
+  }
   return options;
 }
 
@@ -2826,8 +3064,8 @@ function getDecisionVariableOptionGroups(options) {
   return groups;
 }
 
-function getDecisionVariableOptions(workflow, nodeId, verifyConfig = null) {
-  return buildDecisionVariableCatalog(workflow, nodeId, verifyConfig);
+function getDecisionVariableOptions(workflow, nodeId, verifyConfig = null, sceneContext = null) {
+  return buildDecisionVariableCatalog(workflow, nodeId, verifyConfig, sceneContext);
 }
 
 function getDecisionVariableLabel(value, options = []) {
@@ -2881,8 +3119,8 @@ const DECISION_PRESET_EXPRESSION = {
   deficiency_hitl: '{{case.completeness}} = NG',
   preprocess_hitl: '{{preprocess.status}} = REVIEW_REQUIRED',
   ocr_hitl: 'ANY({{ocr.fields.confidence}}) < {{ocr.threshold}}',
-  verify_hitl: '{{verify.status}} IN (NG, WARNING) OR {{master.match}} = UNMATCHED',
-  verify_pass: '{{verify.status}} = PASS AND {{verify.warning_count}} = 0',
+  verify_hitl: '{{verify.status}} = NG OR {{master.match}} = UNMATCHED',
+  verify_pass: '{{verify.status}} = PASS',
   notify_required: '{{case.has_deficiency}} = true',
 };
 
@@ -2963,13 +3201,18 @@ function migrateDecisionVariableScope(value) {
     .replace(/\.documents\[\]\.classificationWarnings$/g, '.case.classificationWarnings')
     .replace(/\.documents\[\]\.classificationConfidence$/g, '.files[].classificationConfidence')
     .replace(/\.documents\[\]\.ocrFields/g, '.files[].ocrFields')
+    .replace(/\.files\[\]\.ocrFields/g, '.files[].ocrFields')
+    .replace(/\.case\.ocrFields\./g, 'docTypes.')
+    .replace(/\.case\.ocrFields$/g, 'docTypes')
+    .replace(/^[a-zA-Z0-9_]+\.docTypes\./, 'docTypes.')
     .replace(/\.documents\[\]\.standardFields/g, '.files[].standardFields')
     .replace(/\.documents\[\]\.masterMatchResults/g, '.files[].masterMatchResults')
     .replace(/\.documents\[\]\.validationResults/g, '.files[].validationResults')
     .replace(/\.documents\[\]\.manualEdits/g, '.files[].manualEdits')
-    .replace(/\.fields\[\]\.sourceOcrFields$/g, '.files[].ocrFields')
+    .replace(/\.fields\[\]\.sourceOcrFields$/g, '.docTypes')
     .replace(/\.fields\[\]\.masterCandidates$/g, '.files[].masterMatchResults')
-    .replace(/\.rules\[\]\.validationResults$/g, '.files[].validationResults');
+    .replace(/\.rules\[\]\.validationResults$/g, '.files[].validationResults')
+    .replace(/\.case\.standardFields\.([^.]+)\.(value|sourceFields|confidence)$/g, '.case.standardFields.$1');
 }
 
 function normalizeDecisionCase(decisionCase, index) {
@@ -3018,7 +3261,8 @@ function syncDecisionVariablesInWorkflow(workflow) {
     if (!options.length) return;
     const optionValues = new Set(options.map((o) => o.value));
     const isAllowedVariable = (value) => optionValues.has(value)
-      || options.some((o) => String(o.value || '').includes('ocrFields') && String(value || '').startsWith(`${o.value}.`));
+      || options.some((o) => o.pickerGroup === 'step1_doc' && String(value || '').startsWith('docTypes.'))
+      || options.some((o) => o.pickerGroup === 'standard_field' && String(value || '').startsWith(`${o.varName}.case.standardFields.`));
     (node.cases || []).forEach((c) => {
       (c.conditions || []).forEach((cond) => {
         cond.variable = migrateDecisionVariableScope(cond.variable);
@@ -3047,28 +3291,29 @@ function inferDecisionConditionValue(condition, decisionCase = null) {
   const variable = String(condition?.variable || '');
   const branchText = `${decisionCase?.label || ''} ${decisionCase?.id || ''}`;
   if (/confirmAction$/.test(variable)) {
-    if (branchText.includes('修正')) return 'request_fix';
     if (branchText.includes('補件')) return 'request_supplement';
     if (branchText.includes('案件終止') || branchText.includes('異常')) return 'reject';
     if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
     return 'approve';
   }
-  if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
-  if (/manualReviewRequired$/.test(variable)) return branchText.includes('人工') || branchText.includes('確認') ? 'true' : 'false';
   if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
   if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
   if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|masterStatus$/.test(variable)) {
     return branchText.includes('異常') ? 'failed' : 'success';
   }
   if (/lowConfidenceFieldCount$|master(NoHit|LowScore|MultiCandidate)Count$|fileCandidateCount$/.test(variable)) return '0';
-  if (/preprocessWarnings$|classificationWarnings$|mappingConflicts$|mappingErrors$|missingDocuments$|missingFields$|failedRules$/.test(variable)) return '0';
+  if (/mappingConflictStatus$|textValidationStatus$|dataValidationStatus$|signatureSealStatus$|required(Document|Field)Status$/.test(variable)) {
+    return branchText.includes('補件') || branchText.includes('不足') ? 'missing' : 'success';
+  }
+  if (/classificationWarnings$|mappingConflicts$|mappingErrors$|missingDocuments$|missingFields$|failedRules$/.test(variable)) return '0';
   if (/ReviewRequired$/.test(variable)) return branchText.includes('確認') ? 'true' : 'false';
   return '';
 }
 
 function migrateDecisionConditionValue(condition) {
   if (!condition) return '';
-  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'edit') return 'request_fix';
+  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'edit') return 'approve';
+  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'request_fix') return 'approve';
   return condition.value ?? '';
 }
 
@@ -3652,7 +3897,6 @@ function buildDefaultCaseWorkflow() {
         logic: 'and',
         conditions: [
           cond(`${ppVar}.case.preprocessStatus`, 'is', 'success'),
-          cond(`${ppVar}.files[].preprocessWarnings`, 'length_equals', '0'),
         ],
       }),
     ],
@@ -3686,8 +3930,6 @@ function buildDefaultCaseWorkflow() {
         logic: 'and',
         conditions: [
           cond(`${aiVar}.case.verifyStatus`, 'is', 'success'),
-          cond(`${aiVar}.case.supplementRequired`, 'is', 'false'),
-          cond(`${aiVar}.case.manualReviewRequired`, 'is', 'false'),
         ],
       }),
       createDecisionCase('elif', {
@@ -3695,7 +3937,6 @@ function buildDefaultCaseWorkflow() {
         label: '補件',
         logic: 'or',
         conditions: [
-          cond(`${aiVar}.case.supplementRequired`, 'is', 'true'),
           cond(`${aiVar}.case.requiredDocumentStatus`, 'is', 'missing'),
           cond(`${aiVar}.case.requiredFieldStatus`, 'is', 'missing'),
         ],

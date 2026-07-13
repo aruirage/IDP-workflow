@@ -949,7 +949,7 @@ const KNOWLEDGE_RETRIEVAL_MODES = [
   { value: 'vector', label: 'Vector Search' },
 ];
 
-const KNOWLEDGE_OUTPUT_VARS = WORKFLOW_NODE_OUTPUT_VAR_DEFS.master_match.map((item) => ({
+const KNOWLEDGE_OUTPUT_VARS = (WORKFLOW_NODE_OUTPUT_VAR_DEFS.mcp || []).map((item) => ({
   ...item,
   token: `{${item.id}}`,
 }));
@@ -1974,12 +1974,12 @@ function collectWorkflowTestBranchIssues(workflow) {
       }
     }
     if (node.type === 'hitl_gate') {
-      const actions = typeof normalizeHitlGateActions === 'function'
-        ? normalizeHitlGateActions(node.actions)
-        : ['approve', 'request_supplement', 'reject'];
-      const hasConnectedBranch = actions.some((branch) =>
-        edges.some((edge) => edge.from === node.id && edge.branch === branch));
-      if (!hasConnectedBranch) {
+      const connected = typeof getHitlGateConnectedBranchKeys === 'function'
+        ? getHitlGateConnectedBranchKeys(wf, node.id)
+        : (wf.edges || [])
+          .filter((e) => e.from === node.id && e.branch && !e.visualHidden)
+          .map((e) => e.branch);
+      if (!connected.length) {
         mark(node.id, '分岐が未接続です');
       }
     }

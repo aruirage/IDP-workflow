@@ -4303,29 +4303,6 @@ code.export-config-meta-value {
 .wf-test-cross-batch-card strong {
   font-size: 13px;
 }
-.wf-test-dedup-list {
-  margin: 12px 0 16px;
-  padding: 12px;
-  border-radius: 8px;
-  background: #fafafa;
-  border: 1px dashed #d9d9d9;
-}
-.wf-test-dedup-list h6 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-.wf-test-dedup-item {
-  display: grid;
-  gap: 2px;
-  font-size: 12px;
-  padding: 8px 0;
-  border-top: 1px solid #ececec;
-}
-.wf-test-dedup-item:first-of-type {
-  border-top: 0;
-  padding-top: 0;
-}
 .wf-test-split-source,
 .wf-test-case-file-batch {
   font-size: 12px;
@@ -7939,6 +7916,19 @@ body.wf-connecting .wf-hitl-exit-btn {
   white-space: nowrap;
   line-height: 1;
   text-align: left;
+}
+
+.wf-hitl-branch-row.is-optional .wf-hitl-branch-label {
+  color: #98a2b3;
+  font-weight: 500;
+}
+
+.wf-hitl-branch-optional {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #98a2b3;
+  letter-spacing: 0.02em;
 }
 
 .wf-ifelse-port-dot {

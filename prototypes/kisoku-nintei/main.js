@@ -667,13 +667,13 @@ const appOptions = {
       ['タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。', '设定超时（秒）、重试上限、失败时动作（跳过 / 重试 / 工作流停止）。'],
       ['後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件、MCP 变量引用中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
       ['処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。', '处理后文件、低置信件数、状态。可在后续节点的条件分支中引用。'],
-      ['前処理総状態・成功/失敗件数・人工確認要否・処理済みファイル・分類警告。', '前处理总状态、成功/失败件数、是否需人工确认、处理后文件、分类警告。'],
+      ['前処理総状態・成功/失敗件数・人工確認要否・処理済み/未処理ファイル・分類警告。', '前处理总状态、成功/失败件数、是否需人工确认、已处理/未处理文件、分类警告。'],
       ['OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。', 'OCR 结果、按文件 OCR 结果、低置信字段件数、模型不一致件数、状态。'],
-      ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、按文件 OCR 结果。'],
+      ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・抽出済み/未処理ファイル・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、已抽取/未处理文件、按文件 OCR 结果。'],
       ['必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。', '必填字段、必要资料、文本、数据、签名盖章校验的集约输出。也可用于通知节点固定变量。'],
-      ['AI検証総状態・6 類検証結果・補件/人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、补件/人工确认/异常判定、不足资料/项目明细。'],
+      ['AI検証総状態・6 類検証結果・検証済み/未処理ファイル・人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、已检证/未处理文件、人工确认/异常判定、不足资料/项目明细。'],
       ['Workflow 入口の案件番号・トリガー種別・案件データバージョン。', 'Workflow 入口的案件编号、触发类型、案件数据版本。'],
-      ['Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル範囲・帳票タイプ一覧。', 'Workflow 入口的案件基础信息、触发类型、待处理文件范围、账票类型清单。'],
+      ['Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル对象配列（files[]）。', 'Workflow 入口的案件基础信息、触发类型、待处理文件对象数组（files[]）。'],
       ['この分岐の完了状態。案件ライフサイクルの終了は表しません。', '该分支的完成状态，不代表案件生命周期结束。'],
       ['分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。', '分支结束结果、案件状态建议、未完成事项、成果文件状态、执行摘要。'],
       ['生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。', '生成的人工确认任务 ID、确认状态、确认操作、担当角色、人工修正摘要。'],
@@ -685,8 +685,8 @@ const appOptions = {
       ['テスト実行で再現（シナリオを選択）', '测试执行可复现（选择场景）'],
       ['公開前チェック（本テストでは未シミュレーション）', '发布前检查（本测试未模拟）'],
       ['案件集約：複数候補', '案件集约：多候选'],
-      ['集約 warning', '集约 warning'],
-      ['同一識別キーで複数候補案件に命中。集約ステップ warning、人工確認で归并先を決定。', '同一识别键命中多个候选案件。集约步骤 warning，需人工确认归并目标。'],
+      ['集約要確認', '集约待确认'],
+      ['同一識別キーで複数候補案件に命中。集約ステップで要確認、人工確認で归并先を決定。', '同一识别键命中多个候选案件。集约步骤待确认，需人工确认归并目标。'],
       ['OCR：低信頼フィールド', 'OCR：低置信字段'],
       ['失敗・ワークフロー停止', '失败・工作流停止'],
       ['抽出信頼度が閾値未満（例：医療機関名 0.62 < 0.75）。OCR ノード error、以降は未実行。', '抽出置信度低于阈值（例：医疗机构名 0.62 < 0.75）。OCR 节点 error，后续未执行。'],
@@ -696,7 +696,7 @@ const appOptions = {
       ['error ノード以降は pending。総合結果は「失敗」または「終了未到達」。', 'error 节点之后为 pending。综合结果为「失败」或「未到达终了节点」。'],
       ['補件：不足書類検出', '补件：不足资料检测'],
       ['要確認（補件待ち）', '待确认（等待补件）'],
-      ['関連帳票未紐付け・AI検証で不足書類。案件 userStatus=補件待ち；終了は warning 付きで到達可。', '关联账票未绑定・AI 检证检出不足资料。案件 userStatus=等待补件；终了节点可带 warning 到达。'],
+      ['関連帳票未紐付け・AI検証で不足書類。案件 userStatus=補件待ち；終了ノードまで到達可。', '关联账票未绑定・AI 检证检出不足资料。案件 userStatus=等待补件；可到达终了节点。'],
       ['分岐悬空', '分支悬空'],
       ['公開不可', '不可发布'],
       ['IF/ELSE 分岐先が終了ノードに到達していない。', 'IF/ELSE 分支未到达终了节点。'],
@@ -861,7 +861,7 @@ const appOptions = {
       ['预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。', '预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。'],
       ['关注点', '关注点'],
       ['通知送信状態・通知タイプ・送信日時。', '通知发送状态、通知类型、发送时间。'],
-      ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由・重複抑制フラグ。', '通知发送状态、通知类型、发送时间、收件人、失败原因、重复抑制标志。'],
+      ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由。', '通知发送状态、通知类型、发送时间、收件人、失败原因。'],
       ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
       ['Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。', 'Workflow 入口。根据案件集约结果新建启动或续跑实例（只读）。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
@@ -2281,14 +2281,16 @@ const appOptions = {
 
     function normalizeWorkflowVariableCategory(opt = {}) {
       const value = String(opt.value || opt.id || '');
-      const label = String(opt.label || opt.displayName || '');
       const scope = String(opt.scope || '');
-      if (/ocrFields|standardFields|mappingConflicts|missingFields|field/i.test(value)
-        || /OCR.*フィールド|標準フィールド|フィールド|項目|字段|競合/.test(label)
-        || /帳票/.test(scope)) {
+
+      if (scope === '案件') return { key: 'case', label: '案件変数' };
+      if (scope === 'ファイル') return { key: 'file', label: 'ファイル変数' };
+      if (scope === '帳票タイプ') return { key: 'docType', label: '帳票タイプ変数' };
+
+      if (value.includes('docTypes[]') || value.includes('.docTypes.')) {
         return { key: 'docType', label: '帳票タイプ変数' };
       }
-      if (/files\[\]|file/i.test(value) || /ファイル/.test(scope)) {
+      if (/files\[\]/.test(value)) {
         return { key: 'file', label: 'ファイル変数' };
       }
       return { key: 'case', label: '案件変数' };
@@ -3436,7 +3438,7 @@ const appOptions = {
     function getDecisionLayoutMetricsForNode(node) {
       if (!node) return getDecisionNodeLayoutMetrics(node);
       const wf = getActiveWf();
-      const opts = wf ? getDecisionVariableOptions(wf, node.id, form.verify) : [];
+      const opts = wf ? getDecisionVariableOptions(wf, node.id, form.verify, decisionSceneContext.value) : [];
       const metrics = getDecisionNodeLayoutMetrics(node, opts);
       if (!wfCanvasNodesCollapsed.value) return metrics;
       const collapsed = getCollapsedDecisionNodeSize(node);
@@ -6142,11 +6144,16 @@ const appOptions = {
       pushWorkflowHistory('CASE の条件を削除');
     }
 
+    const decisionSceneContext = computed(() => ({
+      docTypes: sceneDocTypes.value,
+      getDocSchema,
+    }));
+
     const decisionVariableOptions = computed(() => {
       const wf = getActiveWf();
       const nodeId = selectedWorkflowNodeId.value;
       if (!wf || !nodeId) return [];
-      return getDecisionVariableOptions(wf, nodeId, form.verify);
+      return getDecisionVariableOptions(wf, nodeId, form.verify, decisionSceneContext.value);
     });
 
     const decisionVariableOptionGroups = computed(() =>
@@ -6162,47 +6169,17 @@ const appOptions = {
       if (scope === '案件' || value.includes('.case.')) {
         return { id: 'case', label: '案件流' };
       }
-      if (scope === 'ファイル' || value.includes('files[].') || value.includes('.ocrFields.')) {
+      if (scope === '帳票タイプ' || value.includes('.docTypes.')) {
+        return { id: 'doctype', label: '帳票流' };
+      }
+      if (scope === 'ファイル' || value.includes('files[].')) {
         return { id: 'file', label: 'ファイル流' };
       }
       return { id: 'case', label: '案件流' };
     }
 
     const decisionVariableCascaderOptions = computed(() =>
-      decisionVariableOptions.value.reduce((nodes, opt) => {
-        const nodeKey = opt.nodeId || opt.group || 'unknown';
-        let nodeGroup = nodes.find((item) => item.id === `node:${nodeKey}`);
-        if (!nodeGroup) {
-          nodeGroup = {
-            id: `node:${nodeKey}`,
-            text: opt.group || '上流ノード',
-            title: opt.group || '上流ノード',
-            items: [],
-          };
-          nodes.push(nodeGroup);
-        }
-        const variableItem = {
-          id: opt.value,
-          text: formatDecisionVariableCascaderLabel(opt),
-          title: formatDecisionVariableCascaderLabel(opt),
-        };
-        if (opt.nodeType === 'ocr' && String(opt.value || '').includes('ocrFields')) {
-          const seenFields = new Set();
-          variableItem.items = sceneDocTypes.value.flatMap((docType) =>
-            getDocSchema(docType).fields.map((field) => ({
-              id: `${opt.value}.${docType}.${field}`,
-              text: field,
-              title: field,
-            })).filter((item) => {
-              if (seenFields.has(item.text)) return false;
-              seenFields.add(item.text);
-              return true;
-            })
-          );
-        }
-        nodeGroup.items.push(variableItem);
-        return nodes;
-      }, []));
+      buildDecisionVariableCascaderTree(decisionVariableOptions.value));
 
     function getDecisionConditionVariableOption(condition) {
       const variable = condition?.variable || '';
@@ -6259,20 +6236,20 @@ const appOptions = {
       const branchId = String(decisionCase?.id || '');
       const branchText = `${branchLabel} ${branchId}`;
       if (/confirmAction$/.test(variable)) {
-        if (branchText.includes('修正')) return 'request_fix';
         if (branchText.includes('補件')) return 'request_supplement';
         if (branchText.includes('案件終止') || branchText.includes('異常')) return 'reject';
         if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
         return 'approve';
       }
-      if (/supplementRequired$/.test(variable)) return branchText.includes('補件') ? 'true' : 'false';
-      if (/manualReviewRequired$/.test(variable)) return 'false';
       if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
       if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
       if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$/.test(variable)) {
         return branchText.includes('異常') ? 'failed' : 'success';
       }
-      if (/lowConfidenceFieldCount$|preprocessWarnings$/.test(variable)) return '0';
+      if (/lowConfidenceFieldCount$/.test(variable)) return '0';
+      if (/mappingConflictStatus$|textValidationStatus$|dataValidationStatus$|signatureSealStatus$|required(Document|Field)Status$/.test(variable)) {
+        return branchText.includes('補件') || branchText.includes('不足') ? 'missing' : 'success';
+      }
       const dataType = getDecisionConditionDataType(condition);
       if (dataType === 'Boolean') return branchText.includes('補件') ? 'true' : 'false';
       return '';
@@ -6304,7 +6281,7 @@ const appOptions = {
     function getDecisionCanvasVariableOptions(node) {
       const wf = getActiveWf();
       if (!wf || !node?.id) return [];
-      return getDecisionVariableOptions(wf, node.id, form.verify);
+      return getDecisionVariableOptions(wf, node.id, form.verify, decisionSceneContext.value);
     }
 
     function toggleDecisionCaseLogic(decisionCase) {
@@ -6319,7 +6296,7 @@ const appOptions = {
 
     function previewDecisionNode(node) {
       if (!node) return '条件未設定';
-      const options = getDecisionVariableOptions(getActiveWf(), node.id);
+      const options = getDecisionVariableOptions(getActiveWf(), node.id, null, decisionSceneContext.value);
       return getDecisionConditionDisplay(node, sceneDocTypes.value, options);
     }
 
@@ -9217,7 +9194,7 @@ const appOptions = {
     const localizedWorkflowTestNodeDetail = computed(() => workflowTestNodeDetail.value);
     const workflowTestNeedsHumanContinue = computed(() =>
       workflowTestStepRows.value.some((step) => step.needsHuman
-        && ['success', 'warning', 'skipped'].includes(step.status)));
+        && ['success', 'skipped'].includes(step.status)));
     function touchWorkflowTestCase() {
       resetWorkflowTestProgress();
       refreshWorkflowTestRun();
@@ -9263,7 +9240,6 @@ const appOptions = {
     function workflowTestStatusLabel(status) {
       if (status === 'running') return t('実行中');
       if (status === 'success') return t('成功');
-      if (status === 'warning') return t('要確認');
       if (status === 'error') return t('失敗');
       if (status === 'skipped') return t('スキップ');
       return t('未実行');
@@ -9484,6 +9460,8 @@ const appOptions = {
       getHitlGateBranchOutletStyle,
       getHitlGateBranchTargetId,
       getHitlGateBranchEdgeLabel,
+      isHitlGateBranchMarkedOptional,
+      getHitlGateEnabledActions,
       HITL_GATE_PRESETS,
       CONDITION_NODE_PRESETS,
       GATEWAY_JUDGMENT_TYPES,
