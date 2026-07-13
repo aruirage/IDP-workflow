@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '618-hitl-layout';
+const PROTOTYPE_BUILD = '629-notify-slim';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -35,10 +35,6 @@ const MODULE_PAGE_META = {
     connectHint: '出力ポートをドラッグして任意ノードへ接続します。上流への回流も可能です。ノード前後または連線上の + でノードを追加・挿入できます。',
     flowKey: 'case',
   },
-  'mcp-servers': {
-    title: 'MCP サーバー管理',
-    subtitle: 'Server 接続・Tool 定義・入力パラメータを集中管理します。',
-  },
 };
 
 /** Inspector セクションタイトル横 ? ツールチップ用（本文は編集欄に表示しない） */
@@ -54,14 +50,12 @@ const INSPECTOR_HINTS = {
   dataMapping: 'データマッピング設定で定義した全局ルールをこの Workflow で呼び出します。ノード内ではルール摘要、適用性チェック、設定ページへの導線のみ扱います。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
-  mcpAdminOverview: 'MCP サーバー接続・Tool 一覧・各 Tool の入力パラメータをここで集中管理します。OAuth 等の認証設定も本画面（または接続ウィザード）で行います。',
-  mcpAdminTools: 'Tool ごとにパラメータ schema と既定値（定数 / 上流変数参照）を設定します。',
-  nodeOutput: '後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
+  nodeOutput: '後続ノード・IF/ELSE 条件・通知テンプレートで使える出力変数です。{ノード変数名.項目} 形式で指定します。',
   nodeOutputPreprocess: '前処理総状態・全ファイル对象配列（files[]）。各文件含 status/url。人工分岐は条件ノードで preprocessStatus 等を参照。',
   nodeOutputOcr: 'OCR 総状態・低信頼件数・files[]（含 files[].ocrFields）。人工分岐は条件ノードで lowConfidenceFieldCount 等を参照。',
   nodeOutputVerify: 'AI検証総状態・6 類検証結果・全ファイル对象配列（files[]）・不足書類/項目明細。',
-  nodeOutputStart: 'Step1 案件变量 + docTypes[]（账票类型清单）+ files[]。账票字段仅在条件选择时从 Step1 模板加载。',
-  nodeOutputEnd: '案件状態提案・最終処理結果・未完了事項・成果ファイル状態・終了時刻。',
+  nodeOutputStart: 'Step1 案件変数（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。起動イベントは案件状態に対応する 3 種（読み取り専用）。账票字段仅在条件选择时从 Step1 模板加载。',
+  nodeOutputEnd: '終了パターン（案件状態提案 × 最終処理結果）と公開時判定ルール（読み取り専用）。',
   nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
   nodeOutputNotify: '通知送信状態・送信日時・送信失敗理由。',
   dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时三级展开：映射节点 → 標準フィールド → 字段名。',
@@ -88,8 +82,10 @@ const INSPECTOR_HINTS = {
   decisionOutputVar: '分岐名は後続ノードの条件式で参照できます。',
   fraudDetect: '画像の PS 痕跡・改ざんの有無を判定します。画像リスクスコアが閾値以上の場合、条件分岐または人工確認へ送ります。',
   notify: '件名・本文に変数を挿入して通知を送信します。通知ノードは案件状態を更新せず、停止も制御しません。',
-  startTriggers: 'Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。',
-  startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件集約完了後、または補件後に開始・続行します。',
+  startTriggers: 'Workflow 入口。案件状態が 待機中/処理中・補件・処理中止 のとき起動・続行・再実行します（読み取り専用）。',
+  startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件状態が 待機中/処理中（集約完了）・補件（帰属完了）・処理中止（再実行）のとき起動します。',
+  endTriggers: '分支到达終了时，引擎按路径上下文提案案件状態与最終処理結果（読み取り専用）。公開校验见 Workflow 概要。',
+  endTriggerCaseEvent: '終了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状態提案须与分支条件变量一致。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
   notifyRecipients: 'システム通知の場合は通知先ロールを選択します。メールの場合は宛先アドレスを指定します。',
   notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
@@ -276,40 +272,35 @@ const CASE_WORKFLOW_START_TRIGGERS = [
   {
     id: 'e1',
     eventId: 'E1',
-    category: '案件集約',
-    label: '集約完了・初回起動',
-    detail: 'caseStatus が待機中、ファイルが紐付け完了し書類が揃ったとき、新規インスタンスを起動',
-    actionLabel: '新規起動',
-    triggerType: '新規起動',
+    caseStatus: '待機中 / 処理中',
+    label: '案件集約完了',
+    detail: 'ファイルが本案へ帰属し書類が揃ったとき、Workflow を起動または続行',
+    actionLabel: '起動',
   },
   {
     id: 'e2',
     eventId: 'E2',
-    category: '案件集約',
-    label: '集約完了・既存案件へ帰属',
-    detail: '集約完了後、本批ファイルが既存案件へ帰属したとき、インスタンスを続行または起動',
+    caseStatus: '補件',
+    label: '補件ファイル帰属',
+    detail: '補件がアップロードされ本案へ帰属したとき、既存インスタンスを続行',
     actionLabel: '続行',
-    triggerType: '続行',
   },
   {
     id: 'e3',
     eventId: 'E3',
-    category: '補件・帰属',
-    label: '補件・ファイル帰属',
-    detail: 'caseStatus が補件、補件ファイルがアップロードされ本案へ帰属したとき、既存インスタンスを続行',
-    actionLabel: '続行',
-    triggerType: '続行',
-  },
-  {
-    id: 'e4',
-    eventId: 'E4',
-    category: '処理中止',
+    caseStatus: '処理中止',
     label: '再実行',
-    detail: 'caseStatus が処理中止、ユーザー確認後（集約は変更なし）、新規インスタンスを再実行',
+    detail: 'ユーザー確認後（集約は変更なし）、新規インスタンスを再実行',
     actionLabel: '再実行',
-    triggerType: '再実行',
   },
 ];
+
+/** @deprecated v626 以前の e2/e3/e4 ID を新 3 件体系へ正規化 */
+const CASE_WORKFLOW_LEGACY_TRIGGER_ID_REMAP = {
+  e2: 'e1',
+  e3: 'e2',
+  e4: 'e3',
+};
 
 const CASE_WORKFLOW_START_TRIGGER_IDS = new Set(
   CASE_WORKFLOW_START_TRIGGERS.map((trigger) => trigger.id),
@@ -317,33 +308,79 @@ const CASE_WORKFLOW_START_TRIGGER_IDS = new Set(
 
 const CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP = {
   initial_upload: 'e1',
-  cross_batch_upload: 'e2',
-  auto_supplement_bind: 'e3',
-  manual_supplement_link: 'e3',
+  cross_batch_upload: 'e1',
+  auto_supplement_bind: 'e2',
+  manual_supplement_link: 'e2',
   new_case_start: 'e1',
-  resume: 'e3',
-  reexecute: 'e4',
+  resume: 'e2',
+  reexecute: 'e3',
 };
 
 const CASE_WORKFLOW_LEGACY_ROUTING_EVENT_TO_TRIGGER_IDS = {
-  CASE_AGGREGATED: ['e1', 'e2'],
-  SUPPLEMENT_LINKED: ['e3'],
+  CASE_AGGREGATED: ['e1'],
+  SUPPLEMENT_LINKED: ['e2'],
 };
 
 /** @deprecated migrated to acceptedTriggers */
 const CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS = {
-  AWAITING_SUPPLEMENT: ['e3'],
-  SUPPLEMENT_RECEIVED: ['e3'],
-  SUPPLEMENT: ['e3'],
+  AWAITING_SUPPLEMENT: ['e2'],
+  SUPPLEMENT_RECEIVED: ['e2'],
+  SUPPLEMENT: ['e2'],
   NEW: ['e1'],
   NEW_CASE: ['e1'],
 };
 
+function normalizeStartTriggerId(id) {
+  const raw = String(id || '').trim();
+  const mapped = CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP[raw] || raw;
+  const remapped = CASE_WORKFLOW_LEGACY_TRIGGER_ID_REMAP[mapped] || mapped;
+  return CASE_WORKFLOW_START_TRIGGER_IDS.has(remapped) ? remapped : '';
+}
+
+const CASE_WORKFLOW_END_OUTCOMES = [
+  {
+    id: 'o1',
+    caseStatus: '処理完了',
+    finalResult: '正常完了',
+    detail: '主路径或检证 success；hasOpenItems=false',
+  },
+  {
+    id: 'o2',
+    caseStatus: '補件',
+    finalResult: '補件待ち',
+    detail: 'requiredDocumentStatus=missing または requiredFieldStatus=missing',
+  },
+  {
+    id: 'o3',
+    caseStatus: '異常対応 / 処理中止',
+    finalResult: '異常 / 中止',
+    detail: 'isException=true・検証 failed、またはユーザー中止',
+  },
+];
+
+/** 公開時判定（Workflow 全体；終了ノード面板不展示，见 hint / PRD） */
+const WORKFLOW_END_PUBLISH_RULES = [
+  {
+    id: 'p1',
+    label: '画布结构',
+    rule: '全分支须到达終了、无环、終了可达',
+    severity: 'error',
+    detail: '分支悬空・循环・終了不可达不可发布',
+  },
+  {
+    id: 'p2',
+    label: '分支语义',
+    rule: '補件待ち 仅由必要書類/必須項目触发；异常分支未接人工確認 → 警告',
+    severity: 'mixed',
+    detail: 'OCR低信頼等 alone 不可提案 補件',
+  },
+];
+
+/** @deprecated 示例值；终了检视面板改用 CASE_WORKFLOW_END_OUTCOMES */
 const WORKFLOW_END_OUTCOMES = [
-  { key: 'branchStatus', label: '分岐ステータス', value: '完了', hint: 'この Workflow 分岐の終了結果' },
   { key: 'caseStatus', label: '案件状態', value: '処理完了', hint: '案件状態机への提案値' },
   { key: 'finalResult', label: '最終処理結果', value: '正常完了', hint: '正常完了 / 補件待ち / 異常 / 中止' },
-  { key: 'hasOpenItems', label: '未完了事項あり', value: 'いいえ', hint: '未完了事項の有無（open 待办・待确认文件/字段・补件待上传・跨批次 pending 未汇总・成果文件未生成等）' },
+  { key: 'hasOpenItems', label: '未完了事項あり', value: 'いいえ', hint: '未完了事項の有無' },
 ];
 
 const START_SUPPLEMENT_REPLAY_MODES = [
@@ -379,8 +416,8 @@ function getDefaultStartTriggerConfig() {
 function migrateAcceptedTriggersFromRaw(raw) {
   if (Array.isArray(raw?.acceptedTriggers)) {
     return [...new Set(raw.acceptedTriggers
-      .map((id) => CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP[id] || id)
-      .filter((id) => CASE_WORKFLOW_START_TRIGGER_IDS.has(id)))];
+      .map((id) => normalizeStartTriggerId(CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP[id] || id))
+      .filter(Boolean))];
   }
   const legacyStatuses = Array.isArray(raw?.caseStatuses) ? raw.caseStatuses : [];
   const legacyEvents = Array.isArray(raw?.caseEvents) ? raw.caseEvents : [];
@@ -388,7 +425,7 @@ function migrateAcceptedTriggersFromRaw(raw) {
     ...legacyEvents.flatMap((event) => CASE_WORKFLOW_LEGACY_ROUTING_EVENT_TO_TRIGGER_IDS[event] || []),
     ...legacyStatuses.flatMap((status) => CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS[status] || []),
   ];
-  return [...new Set(merged.filter((id) => CASE_WORKFLOW_START_TRIGGER_IDS.has(id)))];
+  return [...new Set(merged.map((id) => normalizeStartTriggerId(id)).filter(Boolean))];
 }
 
 function normalizeStartTriggerConfig(raw) {
@@ -698,8 +735,7 @@ function aiVerifyModuleStatusOutputFields() {
 
 const WORKFLOW_OUTPUT_VALUE_SPECS = {
   nodeStatus: 'success / failed / skipped',
-  triggerType: '新規起動 / 続行 / 再実行',
-  caseStatus: '新規 / 処理中 / 人工確認 / 補件待ち / 処理完了 / 処理中止 / 異常 / 保留',
+  caseStatus: '待機中 / 処理中 / 人工確認 / 補件 / 異常対応 / 処理中止 / 処理完了 / 出力済',
   finalResult: '正常完了 / 補件待ち / 異常 / 中止',
   boolean: 'true / false',
   runtimeCount: '运行时写入，非负整数，无固定上限',
@@ -707,7 +743,7 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   runtimeDateTime: '运行时写入，ISO 8601 日期时间',
   resultFileStatus: '対象外 / 待機 / 生成中 / 完了 / 失敗',
   verifyModuleStatus: 'success / failed / skipped / missing',
-  confirmStatus: 'created / completed / failed / timeout',
+  confirmStatus: 'created / completed / failed',
   confirmAction: 'approve（完成）/ request_supplement（補件）/ reject（案件終止）',
   notifySendStatus: 'success / failed / skipped',
   codeStatus: 'success / failed',
@@ -721,7 +757,6 @@ const WORKFLOW_STEP1_CASE_FIELDS = [
   { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Workflow 対象の案件番号' },
   { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 で設定した業務シーン名' },
   { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: 'Step1 案件列表聚合状态' },
-  { id: 'case.triggerType', label: 'トリガー種別', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.triggerType, description: '起動トリガー種別' },
 ];
 
 const WORKFLOW_DOCTYPE_OUTPUT_NODES = new Set(['start']);
@@ -765,23 +800,22 @@ const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
   'case.caseId': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.caseNo': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.businessScene': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
-  'case.caseStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.triggerType': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.caseStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'docTypes[]': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
-  'case.finalResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.finalResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.hasOpenItems': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.resultFileStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.endedAt': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.endedAt': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.preprocessStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.lastFailureReason': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.ocrStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.lowConfidenceFieldCount': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.standardFields': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.mappingConflicts': [WORKFLOW_VAR_CONSUMPTION.TODO],
-  'case.mappingErrors': [WORKFLOW_VAR_CONSUMPTION.TODO],
-  'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.isException': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingConflicts': [WORKFLOW_VAR_CONSUMPTION.TODO, WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
+  'case.mappingErrors': [WORKFLOW_VAR_CONSUMPTION.TODO, WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
+  'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.isException': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.requiredFieldStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.requiredDocumentStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.textValidationStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
@@ -797,7 +831,7 @@ const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
   'case.branchResult': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.matchedFileCount': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.notifySendStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.notifiedAt': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.notifiedAt': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.notifyFailureReason': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
   'case.status': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.errorMessage': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
@@ -808,6 +842,9 @@ const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
 
 /** 节点输出目录中排除的键（改由 Step1 / 二级选择器提供；files[] 为数组不可直接比较） */
 const DECISION_CATALOG_SKIP_IDS = new Set([
+  'case.caseId',
+  'case.caseNo',
+  'case.businessScene',
   'case.ocrFields',
   'case.standardFields',
   'docTypes[]',
@@ -817,6 +854,8 @@ const DECISION_CATALOG_SKIP_IDS = new Set([
   'case.missingDocuments',
   'case.missingFields',
   'case.aiVerifyResultJson',
+  'case.endedAt',
+  'case.notifiedAt',
 ]);
 
 function getWorkflowVarConsumptionPaths(item) {
@@ -835,11 +874,18 @@ function getWorkflowVarConsumptionPaths(item) {
   return [];
 }
 
+function isDecisionCatalogTemporalDataType(dataType = '') {
+  const type = normalizeDecisionDataType(dataType);
+  return type === 'date' || type === 'datetime';
+}
+
 function isWorkflowVarForCatalog(item, catalogMode) {
   const paths = getWorkflowVarConsumptionPaths(item);
   if (catalogMode === 'condition') return paths.includes(WORKFLOW_VAR_CONSUMPTION.CONDITION);
   if (catalogMode === 'notify') {
-    return paths.includes(WORKFLOW_VAR_CONSUMPTION.NOTIFY)
+    // 通知变量池 ⊇ 条件变量池；另含仅通知 / 待办·通知字段
+    return paths.includes(WORKFLOW_VAR_CONSUMPTION.CONDITION)
+      || paths.includes(WORKFLOW_VAR_CONSUMPTION.NOTIFY)
       || paths.includes(WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY);
   }
   return true;
@@ -1046,8 +1092,9 @@ function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'cond
   const meta = getWorkflowNodeMeta(node.type);
   const title = meta.title;
   items.forEach((item) => {
-    if (DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
+    if (catalogMode === 'condition' && DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
     if (!isWorkflowVarForCatalog(item, catalogMode)) return;
+    if (isDecisionCatalogTemporalDataType(item.type)) return;
     if (catalogMode === 'condition' && isDecisionCatalogFileScopeVar(item)) return;
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
@@ -1067,15 +1114,17 @@ function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'cond
   });
 }
 
-function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options) {
+function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, getDocLabelFn = null) {
   if (!Array.isArray(docTypes) || !docTypes.length) return;
   const schemaFn = typeof getDocSchemaFn === 'function' ? getDocSchemaFn : () => ({ fields: [] });
+  const labelFn = typeof getDocLabelFn === 'function' ? getDocLabelFn : (type) => type;
   docTypes.forEach((docType) => {
+    const docTypeLabel = labelFn(docType) || docType;
     const fields = schemaFn(docType)?.fields || [];
     fields.forEach((field) => {
       appendDecisionVarOption(options, {
         value: `docTypes.${docType}.${field}`,
-        label: `${docType} · ${field}`,
+        label: `${docTypeLabel} · ${field}`,
         displayName: field,
         group: STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
         scope: '帳票タイプ',
@@ -1086,6 +1135,7 @@ function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options) {
         varName: '',
         pickerGroup: 'step1_doc',
         pickerDocType: docType,
+        pickerDocTypeLabel: docTypeLabel,
         pickerField: field,
       });
     });
@@ -1097,6 +1147,7 @@ function appendDataMappingStandardFieldCatalog(node, workflow, options) {
   const varName = getWorkflowNodeVarName(node, workflow);
   const meta = getWorkflowNodeMeta(node.type);
   DATA_MAPPING_STANDARD_FIELDS.forEach((field) => {
+    if (isDecisionCatalogTemporalDataType(field.dataType)) return;
     appendDecisionVarOption(options, {
       value: `${varName}.case.standardFields.${field.value}`,
       label: field.label,
@@ -1122,9 +1173,11 @@ function buildDecisionVariableCascaderTree(options) {
 
   (options || []).forEach((opt) => {
     if (opt.pickerGroup === 'step1_doc') {
-      const docType = opt.pickerDocType || '帳票';
+      const docType = opt.pickerDocType || '';
+      const docTypeLabel = opt.pickerDocTypeLabel || docType;
+      if (!docTypeLabel) return;
       if (!step1DocMap.has(docType)) {
-        step1DocMap.set(docType, { id: `step1:${docType}`, text: docType, title: docType, items: [] });
+        step1DocMap.set(docType, { id: `step1:${docType}`, text: docTypeLabel, title: docTypeLabel, items: [] });
       }
       step1DocMap.get(docType).items.push({
         id: opt.value,
@@ -1171,8 +1224,8 @@ function buildDecisionVariableCascaderTree(options) {
 
     nodeEntry.items.push({
       id: opt.value,
-      text: opt.displayName || opt.label,
-      title: opt.displayName || opt.label,
+      text: opt.label || opt.displayName,
+      title: opt.description || opt.label || opt.displayName,
       scope: opt.scope,
       dataType: opt.dataType,
     });
@@ -1191,238 +1244,18 @@ function buildDecisionVariableCascaderTree(options) {
   return tree;
 }
 
-const MCP_SERVER_STATUS_META = {
-  connected: { label: '接続済', tagType: 'success' },
-  disconnected: { label: '未接続', tagType: 'info' },
-  error: { label: 'エラー', tagType: 'danger' },
-};
-
-const MCP_SERVER_TYPES = [
-  { value: 'http', label: 'HTTP / REST' },
-  { value: 'db', label: 'Database' },
-  { value: 'rpa', label: 'RPA Bot' },
-];
-
-const MCP_PARAM_MODES = [
-  { value: 'fixed', label: '定数' },
-  { value: 'variable', label: '変数参照' },
-];
-
-const MCP_SERVER_SEEDS = [
-  {
-    id: 'master_db',
-    label: '社内マスタ DB',
-    description: '社内マスタ・辞書 DB への read-only 接続',
-    status: 'connected',
-    serverType: 'db',
-    tools: [
-      {
-        id: 'lookup',
-        label: '辞書検索',
-        description: 'キー値でマスタレコードを検索',
-        params: [
-          { key: 'table', label: 'テーブル', type: 'string', required: true, placeholder: 'm_icd10' },
-          { key: 'lookupKey', label: '照合キー', type: 'string', required: true, placeholder: '{{ocr.claim.diagnosis}}' },
-        ],
-      },
-      {
-        id: 'fetch',
-        label: 'レコード取得',
-        description: '主キーで単一レコードを取得',
-        params: [
-          { key: 'table', label: 'テーブル', type: 'string', required: true, placeholder: 'm_customer' },
-          { key: 'id', label: '主キー', type: 'string', required: true, placeholder: '{{case.primaryKey}}' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'contract_api',
-    label: '契約管理 API',
-    description: '契約・約款情報の REST API',
-    status: 'connected',
-    serverType: 'http',
-    tools: [
-      {
-        id: 'fetch_contract',
-        label: '契約情報取得',
-        description: '証券番号から契約詳細を取得',
-        params: [
-          { key: 'policyNo', label: '証券番号', type: 'string', required: true, placeholder: '{{ocr.claim.policy_no}}' },
-          { key: 'includeRiders', label: '特約を含む', type: 'boolean', required: false, placeholder: 'true' },
-        ],
-      },
-      {
-        id: 'verify_coverage',
-        label: '保障範囲確認',
-        description: '診断名・給付種別の保障可否を確認',
-        params: [
-          { key: 'policyNo', label: '証券番号', type: 'string', required: true, placeholder: '{{ocr.claim.policy_no}}' },
-          { key: 'diagnosisCode', label: '診断コード', type: 'string', required: true, placeholder: '{{ocr.claim.diagnosis_code}}' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'customer_api',
-    label: '顧客情報 API',
-    description: 'CRM / 顧客マスタ連携',
-    status: 'disconnected',
-    serverType: 'http',
-    tools: [
-      {
-        id: 'search_customer',
-        label: '顧客検索',
-        description: '氏名・生年月日で顧客を検索',
-        params: [
-          { key: 'name', label: '氏名', type: 'string', required: true, placeholder: '{{ocr.claim.insured_name}}' },
-          { key: 'birthDate', label: '生年月日', type: 'string', required: false, placeholder: '{{ocr.claim.birth_date}}' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'rpa_bot',
-    label: 'RPA Bot',
-    description: 'レガシーシステム操作 RPA',
-    status: 'connected',
-    serverType: 'rpa',
-    tools: [
-      {
-        id: 'execute',
-        label: '処理実行',
-        description: '定義済み RPA フローを実行',
-        params: [
-          { key: 'flowId', label: 'フロー ID', type: 'string', required: true, placeholder: 'claim_status_check' },
-          { key: 'caseId', label: '案件 ID', type: 'string', required: true, placeholder: '{{case.id}}' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'custom_http',
-    label: 'カスタム HTTP',
-    description: '任意 REST エンドポイント呼び出し',
-    status: 'error',
-    serverType: 'http',
-    tools: [
-      {
-        id: 'get',
-        label: 'GET リクエスト',
-        description: 'HTTP GET で外部 API を呼び出し',
-        params: [
-          { key: 'url', label: 'URL', type: 'string', required: true, placeholder: 'https://api.example.com/v1/lookup' },
-          { key: 'query', label: 'Query パラメータ', type: 'string', required: false, placeholder: 'code={{ocr.claim.diagnosis_code}}' },
-        ],
-      },
-      {
-        id: 'post',
-        label: 'POST リクエスト',
-        description: 'HTTP POST で外部 API を呼び出し',
-        params: [
-          { key: 'url', label: 'URL', type: 'string', required: true, placeholder: 'https://api.example.com/v1/submit' },
-          { key: 'body', label: 'リクエスト Body', type: 'string', required: false, placeholder: '{"policyNo":"{{ocr.claim.policy_no}}"}' },
-        ],
-      },
-    ],
-  },
-];
-
-/** @deprecated use mergeMcpServerCatalog — 互換エイリアス */
-const MCP_REGISTRY = MCP_SERVER_SEEDS;
-
 /** 客户 workshop 确认清单（只读参考） */
 const WORKFLOW_WORKSHOP_CHECKLIST = [
   { id: 'k1', topic: 'マスタ照合', question: '必須の知识源：内部文档库 / 行业标准 API / Web Search / 客户自建 MCP Search？' },
   { id: 'k2', topic: 'マスタ照合', question: '照合输出：仅返回候选参考文本，还是写回 OCR 字段的标准化值？' },
   { id: 'k3', topic: 'マスタ照合', question: '低置信度时：自动 HITL 还是条件判断？' },
   { id: 'k4', topic: 'マスタ照合', question: '是否允许多知识源同时检索再合并（multi-knowledge）？' },
-  { id: 'm1', topic: 'MCP', question: '需要哪些 MCP Server（DB / RPA / CRM / 自定义 HTTP）？' },
-  { id: 'm2', topic: 'MCP', question: 'Tool 调用是编排固定顺序，还是将来 Agent 式自动选 Tool？（Fixed-only vs 预留 Auto）' },
-  { id: 'm3', topic: 'MCP', question: 'Web Search 照合：走 MCP Search Tool 还是マスタ照合内置 provider？' },
   { id: 'b1', topic: '边界', question: '内部辞書（form.master.mappings）→ マスタ照合；外部知识 → マスタ照合 — 是否认可？' },
 ];
-
-function normalizeMcpServerItem(server) {
-  const s = cloneJson(server || {});
-  return {
-    ...s,
-    status: MCP_SERVER_STATUS_META[s.status] ? s.status : 'connected',
-    serverType: s.serverType || 'http',
-    tools: Array.isArray(s.tools) ? s.tools : [],
-  };
-}
-
-function mergeMcpServerCatalog(seeds, custom = []) {
-  const map = new Map();
-  [...(seeds || []), ...(custom || [])].forEach((s) => {
-    map.set(s.id, normalizeMcpServerItem(s));
-  });
-  return [...map.values()];
-}
-
-function getMcpServerDef(serverId, catalog = MCP_SERVER_SEEDS) {
-  return (catalog || []).find((s) => s.id === serverId) || null;
-}
-
-function getMcpToolDef(serverId, toolId, catalog = MCP_SERVER_SEEDS) {
-  const server = getMcpServerDef(serverId, catalog);
-  if (!server || !toolId) return null;
-  return server.tools?.find((t) => t.id === toolId) || null;
-}
-
-function buildMcpVariableOptions(workflow, nodeId, sceneDocuments, docLabelFn) {
-  const options = [];
-  options.push(
-    { value: '{{case.id}}', label: '案件 ID' },
-    { value: '{{case.primaryKey}}', label: '主キー値' },
-    { value: '{{case.policyNo}}', label: '証券番号' },
-    { value: '{{ocr.fields}}', label: 'OCR抽出フィールド（全体）' },
-  );
-  (sceneDocuments || []).forEach((doc) => {
-    (getDocSchema(doc.type).fields || []).forEach((f) => {
-      options.push({
-        value: `{{${doc.type}.${f}}}`,
-        label: `${docLabelFn(doc.type)} · ${f}`,
-      });
-    });
-  });
-  getDecisionVariableOptions(workflow, nodeId).forEach((opt) => {
-    options.push({
-      value: `{{${opt.varName}.result}}`,
-      label: `${opt.label}（result）`,
-    });
-  });
-  return options;
-}
-
-function isMcpServerSelectable(server) {
-  return server?.status === 'connected';
-}
 
 function getWorkflowNodeIo(node) {
   const meta = getWorkflowNodeMeta(node?.type);
   return { input: meta.input || '', output: meta.output || '' };
-}
-
-function buildDefaultMcpInputs(serverId, toolId, catalog = MCP_SERVER_SEEDS, profiles = null) {
-  const saved = profiles?.[serverId]?.[toolId];
-  if (Array.isArray(saved) && saved.length) return cloneJson(saved);
-  const tool = getMcpToolDef(serverId, toolId, catalog);
-  if (!tool?.params?.length) return [];
-  return tool.params.map((p) => ({
-    key: p.key,
-    value: p.placeholder || '',
-    mode: String(p.placeholder || '').startsWith('{{') ? 'variable' : 'fixed',
-  }));
-}
-
-function resolveMcpToolParamRows(serverId, toolId, catalog, profiles) {
-  return buildDefaultMcpInputs(serverId, toolId, catalog, profiles);
-}
-
-function isMcpCustomServer(serverId) {
-  return String(serverId || '').startsWith('mcp-custom-');
 }
 
 function guessDataMappingSourceForStandard(standardFieldId) {
@@ -1678,7 +1511,7 @@ function wfStraightPath(x1, y1, x2, y2) {
 
 const INSPECTOR_HEAD_HINT_KEYS = {
   start: 'startTriggers',
-  end: null,
+  end: 'endTriggers',
   image: 'preprocess',
   ocr: 'ocrExtract',
   data_mapping: 'dataMapping',
@@ -1823,16 +1656,17 @@ function buildWorkflowNodeCanvasSummary(node, ctx = {}) {
       return joinWorkflowCanvasSummary(reusePrefix, `${chips.length}件有効`, ...chips.slice(0, 2));
     }
     case 'ocr': {
-      const stats = ctx.ocrStats || { total: 0, enabled: 0 };
-      if (!stats.total) {
+      const stats = ctx.ocrStats || { total: 0, enabled: 0, enabledLabels: [] };
+      const enabledLabels = Array.isArray(stats.enabledLabels) ? stats.enabledLabels : [];
+      if (!stats.enabled) {
         return reusePrefix
           ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
           : WORKFLOW_CANVAS_SUMMARY_EMPTY;
       }
       return joinWorkflowCanvasSummary(
         reusePrefix,
-        `関連帳票 ${stats.total} 件`,
-        `有効 ${stats.enabled} 件`,
+        `${stats.enabled}件有効`,
+        ...enabledLabels.slice(0, 2),
       );
     }
     case 'data_mapping': {
@@ -2075,16 +1909,17 @@ const NOTIFY_RECIPIENT_OPTIONS = [
 
 const NOTIFY_TEMPLATE_VAR_REFS = {
   caseNo: { nodeType: 'start', varId: 'case.caseNo', legacyLabel: '案件番号' },
+  caseStatus: {
+    nodeType: 'end',
+    varId: 'case.caseStatus',
+    legacyLabel: '案件状態',
+    workflowScope: true,
+    fallbackNodeTypes: ['start'],
+    fallbackVarId: 'case.caseStatus',
+  },
+  finalResult: { nodeType: 'end', varId: 'case.finalResult', legacyLabel: '最終処理結果', workflowScope: true },
   missingDocuments: { nodeType: 'ai_verify', varId: 'case.missingDocuments', legacyLabel: '不足書類一覧' },
   missingFields: { nodeType: 'ai_verify', varId: 'case.missingFields', legacyLabel: '不足項目一覧' },
-  endedAt: { nodeType: 'end', varId: 'case.endedAt', legacyLabel: '処理完了日時', workflowScope: true },
-  lastFailureReason: {
-    nodeType: 'preprocess',
-    varId: 'case.lastFailureReason',
-    legacyLabel: '最終失敗原因',
-    fallbackNodeTypes: ['code'],
-    fallbackVarId: 'case.errorMessage',
-  },
   errorMessage: {
     nodeType: 'code',
     varId: 'case.errorMessage',
@@ -2092,8 +1927,6 @@ const NOTIFY_TEMPLATE_VAR_REFS = {
     fallbackNodeTypes: ['preprocess'],
     fallbackVarId: 'case.lastFailureReason',
   },
-  notifiedAt: { nodeType: 'notify', varId: 'case.notifiedAt', legacyLabel: '送信日時' },
-  notifyFailureReason: { nodeType: 'notify', varId: 'case.notifyFailureReason', legacyLabel: '送信失敗理由' },
 };
 
 const NOTIFY_TEMPLATES = [
@@ -2108,15 +1941,15 @@ const NOTIFY_TEMPLATES = [
     value: 'completed',
     label: '処理完了通知',
     defaultSubject: '【処理完了】案件番号：{{caseNo}}',
-    defaultBody: '案件番号：{{caseNo}}\n処理が完了しました。\n完了日時：{{endedAt}}',
-    varRefs: ['caseNo', 'endedAt'],
+    defaultBody: '案件番号：{{caseNo}}\n処理が完了しました。\n案件状態：{{caseStatus}}\n最終処理結果：{{finalResult}}',
+    varRefs: ['caseNo', 'caseStatus', 'finalResult'],
   },
   {
     value: 'exception',
     label: '異常通知',
     defaultSubject: '【異常通知】案件番号：{{caseNo}}',
-    defaultBody: '案件番号：{{caseNo}}\n処理中に異常が発生しました。確認してください。\n異常内容：{{errorMessage}}',
-    varRefs: ['caseNo', 'errorMessage'],
+    defaultBody: '案件番号：{{caseNo}}\n処理中に異常が発生しました。確認してください。\n案件状態：{{caseStatus}}\n異常内容：{{errorMessage}}',
+    varRefs: ['caseNo', 'caseStatus', 'errorMessage'],
   },
 ];
 
@@ -3034,12 +2867,39 @@ function isDecisionOperatorAvailableForType(operator, dataType = '') {
   return op.types?.includes('all') || op.types?.includes(type);
 }
 
-/** 条件节点禁用运算符（PRD 6.02.10.1：无 いずれか / 数组聚合；多值用 AND/OR） */
+/** 条件节点禁用运算符（PRD 6.02.10.1 收敛版；多值用 AND/OR 组合多行） */
 const DECISION_OPERATORS_EXCLUDED_FROM_CONDITION = new Set([
   'in',
   'not_in',
   'contains_any',
   'contains_all',
+  'starts_with',
+  'ends_with',
+  'matches_regex',
+  'not_matches_regex',
+  'text_length_equals',
+  'text_length_greater_than',
+  'text_length_greater_than_or_equal',
+  'text_length_less_than',
+  'text_length_less_than_or_equal',
+  'between',
+  'not_between',
+  'not_has_key',
+  'json_path_exists',
+  'json_path_not_exists',
+  'json_path_equals',
+  'json_path_not_equals',
+  'json_path_contains',
+  'file_name_contains',
+  'file_name_not_contains',
+  'file_extension_is',
+  'file_extension_in',
+  'file_size_greater_than',
+  'file_size_less_than_or_equal',
+  'file_page_count_greater_than',
+  'file_page_count_less_than_or_equal',
+  'within_last_days',
+  'older_than_days',
 ]);
 
 /** 失败时写入的可选 String 变量（允许 未設定 / 設定済み） */
@@ -3080,6 +2940,8 @@ function getDecisionOperatorsForType(dataType = '', variableOption = null) {
   } else if (type === 'object') {
     options = options.filter((op) => ['is_empty', 'is_not_empty', 'has_key'].includes(op.value));
   } else if (type === 'file') {
+    options = [];
+  } else if (type === 'date' || type === 'datetime') {
     options = [];
   }
 
@@ -3131,6 +2993,7 @@ function getDecisionUpstreamNodeIds(workflow, nodeId) {
 }
 
 function appendDecisionVarOption(options, spec) {
+  if (isDecisionCatalogTemporalDataType(spec?.dataType)) return;
   const localId = spec.localId || String(spec.value || '').split('.').pop() || '';
   const consumptionPaths = spec.consumptionPaths?.length
     ? spec.consumptionPaths
@@ -3149,6 +3012,11 @@ function appendDecisionVarOption(options, spec) {
     displayName: spec.displayName || localId || spec.value,
     hint: spec.hint || `{${spec.value}}`,
     pickerGroup: spec.pickerGroup || '',
+    pickerDocType: spec.pickerDocType || '',
+    pickerDocTypeLabel: spec.pickerDocTypeLabel || spec.pickerDocType || '',
+    pickerField: spec.pickerField || '',
+    pickerStandardFieldId: spec.pickerStandardFieldId || '',
+    pickerStandardFieldLabel: spec.pickerStandardFieldLabel || '',
     consumptionPaths,
     consumptionPathLabel: formatWorkflowVarConsumptionLabels(consumptionPaths),
   });
@@ -3165,17 +3033,37 @@ function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null, sce
   });
   const docTypes = sceneContext?.docTypes || [];
   const getDocSchemaFn = sceneContext?.getDocSchema;
+  const getDocLabelFn = sceneContext?.getDocLabel;
   if (docTypes.length) {
-    appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options);
+    appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, getDocLabelFn);
   }
   return options;
 }
 
+function resolveNotifyCatalogNode(workflow, notifyNodeId, ref) {
+  const upstream = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
+  if (upstream) return upstream;
+  if (!ref?.nodeType || !workflow?.nodes?.length) return null;
+  const matches = workflow.nodes.filter((n) => n.type === ref.nodeType);
+  if (!matches.length) return null;
+  return ref.nodeType === 'end' ? matches[matches.length - 1] : matches[0];
+}
+
+function dedupeNotifyVarOptions(options = []) {
+  const seen = new Set();
+  return options.filter((opt) => {
+    const key = opt?.value || '';
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function appendWorkflowScopedNotifyCatalog(workflow, notifyNodeId, options) {
   if (!workflow?.nodes?.length) return;
-  Object.values(NOTIFY_TEMPLATE_VAR_REFS).forEach((ref) => {
-    if (!ref?.workflowScope || !ref.varId) return;
-    const node = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
+  Object.entries(NOTIFY_TEMPLATE_VAR_REFS).forEach(([refKey, ref]) => {
+    if (!ref?.varId) return;
+    const node = resolveNotifyCatalogNode(workflow, notifyNodeId, ref);
     if (!node) return;
     const varName = getWorkflowNodeVarName(node, workflow);
     const value = `${varName}.${ref.varId}`;
@@ -3206,9 +3094,16 @@ function buildNotifyVariableCatalog(workflow, nodeId, verifyConfig = null, scene
     const n = nodeMap[id];
     if (!n || n.type === 'decision') return;
     appendNodeOutputVarCatalog(n, workflow, options, 'notify');
+    if (n.type === 'data_mapping') appendDataMappingStandardFieldCatalog(n, workflow, options);
   });
+  const docTypes = sceneContext?.docTypes || [];
+  const getDocSchemaFn = sceneContext?.getDocSchema;
+  const getDocLabelFn = sceneContext?.getDocLabel;
+  if (docTypes.length) {
+    appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, getDocLabelFn);
+  }
   appendWorkflowScopedNotifyCatalog(workflow, nodeId, options);
-  return options;
+  return dedupeNotifyVarOptions(options);
 }
 
 function getDecisionVariableOptionGroups(options) {
@@ -3255,7 +3150,7 @@ function formatDecisionVariableDisplay(value, options = []) {
   if (opt.pickerGroup === 'step1_doc') {
     return [
       opt.group || STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
-      opt.pickerDocType,
+      opt.pickerDocTypeLabel || opt.pickerDocType,
       opt.pickerField || opt.displayName,
     ].filter(Boolean).join(' › ');
   }

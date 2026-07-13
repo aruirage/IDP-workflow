@@ -541,6 +541,9 @@ const appOptions = {
       ['読み取り専用', '只读'],
       ['終了情報', '结束信息'],
       ['この分岐の終了時に案件へ記録する状態です。', '该分支结束时记录到案件的状态。'],
+      ['終了時提案', '终了时提案'],
+      ['分支到达終了时，引擎按路径上下文提案案件状態与最終処理結果（読み取り専用）。公開校验见 Workflow 概要。', '分支到达终了时，引擎按路径上下文提案案件状态与最终处理结果（只读）。发布校验见 Workflow 概要。'],
+      ['終了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状態提案须与分支条件变量一致。', '终了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状态提案须与分支条件变量一致。'],
       ['通知方式・宛先を指定します。', '指定通知方式和对象。'],
       ['件名・本文に変数を挿入できます。', '可在标题・正文中插入变量。'],
       ['通知メールの件名', '通知邮件标题'],
@@ -665,20 +668,16 @@ const appOptions = {
       ['帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。', '按规则定义账票类型、字段、处理范围（多文件），以及参照的 Master、Sheet、照合列、返回列。'],
       ['同一帳票タイプに複数ファイルがある場合の照合単位です。インスタンス別＝ファイルごと、帳票タイプ集約＝タイプ単位、案件集約＝案件全体で1回照合します。', '这是同一账票类型存在多个文件时的照合单位。按实例=按文件；按账票类型集约=按类型；案件集约=案件整体执行一次。'],
       ['照合方式：キーワード検索 / ベクトル検索 / 混合検索 / コード検索。', '照合方式：关键词搜索 / 向量搜索 / 混合搜索 / 代码搜索。'],
-      ['登録済み MCP サーバーを選択します。新規登録・Tool・パラメータの編集は「サーバー管理へ」から MCP サーバー管理画面を開いてください。', '选择已注册的 MCP 服务器。新增注册、Tool、参数编辑请从“服务器管理”进入 MCP 服务器管理画面。'],
-      ['選択中サーバーが提供する Tool を1つ選びます。パラメータの詳細設定は「Tool・パラメータ設定へ」からサーバー管理画面を開いてください。', '选择当前服务器提供的一个 Tool。参数详情请从“Tool・参数设定”进入服务器管理画面。'],
-      ['各パラメータの定数 / 変数参照は MCP サーバー管理で設定します。Workflow では設定済み内容を参照のみ表示します。', '各参数的常量 / 变量引用在 MCP 服务器管理中设定。Workflow 中只展示已设定内容。'],
-      ['MCP サーバー接続・Tool 一覧・各 Tool の入力パラメータをここで集中管理します。OAuth 等の認証設定も本画面（または接続ウィザード）で行います。', '在这里集中管理 MCP 服务器连接、Tool 列表和各 Tool 输入参数。OAuth 等认证设定也在本画面（或连接向导）中进行。'],
-      ['タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。', '设定超时（秒）、重试上限、失败时动作（跳过 / 重试 / 工作流停止）。'],
-      ['後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件、MCP 变量引用中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
+      ['後続ノード・IF/ELSE 条件・通知テンプレートで使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件、通知模板中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
+      ['Step1 案件変数（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。起動イベントは案件状態に対応する 3 種（読み取り専用）。账票字段仅在条件选择时从 Step1 模板加载。', 'Step1 案件变量（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。启动事件对应 3 种案件状态（只读）。账票字段仅在条件选择时从 Step1 模板加载。'],
+      ['ファイルアップロード自体は Workflow を開始しません。案件状態が 待機中/処理中（集約完了）・補件（帰属完了）・処理中止（再実行）のとき起動します。', '文件上传本身不会启动 Workflow。当案件状态为 待机中/处理中（集约完成）、补件（归属完成）、处理中止（再执行）时启动。'],
       ['処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。', '处理后文件、低置信件数、状态。可在后续节点的条件分支中引用。'],
       ['前処理総状態・成功/失敗件数・人工確認要否・処理済み/未処理ファイル・分類警告。', '前处理总状态、成功/失败件数、是否需人工确认、已处理/未处理文件、分类警告。'],
       ['OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。', 'OCR 结果、按文件 OCR 结果、低置信字段件数、模型不一致件数、状态。'],
       ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・抽出済み/未処理ファイル・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、已抽取/未处理文件、按文件 OCR 结果。'],
       ['必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。', '必填字段、必要资料、文本、数据、签名盖章校验的集约输出。也可用于通知节点固定变量。'],
       ['AI検証総状態・6 類検証結果・検証済み/未処理ファイル・人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、已检证/未处理文件、人工确认/异常判定、不足资料/项目明细。'],
-      ['Workflow 入口の案件番号・トリガー種別・案件データバージョン。', 'Workflow 入口的案件编号、触发类型、案件数据版本。'],
-      ['Workflow 入口の案件基礎情報・トリガー種別・待処理ファイル对象配列（files[]）。', 'Workflow 入口的案件基础信息、触发类型、待处理文件对象数组（files[]）。'],
+      ['Workflow 入口の案件基礎情報（caseId / caseNo / businessScene / caseStatus）・待処理ファイル对象配列（files[]）。', 'Workflow 入口的案件基础信息（caseId / caseNo / businessScene / caseStatus）、待处理文件对象数组（files[]）。'],
       ['この分岐の完了状態。案件ライフサイクルの終了は表しません。', '该分支的完成状态，不代表案件生命周期结束。'],
       ['分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。', '分支结束结果、案件状态建议、未完成事项、成果文件状态、执行摘要。'],
       ['生成された人工確認タスク ID・確認状態・確認アクション・担当ロール・人工修正摘要。', '生成的人工确认任务 ID、确认状态、确认操作、担当角色、人工修正摘要。'],
@@ -867,8 +866,7 @@ const appOptions = {
       ['关注点', '关注点'],
       ['通知送信状態・送信日時。', '通知发送状态、发送时间。'],
       ['通知送信状態・送信日時・送信失敗理由。', '通知发送状态、发送时间、发送失败原因。'],
-      ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
-      ['Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。', 'Workflow 入口。根据案件集约结果新建启动或续跑实例（只读）。'],
+      ['Workflow 入口。案件状態が 待機中/処理中・補件・処理中止 のとき起動・続行・再実行します（読み取り専用）。', 'Workflow 入口。当案件状态为 待机中/处理中、补件、处理中止 时启动、续跑或再执行（只读）。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
       ['无需配置；AI 检证入口等待汇总，人工待办 open 追加', '无需配置；AI 检证入口等待汇总，人工待办 open 追加'],
       ['等待条件', '等待条件'],
@@ -1370,7 +1368,6 @@ const appOptions = {
       inspectorExpanded.value = false;
       restoreSceneSidebarAfterEditor();
       currentModule.value = moduleId;
-      if (moduleId === 'mcp-servers') return;
       if (moduleId !== 'case-workflow') return;
       initWorkflowHistory('案件フローを読み込み');
       enterWorkflowCanvasView();
@@ -2508,6 +2505,7 @@ const appOptions = {
         total: items.length,
         enabled: enabledItems.length,
         disabled: items.length - enabledItems.length,
+        enabledLabels: enabledItems.map((i) => i.type),
       };
     });
 
@@ -2598,8 +2596,6 @@ const appOptions = {
         scope: normalizeWorkflowVariableCategory(item).label,
         dataType: inferWorkflowOutputVarType(item),
         description: t(item.description || item.label),
-        consumptionPathLabel: item.consumptionPathLabel
-          || formatWorkflowVarConsumptionLabels(getWorkflowVarConsumptionPaths(item)),
       }));
     });
 
@@ -4750,8 +4746,6 @@ const appOptions = {
         data.verify = cloneJson(sourceData.verify || data.verify || {});
         data.master = cloneJson(sourceData.master || data.master || {});
         data.knowledgeSources = cloneJson(sourceData.knowledgeSources || data.knowledgeSources || []);
-        data.mcpServers = cloneJson(sourceData.mcpServers || data.mcpServers || []);
-        data.mcpToolParamProfiles = cloneJson(sourceData.mcpToolParamProfiles || data.mcpToolParamProfiles || {});
       }
       if ((scopes || []).includes('step3')) {
         data.output = cloneJson(sourceData.output || data.output || {});
@@ -6074,6 +6068,7 @@ const appOptions = {
     const decisionSceneContext = computed(() => ({
       docTypes: sceneDocTypes.value,
       getDocSchema,
+      getDocLabel: getDocDisplayLabel,
     }));
 
     const decisionVariableOptions = computed(() => {
@@ -6637,153 +6632,8 @@ const appOptions = {
       return (target?.mappingRules || []).filter((rule) => rule.conflictCheckEnabled).length;
     }
 
-    const mcpServerCatalog = computed(() => mergeMcpServerCatalog(MCP_SERVER_SEEDS, form.mcpServers || []));
-
-    const mcpVariableOptions = computed(() =>
-      buildMcpVariableOptions(getActiveWf(), null, form.scene.documents, getDocDisplayLabel),
-    );
-
-    function getMcpServerStatusMeta(status) {
-      return MCP_SERVER_STATUS_META[status] || MCP_SERVER_STATUS_META.connected;
-    }
-
-    const mcpAdminReturnContext = ref(null);
-    const mcpAdminSelectedServerId = ref('');
-    const mcpAdminExpandedToolId = ref('');
-    const mcpAdminDraftParams = reactive([]);
-
-    const mcpAdminSelectedServer = computed(() => {
-      if (!mcpAdminSelectedServerId.value) return null;
-      return getMcpServerDef(mcpAdminSelectedServerId.value, mcpServerCatalog.value);
-    });
-
-    const mcpAdminTools = computed(() => mcpAdminSelectedServer.value?.tools || []);
-
-    function openMcpServerManagement(serverId = '', toolId = '') {
-      mcpAdminReturnContext.value = null;
-      const fallbackId = serverId || mcpServerCatalog.value[0]?.id || '';
-      mcpAdminSelectedServerId.value = fallbackId;
-      mcpAdminExpandedToolId.value = toolId || '';
-      if (mcpAdminExpandedToolId.value) loadMcpAdminToolDraft();
-      switchModule('mcp-servers');
-    }
-
-    function returnFromMcpAdmin() {
-      const ctx = mcpAdminReturnContext.value;
-      switchModule('case-workflow');
-      if (ctx?.nodeId) {
-        selectedWorkflowNodeId.value = ctx.nodeId;
-        const node = getActiveWf()?.nodes?.find((n) => n.id === ctx.nodeId);
-        syncCurrentNodeFromWorkflow(node);
-        openWorkflowInspector('node');
-      }
-      mcpAdminReturnContext.value = null;
-    }
-
-    function selectMcpAdminServer(serverId) {
-      mcpAdminSelectedServerId.value = serverId;
-      mcpAdminExpandedToolId.value = '';
-      mcpAdminDraftParams.splice(0, mcpAdminDraftParams.length);
-    }
-
-    function loadMcpAdminToolDraft() {
-      const serverId = mcpAdminSelectedServerId.value;
-      const toolId = mcpAdminExpandedToolId.value;
-      if (!serverId || !toolId) {
-        mcpAdminDraftParams.splice(0, mcpAdminDraftParams.length);
-        return;
-      }
-      const rows = resolveMcpToolParamRows(serverId, toolId, mcpServerCatalog.value, form.mcpToolParamProfiles);
-      mcpAdminDraftParams.splice(0, mcpAdminDraftParams.length, ...rows.map((r) => ({ ...r })));
-    }
-
-    function expandMcpAdminTool(toolId) {
-      mcpAdminExpandedToolId.value = mcpAdminExpandedToolId.value === toolId ? '' : toolId;
-      if (mcpAdminExpandedToolId.value) loadMcpAdminToolDraft();
-      else mcpAdminDraftParams.splice(0, mcpAdminDraftParams.length);
-    }
-
-    function setMcpAdminDraftParamMode(paramKey, mode) {
-      const row = mcpAdminDraftParams.find((r) => r.key === paramKey);
-      if (!row) return;
-      row.mode = mode;
-      if (mode === 'variable' && !String(row.value).startsWith('{{')) {
-        row.value = mcpVariableOptions.value[0]?.value || '';
-      }
-      if (mode === 'fixed' && String(row.value).startsWith('{{')) {
-        row.value = '';
-      }
-    }
-
-    function saveMcpAdminToolParams() {
-      const serverId = mcpAdminSelectedServerId.value;
-      const toolId = mcpAdminExpandedToolId.value;
-      if (!serverId || !toolId) return;
-      const rows = mcpAdminDraftParams.map((r) => ({ key: r.key, mode: r.mode || 'fixed', value: r.value ?? '' }));
-      if (!form.mcpToolParamProfiles) form.mcpToolParamProfiles = {};
-      if (!form.mcpToolParamProfiles[serverId]) form.mcpToolParamProfiles[serverId] = {};
-      form.mcpToolParamProfiles[serverId][toolId] = rows;
-      ElementPlus.ElMessage.success('Tool パラメータを保存しました');
-    }
-
-    function getMcpAdminParamMeta(paramKey) {
-      const tool = mcpAdminTools.value.find((t) => t.id === mcpAdminExpandedToolId.value);
-      return tool?.params?.find((p) => p.key === paramKey);
-    }
-
     function getWorkflowNodeIoFooter(node) {
       return getWorkflowNodeIo(node);
-    }
-
-    const mcpServerCreateVisible = ref(false);
-    const mcpServerCreateDraft = reactive({
-      name: '',
-      description: '',
-      serverType: MCP_SERVER_TYPES[0].value,
-      endpoint: '',
-    });
-
-    function openMcpServerCreateDialog() {
-      Object.assign(mcpServerCreateDraft, {
-        name: '',
-        description: '',
-        serverType: MCP_SERVER_TYPES[0].value,
-        endpoint: '',
-      });
-      mcpServerCreateVisible.value = true;
-    }
-
-    function saveMcpServerFromDraft() {
-      if (!mcpServerCreateDraft.name.trim()) {
-        ElementPlus.ElMessage.warning('サーバー名を入力してください');
-        return;
-      }
-      const id = `mcp-custom-${Date.now()}`;
-      const item = normalizeMcpServerItem({
-        id,
-        label: mcpServerCreateDraft.name.trim(),
-        description: mcpServerCreateDraft.description.trim() || `${MCP_SERVER_TYPES.find((t) => t.value === mcpServerCreateDraft.serverType)?.label || 'HTTP'} 接続（mock）`,
-        status: 'connected',
-        serverType: mcpServerCreateDraft.serverType,
-        endpoint: mcpServerCreateDraft.endpoint.trim(),
-        tools: [{
-          id: 'invoke',
-          label: 'カスタム呼び出し',
-          description: '登録したエンドポイントを呼び出します',
-          params: [
-            { key: 'payload', label: 'Payload', type: 'string', required: false, placeholder: '{{ocr.fields}}' },
-          ],
-        }],
-      });
-      if (!form.mcpServers) form.mcpServers = [];
-      form.mcpServers.push(item);
-      mcpServerCreateVisible.value = false;
-      ElementPlus.ElMessage.success('MCP サーバーを登録しました');
-      if (currentModule.value === 'mcp-servers') {
-        selectMcpAdminServer(item.id);
-        mcpAdminExpandedToolId.value = item.tools[0]?.id || '';
-        loadMcpAdminToolDraft();
-      }
     }
 
     const knowledgeCreateVisible = ref(false);
@@ -8532,7 +8382,6 @@ const appOptions = {
         else if (node === 'master') {
           form.processing.externalApi = cloneJson(saved.processing.externalApi || saved.processing.rag || KNOWLEDGE_RETRIEVAL_DEFAULTS);
           form.knowledgeSources = (saved.knowledgeSources || []).map(normalizeKnowledgeSourceItem);
-          form.mcpServers = (saved.mcpServers || []).map(normalizeMcpServerItem);
           delete form.processing.rag;
         }
         else if (node === 'verify') {
@@ -9093,6 +8942,8 @@ const appOptions = {
       formatWorkflowOutputVarToken,
       WORKFLOW_NODE_OUTPUT_VAR_DEFS,
       CASE_WORKFLOW_START_TRIGGERS,
+      CASE_WORKFLOW_END_OUTCOMES,
+      WORKFLOW_END_PUBLISH_RULES,
       WORKFLOW_END_OUTCOMES,
       inspectorMode,
       workflowEdgePaths,
@@ -9132,34 +8983,6 @@ const appOptions = {
       getWorkflowNodeIoFooter,
       workflowOverviewSummary,
       WORKFLOW_WORKSHOP_CHECKLIST,
-      MCP_SERVER_SEEDS,
-      MCP_REGISTRY,
-      MCP_SERVER_STATUS_META,
-      MCP_SERVER_TYPES,
-      MCP_PARAM_MODES,
-      mcpServerCatalog,
-      mcpVariableOptions,
-      getMcpServerStatusMeta,
-      mcpServerCreateVisible,
-      mcpServerCreateDraft,
-      openMcpServerCreateDialog,
-      openMcpServerManagement,
-      returnFromMcpAdmin,
-      mcpAdminReturnContext,
-      mcpAdminSelectedServerId,
-      mcpAdminExpandedToolId,
-      mcpAdminSelectedServer,
-      mcpAdminTools,
-      mcpAdminDraftParams,
-      selectMcpAdminServer,
-      expandMcpAdminTool,
-      loadMcpAdminToolDraft,
-      saveMcpAdminToolParams,
-      setMcpAdminDraftParamMode,
-      getMcpAdminParamMeta,
-      isMcpCustomServer,
-      saveMcpServerFromDraft,
-      isMcpServerSelectable,
       MASTER_SYSTEM_SOURCES,
       masterSourceRequiresSheet,
       dataMappingSourceFieldOptions,

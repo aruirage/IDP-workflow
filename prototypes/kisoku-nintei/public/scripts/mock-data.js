@@ -1627,12 +1627,13 @@ const WORKFLOW_TEST_SAMPLES = {
     fixtureName: 'surgery_claim_post_aggregate.zip',
     description: '案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。',
     includes: [
-      '起動：新規起動 · 6 ファイル',
+      '起動：待機中 · 案件集約完了 · 6 ファイル',
       '主帳票・関連帳票を含む標準構成',
     ],
     caseNo: 'REQ-2025-0018890',
     caseLabel: '高橋誠_手術請求',
-    triggerType: '新規起動',
+    startEventId: 'e1',
+    startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 6,
     files: [
       { name: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
@@ -1652,28 +1653,39 @@ const WORKFLOW_TEST_SAMPLES = {
     includes: [],
     caseNo: '—',
     caseLabel: '—',
-    triggerType: '新規起動',
+    startEventId: 'e1',
+    startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 0,
     files: [],
     scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
   },
 };
 
-const WORKFLOW_TEST_TRIGGER_TYPES = new Set(['新規起動', '続行', '再実行']);
+const WORKFLOW_TEST_START_EVENT_IDS = new Set(['e1', 'e2', 'e3']);
 
-const WORKFLOW_TEST_LEGACY_TRIGGER_TYPE_MAP = {
-  初回アップロード: '新規起動',
-  クロスバッチアップロード: '続行',
-  自動補件紐付け: '続行',
-  手動補件紐付け: '続行',
-};
+function normalizeWorkflowTestStartEvent(raw, fallback = 'e1') {
+  const value = String(raw || '').trim().toLowerCase();
+  const remapped = { e4: 'e3', e3: 'e2', e2: 'e1' }[value] || value;
+  if (WORKFLOW_TEST_START_EVENT_IDS.has(remapped)) return remapped;
+  const legacyMap = {
+    新規起動: 'e1',
+    起動: 'e1',
+    続行: 'e2',
+    再実行: 'e3',
+    e1: 'e1',
+    e2: 'e2',
+    e3: 'e3',
+    e4: 'e3',
+  };
+  const mapped = legacyMap[value] || legacyMap[String(raw || '').trim()];
+  return mapped && WORKFLOW_TEST_START_EVENT_IDS.has(mapped) ? mapped : fallback;
+}
 
-const WORKFLOW_TEST_FILE_ROLES = ['主帳票', '関連帳票', '参考資料'];
-
-function normalizeWorkflowTestTriggerType(raw, fallback = '新規起動') {
-  const value = String(raw || '').trim();
-  if (WORKFLOW_TEST_TRIGGER_TYPES.has(value)) return value;
-  return WORKFLOW_TEST_LEGACY_TRIGGER_TYPE_MAP[value] || fallback;
+function getWorkflowTestStartEventLabel(eventId) {
+  const trigger = typeof CASE_WORKFLOW_START_TRIGGERS !== 'undefined'
+    ? CASE_WORKFLOW_START_TRIGGERS.find((t) => t.id === eventId)
+    : null;
+  return trigger ? `${trigger.caseStatus} · ${trigger.label}` : eventId;
 }
 
 function cloneWorkflowTestCaseDefault() {
@@ -1682,7 +1694,8 @@ function cloneWorkflowTestCaseDefault() {
     label: base.label,
     caseNo: base.caseNo,
     caseLabel: base.caseLabel,
-    triggerType: base.triggerType,
+    startEventId: base.startEventId,
+    startEventLabel: base.startEventLabel,
     files: (base.files || []).map((f) => ({ ...f })),
     source: 'builtin',
     uploadFileName: '',
@@ -1692,11 +1705,13 @@ function cloneWorkflowTestCaseDefault() {
 
 function normalizeWorkflowTestCase(raw) {
   const def = cloneWorkflowTestCaseDefault();
+  const startEventId = normalizeWorkflowTestStartEvent(raw?.startEventId || raw?.triggerType, def.startEventId);
   return {
-    label: def.label,
-    caseNo: def.caseNo,
-    caseLabel: def.caseLabel,
-    triggerType: def.triggerType,
+    label: raw?.label || def.label,
+    caseNo: raw?.caseNo || def.caseNo,
+    caseLabel: raw?.caseLabel || def.caseLabel,
+    startEventId,
+    startEventLabel: raw?.startEventLabel || getWorkflowTestStartEventLabel(startEventId),
     files: def.files.map((f) => ({ ...f })),
     source: 'builtin',
     uploadFileName: '',
@@ -1811,7 +1826,7 @@ function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
       title: '開始ノード',
       rows: [
         { label: 'テスト案件', value: input.caseLabel || '—' },
-        { label: 'トリガー種別', value: input.triggerType },
+        { label: '起動イベント', value: input.startEventLabel },
         { label: '案件番号', value: input.caseNo },
         { label: '案件名', value: input.caseLabel },
         { label: '紐付ファイル', value: `${input.fileCount} 件` },
@@ -1917,7 +1932,7 @@ function workflowTestStepResultText(step, testCase) {
   const type = step.type || '';
   const input = buildWorkflowTestInputContext(testCase);
   const summaries = {
-    start: `トリガー種別: ${input.triggerType} — Workflow を起動しました`,
+    start: `起動イベント: ${input.startEventLabel} — Workflow を起動しました`,
     preprocess: '画像補正・回転・画像分割を完了しました',
     ocr: '帳票タイプ別に公式フィールドを抽出しました',
     data_mapping: '標準フィールドへマッピングしました',

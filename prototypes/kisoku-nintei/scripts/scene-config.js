@@ -995,8 +995,6 @@ function normalizeLoadedForm(form) {
   form.processing.externalApi = normalizeExternalApiConfig(form.processing.externalApi);
   delete form.processing.rag;
   form.knowledgeSources = (form.knowledgeSources || []).map(normalizeKnowledgeSourceItem);
-  form.mcpServers = (form.mcpServers || []).map(normalizeMcpServerItem);
-  form.mcpToolParamProfiles = form.mcpToolParamProfiles || {};
   form.processing.image = normalizeImageConfig(form.processing?.image, form.scene.documents);
   form.processing.hitl = normalizeHitlConfig(form.processing?.hitl);
   form.master = normalizeMasterConfig(form.master, form.verify);

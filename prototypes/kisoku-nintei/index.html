@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=619" />
+  <link rel="stylesheet" href="style.css?v=629" />
 </head>
 <body>
   <div id="app">
@@ -219,123 +219,6 @@
                 <div class="module-config-summary-card"><span>署名・印鑑</span><strong>{{ sealRuleCount }}</strong></div>
               </div>
               <p class="verify-empty">本画面はプロトタイプ用プレースホルダーです。実装時はAI検証設定画面でルールを編集し、Workflow ノードは検証結果変数だけを出力します。</p>
-            </div>
-          </div>
-
-          <div v-if="currentModule === 'mcp-servers'" class="mcp-admin-page">
-            <div class="wf-toolbar">
-              <div class="wf-toolbar-left">
-                <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
-                <span class="wf-toolbar-sep">/</span>
-                <span class="wf-toolbar-scene">{{ modulePageMeta.subtitle }}</span>
-              </div>
-              <div class="wf-toolbar-right">
-                <el-button type="primary" @click="openMcpServerCreateDialog">+ サーバー追加</el-button>
-                <el-button v-if="mcpAdminReturnContext" type="primary" @click="returnFromMcpAdmin">Workflowに戻る</el-button>
-                <el-button v-else @click="switchModule('case-workflow')">案件シーン設定</el-button>
-              </div>
-            </div>
-            <div class="mcp-admin-body">
-              <aside class="mcp-admin-sidebar">
-                <inspector-title title="サーバー一覧" :hint="localizedInspectorHints.mcpAdminOverview"></inspector-title>
-                <div v-if="!mcpServerCatalog.length" class="kr-knowledge-empty">MCP サーバーがありません</div>
-                <div v-else class="mcp-admin-server-list">
-                  <button
-                    v-for="server in mcpServerCatalog"
-                    :key="server.id"
-                    type="button"
-                    class="mcp-admin-server-item"
-                    :class="{ 'is-active': mcpAdminSelectedServerId === server.id }"
-                    @click="selectMcpAdminServer(server.id)"
-                  >
-                    <span class="mcp-admin-server-name">{{ server.label }}</span>
-                    <el-tag :type="getMcpServerStatusMeta(server.status).tagType" effect="light" size="small">
-                      {{ getMcpServerStatusMeta(server.status).label }}
-                    </el-tag>
-                  </button>
-                </div>
-              </aside>
-              <main v-if="mcpAdminSelectedServer" class="mcp-admin-main">
-                <div class="mcp-admin-server-head">
-                  <div>
-                    <h2 class="mcp-admin-server-title">{{ mcpAdminSelectedServer.label }}</h2>
-                    <p class="mcp-admin-server-desc">{{ mcpAdminSelectedServer.description }}</p>
-                    <p v-if="mcpAdminSelectedServer.endpoint" class="mcp-admin-server-endpoint">{{ mcpAdminSelectedServer.endpoint }}</p>
-                  </div>
-                  <el-tag v-if="!isMcpCustomServer(mcpAdminSelectedServer.id)" type="info" effect="light">システム既定</el-tag>
-                  <el-tag v-else type="success" effect="light">カスタム</el-tag>
-                </div>
-                <div class="mcp-admin-tools-section">
-                  <inspector-title title="Tool 一覧" :hint="localizedInspectorHints.mcpAdminTools"></inspector-title>
-                  <div v-if="!mcpAdminTools.length" class="kr-knowledge-empty">Tool がありません</div>
-                  <div v-else class="mcp-admin-tool-stack">
-                    <div
-                      v-for="tool in mcpAdminTools"
-                      :key="tool.id"
-                      class="mcp-admin-tool-block"
-                      :class="{ 'is-expanded': mcpAdminExpandedToolId === tool.id }"
-                    >
-                      <button type="button" class="mcp-admin-tool-head" @click="expandMcpAdminTool(tool.id)">
-                        <span class="mcp-admin-tool-name">{{ tool.label }}</span>
-                        <span class="mcp-admin-tool-chevron">{{ mcpAdminExpandedToolId === tool.id ? '▾' : '▸' }}</span>
-                      </button>
-                      <p class="mcp-admin-tool-desc">{{ tool.description }}</p>
-                      <div v-if="mcpAdminExpandedToolId === tool.id" class="mcp-admin-tool-body">
-                        <div v-if="!mcpAdminDraftParams.length" class="kr-knowledge-empty">パラメータ定義がありません</div>
-                        <div
-                          v-for="row in mcpAdminDraftParams"
-                          :key="tool.id + '-' + row.key"
-                          class="mcp-param-block"
-                        >
-                          <div class="mcp-param-head">
-                            <span class="mcp-param-label">
-                              {{ getMcpAdminParamMeta(row.key)?.label || row.key }}
-                              <span v-if="getMcpAdminParamMeta(row.key)?.required" class="kr-required">*</span>
-                            </span>
-                            <el-radio-group
-                              :model-value="row.mode || 'fixed'"
-                              size="small"
-                              @change="setMcpAdminDraftParamMode(row.key, $event)"
-                            >
-                              <el-radio-button
-                                v-for="mode in MCP_PARAM_MODES"
-                                :key="tool.id + '-' + row.key + '-' + mode.value"
-                                :value="mode.value"
-                              >{{ mode.label }}</el-radio-button>
-                            </el-radio-group>
-                          </div>
-                          <el-input
-                            v-if="(row.mode || 'fixed') === 'fixed'"
-                            v-model="row.value"
-                            :placeholder="getMcpAdminParamMeta(row.key)?.placeholder || '定数を入力'"
-                            class="inspector-field-control"
-                          ></el-input>
-                          <el-select
-                            v-else
-                            v-model="row.value"
-                            filterable
-                            placeholder="上流変数を選択"
-                            class="inspector-field-control"
-                          >
-                            <el-option
-                              v-for="opt in mcpVariableOptions"
-                              :key="tool.id + '-' + row.key + '-var-' + opt.value"
-                              :label="opt.label"
-                              :value="opt.value"
-                            ></el-option>
-                          </el-select>
-                        </div>
-                        <div class="mcp-admin-tool-actions">
-                          <el-button type="primary" @click="saveMcpAdminToolParams">パラメータを保存</el-button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </main>
-              <main v-else class="mcp-admin-main mcp-admin-main--empty">
-                <p class="verify-empty">左の一覧から MCP サーバーを選択してください</p>
-              </main>
             </div>
           </div>
 
@@ -1862,7 +1745,7 @@
                           :key="trigger.id"
                           class="wf-start-readonly-item"
                         >
-                          <span class="wf-start-readonly-label">{{ trigger.category }}</span>
+                          <span class="wf-start-readonly-label">{{ trigger.caseStatus }}</span>
                           <span class="wf-start-readonly-value" :title="trigger.detail">{{ trigger.label }}</span>
                         </div>
                       </div>
@@ -1873,15 +1756,15 @@
                 <!-- 終了ノード -->
                 <div v-if="inspectorPanel === 'end' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector wf-end-inspector">
                   <inspector-module>
-                    <inspector-module-card title="終了情報">
+                    <inspector-module-card title="終了時提案">
                       <div class="wf-start-readonly-list">
                         <div
-                          v-for="outcome in WORKFLOW_END_OUTCOMES"
-                          :key="outcome.key"
+                          v-for="outcome in CASE_WORKFLOW_END_OUTCOMES"
+                          :key="outcome.id"
                           class="wf-start-readonly-item"
                         >
-                          <span class="wf-start-readonly-label">{{ outcome.label }}</span>
-                          <span class="wf-start-readonly-value" :title="outcome.hint">{{ outcome.value }}</span>
+                          <span class="wf-start-readonly-label">{{ outcome.caseStatus }}</span>
+                          <span class="wf-start-readonly-value" :title="outcome.detail">{{ outcome.finalResult }}</span>
                         </div>
                       </div>
                     </inspector-module-card>
@@ -2010,11 +1893,6 @@
                               <div class="workflow-output-var-main">
                                 <code class="workflow-output-var-name">{{ item.name }}</code>
                                 <span class="workflow-output-var-type">{{ item.dataType }}</span>
-                                <span
-                                  v-if="item.consumptionPathLabel"
-                                  class="workflow-output-var-consumption"
-                                  :title="'消费路径：' + item.consumptionPathLabel"
-                                >{{ item.consumptionPathLabel }}</span>
                               </div>
                               <div class="workflow-output-var-label">{{ item.label }}</div>
                             </li>
@@ -2270,8 +2148,8 @@
                 <p class="wf-test-sample-meta">
                   {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
                 </p>
-                <p v-if="workflowTestDraft.testCase.triggerType" class="wf-test-sample-meta">
-                  {{ t('トリガー種別') }}：{{ t(workflowTestDraft.testCase.triggerType) }}
+                <p v-if="workflowTestDraft.testCase.startEventLabel" class="wf-test-sample-meta">
+                  {{ t('起動イベント') }}：{{ workflowTestDraft.testCase.startEventLabel }}
                 </p>
                 <ul v-if="workflowTestDraft.testCase.files.length" class="wf-test-sample-includes">
                   <li v-for="(file, i) in workflowTestDraft.testCase.files" :key="'wf-case-file-' + i">
@@ -2578,59 +2456,6 @@
     </el-dialog>
 
     <el-dialog
-      v-model="mcpServerCreateVisible"
-      title="MCP サーバーを追加"
-      width="520px"
-      align-center
-      class="mcp-create-dialog"
-    >
-      <div class="mcp-create-body">
-        <div class="inspector-field">
-          <label class="inspector-field-label">サーバー名 <span class="kr-required">*</span></label>
-          <el-input
-            v-model="mcpServerCreateDraft.name"
-            maxlength="64"
-            show-word-limit
-            placeholder="例：社内 CRM API"
-          />
-        </div>
-        <div class="inspector-field">
-          <label class="inspector-field-label">説明</label>
-          <el-input
-            v-model="mcpServerCreateDraft.description"
-            type="textarea"
-            :rows="3"
-            maxlength="256"
-            show-word-limit
-            placeholder="接続先の用途・概要"
-          />
-        </div>
-        <div class="inspector-field">
-          <label class="inspector-field-label">種別</label>
-          <el-select v-model="mcpServerCreateDraft.serverType" class="inspector-field-control">
-            <el-option
-              v-for="opt in MCP_SERVER_TYPES"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </div>
-        <div class="inspector-field">
-          <label class="inspector-field-label">エンドポイント（mock）</label>
-          <el-input
-            v-model="mcpServerCreateDraft.endpoint"
-            placeholder="https://api.example.com/mcp"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="mcpServerCreateVisible = false">キャンセル</el-button>
-        <el-button type="primary" @click="saveMcpServerFromDraft">追加</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
       v-model="codeParamDialogVisible"
       :title="codeParamDialogTitle"
       width="480px"
@@ -2702,9 +2527,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=619"></script>
-  <script src="scripts/mock-data.js?v=619"></script>
-  <script src="scripts/scene-config.js?v=619"></script>
-  <script src="main.js?v=619"></script>
+  <script src="scripts/workflow-core.js?v=629"></script>
+  <script src="scripts/mock-data.js?v=629"></script>
+  <script src="scripts/scene-config.js?v=629"></script>
+  <script src="main.js?v=629"></script>
 </body>
 </html>
