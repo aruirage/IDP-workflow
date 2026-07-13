@@ -213,7 +213,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/13 15:02:55</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/13 15:42:41</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -252,7 +252,7 @@
 <p>作用域仅分三类：案件、文件、账票类型级。各节点输出变量、条件选择器、出力変数面板均按此标注。</p>
 <table><thead><tr><th>作用域</th><th>界面标注</th><th>路径格式</th><th>出力変数面板</th><th>条件选择器</th></tr></thead><tbody><tr><td>案件</td><td>案件</td><td><code>{节点}.case.{字段}</code></td><td>列出各 case 字段</td><td>可选</td></tr><tr><td>文件</td><td>ファイル</td><td><code>{节点}.files[]</code></td><td>仅列 <code>files[]</code> 一项</td><td>不可选</td></tr><tr><td>账票类型级</td><td>帳票タイプ</td><td><code>{start}.docTypes[]</code></td><td>仅开始节点列出</td><td>可选</td></tr></tbody></table>
 <p>补充说明：</p>
-<ul><li>控制节点（条件判断 / 通知 / 结束）仅输出案件级，无 <code>files[]</code>。</li><li><code>files[]</code> 元素结构（id、name、url 等）见下文专表；为运行时约定，非出力変数面板逐条清单。分类结果在 <code>classificationResult</code>，OCR 值在 <code>ocrFields</code>。</li><li>标准字段（<code>case.standardFields</code>）归属案件，仅数据映射节点产出；条件节点二级选择「映射节点 → 字段名」。</li><li>账票字段（<code>docTypes.{类型}.{字段}</code>）归属账票类型级下的 Step1 字段引用，不是节点输出；条件选择器按 Step1 账票类别模板加载，运行时从模板取项目。</li></ul>
+<ul><li>控制节点（条件判断 / 通知 / 结束）仅输出案件级，无 <code>files[]</code>。</li><li><code>files[]</code> 元素结构（id、name、url 等）见下文专表；为运行时约定，非出力変数面板逐条清单。分类结果在 <code>classificationResult</code>，OCR 值在 <code>ocrFields</code>。</li><li>标准字段（<code>case.standardFields</code>）归属案件，仅数据映射节点产出；条件节点三级选择「映射节点 → 標準フィールド → 字段名」。</li><li>账票字段（<code>docTypes.{类型}.{字段}</code>）归属账票类型级下的 Step1 字段引用，不是节点输出；条件选择器按 Step1 账票类别模板加载，运行时从模板取项目。</li></ul>
 <p>通用规则：仅选可达上游变量；上游删除或规则失效标记错误并阻断发布。文件级（数组）不可直接做条件比较。</p>
 <p>人工分岐：是否进入人工确认，由画布 条件节点 → 人工确认节点 决定；条件读取各 Agent 的事实变量（见下表）。</p>
 <table><thead><tr><th>节点</th><th>条件分岔常用变量</th></tr></thead><tbody><tr><td>前处理</td><td><code>preprocessStatus</code></td></tr><tr><td>OCR</td><td><code>lowConfidenceFieldCount</code>、<code>ocrStatus</code></td></tr><tr><td>AI 检证</td><td><code>verifyStatus</code>、各模块 <code>*Status</code>、<code>missingDocuments</code> / <code>missingFields</code>、<code>isException</code></td></tr></tbody></table>
@@ -277,7 +277,7 @@
 <table><thead><tr><th>变量键</th><th>界面文案（日语）</th><th>类型</th><th>作用域</th><th>备注/配置影响</th></tr></thead><tbody><tr><td>ocrStatus</td><td>OCRステータス</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>lowConfidenceFieldCount</td><td>低信頼フィールド件数</td><td>Number</td><td>案件</td><td>阈值未达字段计数；条件分岐用</td></tr><tr><td>files[]</td><td>ファイル一覧</td><td>Array</td><td>文件</td><td>见 files[] 元素结构；元素含 ocrFields</td></tr></tbody></table>
 <h4 class="subsection-heading">数据映射节点</h4>
 <p>产出案件级标准字段与状态类字段，透传上游 <code>files[]</code>；不输出 <code>docTypes[]</code>。</p>
-<table><thead><tr><th>变量键</th><th>界面文案（日语）</th><th>类型</th><th>作用域</th><th>备注/配置影响</th></tr></thead><tbody><tr><td>mappingStatus</td><td>マッピングステータス</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>standardFields</td><td>標準フィールド</td><td>Object</td><td>案件</td><td>条件示例：{map}.case.standardFields.policyNo</td></tr><tr><td>mappingConflicts</td><td>競合一覧</td><td>Array</td><td>案件</td><td>—</td></tr><tr><td>mappingErrors</td><td>マッピングエラー</td><td>Array</td><td>案件</td><td>—</td></tr><tr><td>files[]</td><td>ファイル一覧</td><td>Array</td><td>文件</td><td>见 files[] 元素结构；透传上游 ocrFields</td></tr></tbody></table>
+<table><thead><tr><th>变量键</th><th>界面文案（日语）</th><th>类型</th><th>作用域</th><th>备注/配置影响</th></tr></thead><tbody><tr><td>mappingStatus</td><td>マッピングステータス</td><td>Enum</td><td>案件</td><td>—</td></tr><tr><td>standardFields</td><td>標準フィールド</td><td>Object</td><td>案件</td><td>条件三级：{map} › 標準フィールド › policyNo 等</td></tr><tr><td>mappingConflicts</td><td>競合一覧</td><td>Array</td><td>案件</td><td>—</td></tr><tr><td>mappingErrors</td><td>マッピングエラー</td><td>Array</td><td>案件</td><td>—</td></tr><tr><td>files[]</td><td>ファイル一覧</td><td>Array</td><td>文件</td><td>见 files[] 元素结构；透传上游 ocrFields</td></tr></tbody></table>
 <h4 class="subsection-heading">AI 检证节点</h4>
 <p>検証モジュール六项开关对应 AI 检证设置规则库。画布显示 <code>已开/6</code>（配置态 <code>moduleEnabled</code>）；运行时按模块分别输出 status。</p>
 <p>两层 status：</p>

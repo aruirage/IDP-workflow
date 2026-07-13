@@ -6187,22 +6187,24 @@ const appOptions = {
       const exact = decisionVariableOptions.value.find((opt) => opt.value === variable);
       if (exact) return exact;
       let found = null;
-      const visit = (items, parent = null) => {
+      const visit = (items, ancestors = []) => {
         (items || []).forEach((item) => {
           if (found) return;
+          const path = [...ancestors, item.text].filter(Boolean);
           if (item.id === variable) {
             found = {
               value: item.id,
               label: item.text,
               displayName: item.text,
-              group: parent?.text || '',
+              group: ancestors[0] || '',
+              breadcrumb: path.join(' › '),
               scope: item.scope || '',
               dataType: item.dataType || '',
               description: item.description || '',
             };
             return;
           }
-          visit(item.items, item);
+          visit(item.items, path);
         });
       };
       visit(decisionVariableCascaderOptions.value);
@@ -6213,6 +6215,7 @@ const appOptions = {
       if (!value) return '';
       const option = getDecisionConditionVariableOption({ variable: value });
       if (!option) return String(value).trim();
+      if (option.breadcrumb) return option.breadcrumb;
       return [option.group, option.label].filter(Boolean).join(' › ') || String(value).trim();
     }
 

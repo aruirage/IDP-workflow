@@ -77,7 +77,7 @@ const INSPECTOR_HINTS = {
   nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
   nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由。',
   mcpOutput: 'Tool 実行後に後続ノードへ渡される出力変数です。IF/ELSE やマスタ照合の入力として参照できます。',
-  dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时二级展开：映射节点 → 标准字段名。',
+  dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时三级展开：映射节点 → 標準フィールド → 字段名。',
   externalApiIo: '前工程から自動連携される入力です。',
   knowledgeSelect: 'ナレッジ数据源を選択します。+ ボタンから新規作成（文档上传 / Web Site API）ができます。',
   knowledgeRetrieval: 'Vector Search の類似度・Top N・参照文字数上限を設定します（Dify Knowledge Retrieval 相当）。',
@@ -870,7 +870,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   data_mapping: [
     { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マッピング全体の集約状態' },
-    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級标准字段（条件选择：映射节点 → 字段名）' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級标准字段（条件选择：映射节点 → 標準フィールド → 字段名）' },
     { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級に集約したフィールド競合' },
     { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ルール不適用、字段缺失、変換失敗の明細' },
     ...workflowNodeFileOutputFields('data_mapping'),
@@ -1060,7 +1060,6 @@ function appendDataMappingStandardFieldCatalog(node, workflow, options) {
 function buildDecisionVariableCascaderTree(options) {
   const nodeMap = new Map();
   const step1DocMap = new Map();
-  const standardMap = new Map();
 
   (options || []).forEach((opt) => {
     if (opt.pickerGroup === 'step1_doc') {
@@ -1077,25 +1076,7 @@ function buildDecisionVariableCascaderTree(options) {
       });
       return;
     }
-    if (opt.pickerGroup === 'standard_field') {
-      const nodeKey = opt.nodeId || opt.group;
-      if (!standardMap.has(nodeKey)) {
-        standardMap.set(nodeKey, {
-          id: `std-node:${nodeKey}`,
-          text: opt.group || 'データマッピング',
-          title: opt.group || 'データマッピング',
-          items: [],
-        });
-      }
-      standardMap.get(nodeKey).items.push({
-        id: opt.value,
-        text: opt.pickerStandardFieldLabel || opt.displayName,
-        title: opt.pickerStandardFieldLabel || opt.displayName,
-        scope: opt.scope,
-        dataType: opt.dataType,
-      });
-      return;
-    }
+
     const nodeKey = opt.nodeId || opt.group || 'unknown';
     if (!nodeMap.has(nodeKey)) {
       nodeMap.set(nodeKey, {
@@ -1105,7 +1086,31 @@ function buildDecisionVariableCascaderTree(options) {
         items: [],
       });
     }
-    nodeMap.get(nodeKey).items.push({
+    const nodeEntry = nodeMap.get(nodeKey);
+
+    if (opt.pickerGroup === 'standard_field') {
+      const bucketId = `std-fields:${nodeKey}`;
+      let bucket = nodeEntry.items.find((item) => item.id === bucketId);
+      if (!bucket) {
+        bucket = {
+          id: bucketId,
+          text: '標準フィールド',
+          title: '標準フィールド',
+          items: [],
+        };
+        nodeEntry.items.push(bucket);
+      }
+      bucket.items.push({
+        id: opt.value,
+        text: opt.pickerStandardFieldLabel || opt.displayName,
+        title: opt.pickerStandardFieldLabel || opt.displayName,
+        scope: opt.scope,
+        dataType: opt.dataType,
+      });
+      return;
+    }
+
+    nodeEntry.items.push({
       id: opt.value,
       text: opt.displayName || opt.label,
       title: opt.displayName || opt.label,
@@ -1124,14 +1129,6 @@ function buildDecisionVariableCascaderTree(options) {
     });
   }
   nodeMap.forEach((group) => tree.push(group));
-  standardMap.forEach((group) => {
-    tree.push({
-      id: group.id,
-      text: group.text,
-      title: group.title,
-      items: group.items,
-    });
-  });
   return tree;
 }
 
@@ -3081,6 +3078,10 @@ function formatDecisionVariableDisplay(value, options = []) {
   if (!value) return '';
   const opt = (options || []).find((o) => o.value === value);
   if (!opt) return String(value).trim();
+  if (opt.pickerGroup === 'standard_field') {
+    const fieldLabel = opt.pickerStandardFieldLabel || opt.displayName || opt.label;
+    return [opt.group, '標準フィールド', fieldLabel].filter(Boolean).join(' › ');
+  }
   const group = opt.group || '';
   const secondary = getDecisionVariableSecondaryLabel(opt);
   if (group && secondary) return `${group} › ${secondary}`;
