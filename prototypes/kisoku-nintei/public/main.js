@@ -169,6 +169,7 @@ const appOptions = {
       ['折りたたむ', '折叠'],
       ['展開', '展开'],
       ['設定参照', '跳转设定'],
+      ['起動イベント', '启动事件'],
       ['起動条件', '启动条件'],
       ['案件集約', '案件集约'],
       ['補件・帰属', '补件・归属'],
@@ -193,7 +194,9 @@ const appOptions = {
       ['署名・印鑑検証', '签名・印章校验'],
       ['回転', '旋转'],
       ['補正', '补正'],
+      ['並替', '排序'],
       ['件有効', '项启用'],
+      ['有効 ', '有效 '],
       ['件数', '件数'],
       ['帳票', '账票'],
       ['確認', '确认'],
@@ -532,6 +535,7 @@ const appOptions = {
       ['標準値生成ルール', '标准值生成规则'],
       ['必須フィールド、必要書類、テキスト、データ、署名・印鑑検証を業務シーン単位で管理します。', '按业务场景管理必填字段、必要资料、文本、数据、签名・印章校验。'],
       ['AI検証ルール', 'AI 校验规则'],
+      ['起動イベント', '启动事件'],
       ['起動条件', '启动条件'],
       ['ワークフローが開始される条件です', 'Workflow 开始的条件'],
       ['読み取り専用', '只读'],
@@ -567,6 +571,7 @@ const appOptions = {
       ['関連帳票キー', '关联账票 Key'],
       ['主帳票フィールド', '主账票字段'],
       ['関連帳票フィールド', '关联账票字段'],
+      ['帳票フィールド', '账票字段'],
       ['この関連帳票の主副キーを追加してください', '请添加该关联账票的主副 Key'],
       ['関連キーを追加', '添加关联 Key'],
       ['主帳票と関連帳票を追加すると案件集約ルールを設定できます', '添加主账票和关联账票后，可设定案件集约规则'],
@@ -860,8 +865,8 @@ const appOptions = {
       ['跨批次 + 人工缓冲', '跨批次 + 人工缓冲'],
       ['预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。', '预制场景模拟 Workflow 执行。点「测试执行」后看右侧时间轴，点各节点看左侧详情。'],
       ['关注点', '关注点'],
-      ['通知送信状態・通知タイプ・送信日時。', '通知发送状态、通知类型、发送时间。'],
-      ['通知送信状態・通知タイプ・送信日時・送信先・失敗理由。', '通知发送状态、通知类型、发送时间、收件人、失败原因。'],
+      ['通知送信状態・送信日時。', '通知发送状态、发送时间。'],
+      ['通知送信状態・送信日時・送信失敗理由。', '通知发送状态、发送时间、发送失败原因。'],
       ['Workflow 入口。起動イベントは案件集約完了・補件紐付け完了に固定されます。', 'Workflow 入口。启动事件固定为案件集约完成、补件关联完成。'],
       ['Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。', 'Workflow 入口。根据案件集约结果新建启动或续跑实例（只读）。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
@@ -1376,12 +1381,11 @@ const appOptions = {
       return (wf?.nodes || []).find((n) => n.type === 'data_mapping') || null;
     }
 
-    function getPrimaryMasterMatchNode(wf) {
-      return (wf?.nodes || []).find((n) => n.type === 'master_match') || null;
+    function getEffectiveMasterMappings() {
+      return form.master.mappings || [];
     }
 
     const primaryDataMappingNode = computed(() => getPrimaryDataMappingNode(getActiveWf()));
-    const primaryMasterMatchNode = computed(() => getPrimaryMasterMatchNode(getActiveWf()));
 
     function getActiveDataMappingNode() {
       const node = selectedWorkflowNode.value;
@@ -1400,13 +1404,11 @@ const appOptions = {
       } catch (e) { /* ignore */ }
       nextTick(() => {
         ensureDataMappingEditorReady();
-        ensureMasterMatchEditorReady();
       });
     }
 
     function collapseInspectorEditor() {
       inspectorExpanded.value = false;
-      resetMasterMatchRuleDraft();
       if (sceneSidebarBeforeExpand.value !== null) {
         sceneSidebarCollapsed.value = sceneSidebarBeforeExpand.value;
         sceneSidebarBeforeExpand.value = null;
@@ -1724,7 +1726,7 @@ const appOptions = {
 
     const activeOutputFieldRows = computed(() => {
       const docType = outputSelectedDocType.value;
-      const matchRules = primaryMasterMatchNode.value?.matchRules || [];
+      const matchRules = getEffectiveMasterMappings();
       if (outputExportFieldMode.value === 'ocr') {
         if (!docType) return [];
         return buildExportOcrFieldRows(docType, activeOutputDocFields.value, matchRules);
@@ -1838,7 +1840,7 @@ const appOptions = {
 
     const masterMatchExportRows = computed(() =>
       buildMasterMatchExportRows(
-        primaryMasterMatchNode.value?.matchRules || [],
+        getEffectiveMasterMappings(),
         form.output.masterMatchExports,
       ),
     );
@@ -1914,7 +1916,7 @@ const appOptions = {
     function syncMasterMatchExportSettings() {
       const next = syncMasterMatchExportConfig(
         form.output.masterMatchExports,
-        primaryMasterMatchNode.value?.matchRules || [],
+        getEffectiveMasterMappings(),
       );
       const prevJson = JSON.stringify(form.output.masterMatchExports || []);
       const nextJson = JSON.stringify(next);
@@ -1956,7 +1958,7 @@ const appOptions = {
     applyOutputNamingPatterns();
 
     watch(
-      () => (primaryMasterMatchNode.value?.matchRules || []).map((rule) => rule.id).join('\u0001'),
+      () => getEffectiveMasterMappings().map((rule) => rule.id).join('\u0001'),
       () => syncMasterMatchExportSettings(),
       { immediate: true },
     );
@@ -2112,13 +2114,6 @@ const appOptions = {
       return getHitlGatePreset(node, getActiveWf());
     });
 
-    function getHitlGateCanvasSummary(node) {
-      if (!node || !isHitlGateNode(node)) return t('人工確認');
-      const meta = getHitlGatePreset(node, getActiveWf());
-      const parts = [meta?.label, node.role].filter(Boolean).map((item) => t(item));
-      return parts.join(' · ') || t('人工確認');
-    }
-
     function getHitlGateBranchCanvasLabel(branchKey) {
       return t(getHitlGateActionLabel(branchKey));
     }
@@ -2180,29 +2175,14 @@ const appOptions = {
       const wf = getActiveWf();
       const node = selectedWorkflowNode.value;
       if (!wf || !node || node.type !== 'notify') return [];
-      return getNotifyVariableOptions(wf, node.id, form.verify);
+      return getNotifyVariableOptions(wf, node.id, form.verify, decisionSceneContext.value);
     });
 
     const notifyVariableOptionGroups = computed(() =>
       getDecisionVariableOptionGroups(notifyVariableOptions.value));
 
     const notifyVariableCascaderOptions = computed(() =>
-      notifyVariableOptionGroups.value.map((group) => ({
-        id: `node:${group.id || group.label}`,
-        text: group.label,
-        items: group.options.map((opt) => ({
-          id: opt.value,
-          text: getDecisionVariableSecondaryLabel(opt),
-          title: getDecisionVariableSecondaryLabel(opt),
-        })),
-      })));
-
-    const notifyRecommendedVars = computed(() => {
-      const wf = getActiveWf();
-      const node = selectedWorkflowNode.value;
-      if (!wf || !node || node.type !== 'notify') return [];
-      return getNotifyTemplateRecommendedVars(node.template, wf, node.id);
-    });
+      buildDecisionVariableCascaderTree(notifyVariableOptions.value));
 
     function insertNotifyVariable(field, varPath) {
       const node = selectedWorkflowNode.value;
@@ -2216,34 +2196,6 @@ const appOptions = {
       if (!varPath) return;
       insertNotifyVariable(notifyVarInsertTarget.value, varPath);
       notifyVarInsertPick.value = '';
-    }
-
-    function onNotifyTemplateChange(templateValue) {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'notify') return;
-      const prevTemplate = migrateNotifyTemplate(node.template);
-      if (prevTemplate === templateValue) return;
-      const apply = () => {
-        const wf = getActiveWf();
-        const defaults = getNotifyTemplateDefaults(templateValue, wf, node.id);
-        node.template = templateValue;
-        node.subject = defaults.subject;
-        node.body = defaults.body;
-        delete node.supplementEventEnabled;
-        pushWorkflowHistory('通知プリセットを変更');
-      };
-      const prevDefaults = getNotifyTemplateDefaults(prevTemplate, getActiveWf(), node.id);
-      const hasCustom = (node.subject && node.subject !== prevDefaults.subject)
-        || (node.body && node.body !== prevDefaults.body);
-      if (!hasCustom) {
-        apply();
-        return;
-      }
-      ElementPlus.ElMessageBox.confirm(
-        'プリセットを変更すると、件名・本文が既定テンプレートで上書きされます。続行しますか？',
-        '通知内容の上書き',
-        { confirmButtonText: '上書きする', cancelButtonText: 'キャンセル', type: 'warning' },
-      ).then(apply).catch(() => {});
     }
 
     function onNotifyRecipientsBlur() {
@@ -2582,7 +2534,6 @@ const appOptions = {
       if (inspectorPanel.value === 'scene_aggregate') return '案件集約';
       if (inspectorPanel.value === 'scene_completeness') return '完全性検査';
       if (inspectorPanel.value === 'data_mapping') return 'データマッピング';
-      if (inspectorPanel.value === 'mcp') return 'MCP';
       if (inspectorPanel.value === 'ocr') return 'OCR抽出';
       if (inspectorPanel.value === 'decision') return 'IF/ELSE';
       if (inspectorPanel.value === 'hitl_gate') return '人工確認';
@@ -2647,6 +2598,8 @@ const appOptions = {
         scope: normalizeWorkflowVariableCategory(item).label,
         dataType: inferWorkflowOutputVarType(item),
         description: t(item.description || item.label),
+        consumptionPathLabel: item.consumptionPathLabel
+          || formatWorkflowVarConsumptionLabels(getWorkflowVarConsumptionPaths(item)),
       }));
     });
 
@@ -2671,7 +2624,6 @@ const appOptions = {
       if (!node) return '—';
       if (node.type === 'data_mapping') return 'DM-2026.07.06-01';
       if (node.type === 'ai_verify') return 'AV-2026.07.06-01';
-      if (node.type === 'master_match') return 'MM-2026.07.06-01';
       return '—';
     }
 
@@ -2848,7 +2800,7 @@ const appOptions = {
         ));
       }
 
-      if (nodeType === 'master_match' || scope === 'step2') {
+      if (scope === 'step2') {
         checks.push(createReuseCheck(
           'warn',
           'マスタ参照',
@@ -3427,8 +3379,7 @@ const appOptions = {
     }
 
     function getCollapsedDecisionNodeSize(node) {
-      const opts = getDecisionCanvasVariableOptions(node);
-      const preview = getDecisionNodeCanvasPreview(node, opts);
+      const preview = getWorkflowNodeCanvasSummary(node);
       const lines = estimateDecisionConditionTextLines(preview, 192);
       const lineCount = Math.min(4, Math.max(1, lines));
       const w = Math.min(340, Math.max(208, 76 + preview.length * DECISION_NODE_LAYOUT.charW));
@@ -3454,29 +3405,11 @@ const appOptions = {
       return { ...metrics, w: collapsed.w, h: collapsed.h, rows };
     }
 
-    const HITL_NODE_SUMMARY_H = 22;
-
     function getHitlGateLayoutMetricsForNode(node) {
       if (!node) return getHitlGateNodeLayoutMetrics(node);
-      const base = getHitlGateNodeLayoutMetrics(node);
-      if (!wfCanvasNodesCollapsed.value) {
-        const summary = getWorkflowNodeCanvasSummary(node);
-        const summaryH = summary ? HITL_NODE_SUMMARY_H : 0;
-        if (!summaryH) return base;
-        const h = base.h + summaryH;
-        return {
-          ...base,
-          h,
-          cardH: h,
-          branchStartY: base.branchStartY + summaryH,
-          rows: base.rows.map((row) => ({
-            ...row,
-            yCenter: row.yCenter + summaryH,
-            ratio: (row.yCenter + summaryH) / h,
-          })),
-        };
-      }
-      const preview = getHitlGateCanvasSummary(node);
+      const preview = getWorkflowNodeCanvasSummary(node);
+      const base = getHitlGateNodeLayoutMetrics(node, preview);
+      if (!wfCanvasNodesCollapsed.value) return base;
       const collapsed = {
         w: Math.min(340, Math.max(base.cardW, 76 + preview.length * DECISION_NODE_LAYOUT.charW)),
         h: Math.max(72, 46 + Math.min(2, Math.ceil(preview.length / 24)) * 16),
@@ -3507,13 +3440,15 @@ const appOptions = {
         return getHitlGateLayoutMetricsForNode(displayNode);
       }
       if (!isWorkflowTerminalNode(displayNode)) {
-        const summary = getWorkflowNodeCanvasSummary(node);
-        const taskItems = workflowNodeSummaryTasks(summary);
-        return getWorkflowNodeSize(displayNode, taskItems.length, taskItems);
+        const resolved = summary ?? getWorkflowNodeCanvasSummary(node);
+        return getWorkflowNodeSize(displayNode, 0, [], resolved);
       }
-      const resolved = summary ?? getWorkflowNodeCanvasSummary(node);
-      const taskItems = workflowNodeSummaryTasks(resolved);
-      return getWorkflowNodeSize(displayNode, taskItems.length, taskItems);
+      return getWorkflowNodeSize(displayNode);
+    }
+
+    function getWorkflowNodeLayoutSizeFromSummary(node) {
+      const summary = getWorkflowNodeCanvasSummary(node);
+      return getWorkflowNodeSize(node, 0, [], summary);
     }
 
     function onWfViewportWheel(event) {
@@ -4028,10 +3963,8 @@ const appOptions = {
       const edgeIdx = wf.edges.findIndex((e) => workflowEdgeKey(e) === workflowEdgeKey(edge));
       if (edgeIdx < 0) return null;
 
-      const fromTasks = getWorkflowNodeActiveTasks(from);
-      const fromSize = getWorkflowNodeSize(from, fromTasks.length, fromTasks);
-      const toTasks = getWorkflowNodeActiveTasks(to);
-      const toSize = getWorkflowNodeSize(to, toTasks.length, toTasks);
+      const fromSize = getWorkflowNodeLayoutSizeFromSummary(from);
+      const toSize = getWorkflowNodeLayoutSizeFromSummary(to);
 
       const newNode = buildWorkflowNodeFromPayload(
         payload,
@@ -4040,7 +3973,7 @@ const appOptions = {
         wf,
       );
       if (!newNode) return null;
-      const newSize = getWorkflowNodeSize(newNode, getWorkflowNodeActiveTasks(newNode).length, getWorkflowNodeActiveTasks(newNode));
+      const newSize = getWorkflowNodeLayoutSizeFromSummary(newNode);
       const neededRight = from.x + fromSize.w + WF_NODE_GAP + newSize.w + WF_NODE_GAP;
       if (to.x < neededRight) {
         shiftWorkflowNodesRight(to.id, neededRight - to.x, wf);
@@ -4206,7 +4139,7 @@ const appOptions = {
         }, wf);
       }
 
-      const newSize = getWorkflowNodeSize(newNode, getWorkflowNodeActiveTasks(newNode).length, getWorkflowNodeActiveTasks(newNode));
+      const newSize = getWorkflowNodeLayoutSizeFromSummary(newNode);
       shiftWorkflowNodesRight(toId, newSize.w + WF_NODE_GAP);
       newNode.x = to.x - newSize.w - WF_NODE_GAP;
 
@@ -4237,8 +4170,7 @@ const appOptions = {
       const from = wf?.nodes?.find((n) => n.id === fromId);
       if (!from || !payload) return null;
 
-      const fromTasks = getWorkflowNodeActiveTasks(from);
-      const fromSize = getWorkflowNodeSize(from, fromTasks.length, fromTasks);
+      const fromSize = getWorkflowNodeLayoutSizeFromSummary(from);
 
       if (payload.kind === 'terminal' && payload.type === 'end') {
         const newId = newRuleId('wf');
@@ -4357,7 +4289,7 @@ const appOptions = {
         }, wf);
       }
 
-      const newSize = getWorkflowNodeSize(newNode, getWorkflowNodeActiveTasks(newNode).length, getWorkflowNodeActiveTasks(newNode));
+      const newSize = getWorkflowNodeLayoutSizeFromSummary(newNode);
       const mainEdge = wf.edges.find((e) => e.from === fromId && !e.branch);
       const oldTargetId = mainEdge?.to || null;
 
@@ -4405,11 +4337,7 @@ const appOptions = {
         Math.round(from.y + fromSize.h * ratio - 22),
         wf,
       );
-      const newSize = getWorkflowNodeSize(
-        newNode,
-        getWorkflowNodeActiveTasks(newNode).length,
-        getWorkflowNodeActiveTasks(newNode),
-      );
+      const newSize = getWorkflowNodeLayoutSizeFromSummary(newNode);
       const existingEdge = wf.edges.find((e) => e.from === fromId && e.branch === branchKey);
       const branchLabel = from.type === 'decision'
         ? getDecisionBranchEdgeLabel(branchKey, from)
@@ -5624,7 +5552,6 @@ const appOptions = {
         ai_verify: 'verify',
         fraud_detect: 'fraud_detect',
         data_mapping: 'master',
-        master_match: 'master',
         output: 'output',
       };
       if (node && map[node.type]) currentNode.value = map[node.type];
@@ -6216,7 +6143,7 @@ const appOptions = {
       const option = getDecisionConditionVariableOption({ variable: value });
       if (!option) return String(value).trim();
       if (option.breadcrumb) return option.breadcrumb;
-      return [option.group, option.label].filter(Boolean).join(' › ') || String(value).trim();
+      return formatDecisionVariableDisplay(value, decisionVariableOptions.value) || String(value).trim();
     }
 
     function getDecisionConditionDataType(condition) {
@@ -6224,7 +6151,8 @@ const appOptions = {
     }
 
     function getDecisionOperatorOptions(condition) {
-      return getDecisionOperatorsForType(getDecisionConditionDataType(condition));
+      const option = getDecisionConditionVariableOption(condition);
+      return getDecisionOperatorsForType(getDecisionConditionDataType(condition), option);
     }
 
     function getDecisionValuePlaceholder(condition) {
@@ -6272,11 +6200,12 @@ const appOptions = {
 
     function ensureDecisionConditionOperator(condition, preferTypeDefault = false) {
       if (!condition) return;
-      const dataType = getDecisionConditionDataType(condition);
+      const option = getDecisionConditionVariableOption(condition);
+      const dataType = option?.dataType || getDecisionConditionDataType(condition);
       if (preferTypeDefault && condition.operator === 'is' && !condition.value) {
-        condition.operator = getDecisionDefaultOperator(dataType);
+        condition.operator = getDecisionDefaultOperator(dataType, option);
       }
-      condition.operator = normalizeDecisionOperatorForType(condition.operator, dataType);
+      condition.operator = normalizeDecisionOperatorForType(condition.operator, dataType, option);
       if (!decisionUsesValueField(condition.operator)) condition.value = '';
       else if (!condition.value) condition.value = inferDecisionConditionDefaultValue(condition);
     }
@@ -6396,184 +6325,25 @@ const appOptions = {
     }
 
     function getWorkflowNodeActiveTasks(node) {
-      if (!node || isWorkflowTerminalNode(node)) return [];
-      switch (node.type) {
-        case 'preprocess': {
-          const img = processingForm.value?.image || {};
-          const docCount = (key) => {
-            const types = img[key];
-            return Array.isArray(types) && types.length ? types.length : 0;
-          };
-          const tasks = [];
-          if (img.rotate) {
-            const n = docCount('rotateDocTypes');
-            tasks.push(n ? `回転 ${n}件` : '画像回転');
-          }
-          if (img.perspective) {
-            const n = docCount('perspectiveDocTypes');
-            tasks.push(n ? `補正 ${n}件` : '画像補正');
-          }
-          if (img.split) {
-            const n = docCount('splitDocTypes');
-            tasks.push(n ? `画像分割 ${n}件` : '画像分割');
-          }
-          if (img.sort) {
-            const n = docCount('sortDocTypes');
-            tasks.push(n ? `排序 ${n}件` : '画像排序');
-          }
-          return tasks.length ? tasks : ['前処理'];
-        }
-        case 'input': {
-          const channels = form.processing?.input?.channels || [];
-          return channels.map((c) => getInputChannelLabel(c));
-        }
-        case 'ocr': {
-          const docs = form.scene?.documents || [];
-          const enabled = (form.processing?.ocrExtract?.enabledTypes || [])
-            .filter((t) => docs.some((d) => d.type === t));
-          if (!enabled.length) return ['OCR抽出'];
-          return enabled.map((t) => getDocDisplayLabel(t));
-        }
-        case 'hitl_gate':
-        case 'confirm':
-        case 'ocr_confirm':
-        case 'verify_confirm': {
-          const meta = getHitlGatePreset(node);
-          const tags = [];
-          if (meta) tags.push(meta.label);
-          if (node.role) tags.push(node.role);
-          return tags.length ? tags : ['人工確認'];
-        }
-        case 'notify': {
-          const normalized = normalizeNotifyNode(node, getActiveWf());
-          const ch = NOTIFY_CHANNELS.find((c) => c.value === normalized.channel);
-          const tags = ['通知'];
-          if (ch) tags.push(ch.label);
-          const dest = truncateWorkflowPreview(formatNotifyRecipientsDisplay(normalized.recipients, normalized.channel), 24);
-          if (dest) tags.push(dest);
-          return tags;
-        }
-        case 'code': {
-          const normalized = normalizeCodeNode(node, getActiveWf());
-          const tags = ['Python'];
-          const inCount = normalized.inputs?.length || 0;
-          if (inCount) tags.push(`入力 ${inCount}`);
-          const lines = String(normalized.pythonCode || '').split('\n').length;
-          tags.push(`${lines}行`);
-          return tags;
-        }
-        case 'decision': {
-          const tags = [];
-          (node.cases || []).forEach((c, i) => {
-            if (c.label) {
-              tags.push(c.label);
-              return;
-            }
-            const preview = getDecisionCaseCanvasPreview(node, c);
-            tags.push(preview && preview !== '条件未設定' ? preview : (i === 0 ? 'IF' : 'ELIF'));
-          });
-          if (node.elseLabel) tags.push(`ELSE:${node.elseLabel}`);
-          return tags.length ? tags : ['条件分岐'];
-        }
-        case 'data_mapping': {
-          return ['設定参照'];
-        }
-        case 'ai_verify': {
-          return AI_VERIFY_MODULE_OPTIONS
-            .filter((opt) => node.moduleEnabled?.[opt.key] !== false)
-            .map((opt) => opt.label);
-        }
-        case 'fraud_detect': {
-          const cfg = normalizeFraudDetectConfig(form.processing?.fraudDetect);
-          const docs = cfg.targetDocTypes?.length
-            ? cfg.targetDocTypes.map((t) => getDocDisplayLabel(t)).slice(0, 2)
-            : ['全帳票'];
-          return [...docs, FRAUD_DETECT_PS_CATEGORY.label, `閾値 ${cfg.riskThreshold}`];
-        }
-        case 'output': {
-          const method = form.output?.deliveryMethod === 'shared_folder' ? '共有フォルダ' : 'API';
-          return [`${method} → ${form.output?.outputTarget || OUTPUT_TARGET_DEFAULT}`];
-        }
-        case 'scene_aggregate': {
-          const mainDoc = getSceneMainDocType(form.scene);
-          const tags = [];
-          if (mainDoc) tags.push(`主帳票: ${getDocDisplayLabel(mainDoc)}`);
-          const docs = form.scene?.documents || [];
-          if (docs.length) tags.push(`帳票 ${docs.length}件`);
-          return tags;
-        }
-        case 'scene_completeness': {
-          const docs = form.scene?.documents || [];
-          if (!docs.length) return ['帳票未設定'];
-          return docs.map((d) => `${getDocDisplayLabel(d.type)}(${d.submission})`);
-        }
-        default:
-          return getWorkflowNodeMeta(node.type).tasks || [];
-      }
+      const summary = getWorkflowNodeCanvasSummary(node);
+      if (summary) return splitWorkflowCanvasSummaryParts(summary);
+      return [];
     }
 
-    function joinWorkflowSummary(...parts) {
-      return parts.filter((p) => p != null && String(p).trim()).join(' · ');
+    function getWorkflowCanvasSummaryContext() {
+      return {
+        image: processingForm.value?.image || {},
+        ocrStats: ocrExtractStats.value,
+        dataMappingRuleCount: dataMappingConfiguredRuleCount.value,
+        verify: form.verify,
+        sceneContext: decisionSceneContext.value,
+        getWf: getActiveWf,
+        getAiVerifyModuleRuleCount: getAiVerifyModuleRuleCount,
+      };
     }
 
     function getWorkflowNodeCanvasSummary(node) {
-      if (!node || isWorkflowTerminalNode(node)) return '';
-      const reusePrefix = node.reuseReview
-        ? `${node.reuseStatus === 'ready' ? 'コピー済' : '要確認'}: ${truncateWorkflowPreview(node.reuseSourceSceneName || node.reuseReview.sourceSceneName, 10)}`
-        : '';
-      switch (node.type) {
-        case 'preprocess': {
-          const tasks = getWorkflowNodeActiveTasks(node);
-          if (!tasks.length) return '未設定';
-          return joinWorkflowSummary(reusePrefix, `${tasks.length}件有効`, tasks.slice(0, 2).join('·'));
-        }
-        case 'ocr': {
-          const tasks = getWorkflowNodeActiveTasks(node);
-          return joinWorkflowSummary(
-            reusePrefix,
-            tasks.length ? `${tasks.length}帳票` : '未設定',
-          );
-        }
-        case 'data_mapping': {
-          return joinWorkflowSummary(reusePrefix, '設定参照');
-        }
-        case 'ai_verify': {
-          const parts = AI_VERIFY_MODULE_OPTIONS
-            .filter((opt) => node.moduleEnabled?.[opt.key] !== false)
-            .map((opt) => opt.key === 'text' || opt.key === 'data'
-              ? `${opt.label.replace('検証', '')}${getAiVerifyModuleRuleCount(opt.key) || ''}`
-              : opt.label);
-          return joinWorkflowSummary(reusePrefix, ...parts) || '未設定';
-        }
-        case 'decision': {
-          const wf = getActiveWf();
-          const opts = wf && node?.id ? getDecisionVariableOptions(wf, node.id, form.verify) : [];
-          const preview = getDecisionNodeCanvasPreview(node, opts);
-          return joinWorkflowSummary(reusePrefix, preview || '条件分岐');
-        }
-        case 'hitl_gate': {
-          const meta = getHitlGatePreset(node);
-          return joinWorkflowSummary(
-            reusePrefix,
-            meta?.label || '人工確認',
-            node.role,
-          );
-        }
-        case 'notify': {
-          const normalized = normalizeNotifyNode(node, getActiveWf());
-          const ch = NOTIFY_CHANNELS.find((c) => c.value === normalized.channel);
-          return joinWorkflowSummary(reusePrefix, '通知', ch?.label);
-        }
-        case 'code': {
-          const normalized = normalizeCodeNode(node, getActiveWf());
-          const inCount = normalized.inputs?.length || 0;
-          return joinWorkflowSummary(reusePrefix, 'Python', inCount ? `入力${inCount}` : null);
-        }
-        default: {
-          const tasks = getWorkflowNodeActiveTasks(node);
-          return joinWorkflowSummary(reusePrefix, ...tasks.slice(0, 2));
-        }
-      }
+      return buildWorkflowNodeCanvasSummary(node, getWorkflowCanvasSummaryContext());
     }
 
 
@@ -6606,8 +6376,7 @@ const appOptions = {
     }
 
     function workflowNodeSummaryTasks(summary) {
-      if (!summary) return [];
-      return Array.isArray(summary) ? summary : [summary];
+      return splitWorkflowCanvasSummaryParts(summary);
     }
 
     function getWorkflowNodeStyle(node) {
@@ -6660,171 +6429,6 @@ const appOptions = {
       ];
     });
 
-    const masterMatchRules = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'master_match') return [];
-      const defaults = { matchMethod: node.matchMethod, masterSourceId: node.masterSourceId };
-      return (node.matchRules || []).map((rule) => normalizeMasterMatchRule(rule, defaults));
-    });
-
-    const editingMasterMatchRuleId = ref(null);
-    const masterMatchRuleDraft = reactive({
-      name: '',
-      inputKind: 'ocr',
-      standardFieldId: '',
-      docType: '',
-      field: '',
-      scope: 'instance',
-      masterSourceId: 'dict:icd10',
-      masterSheet: '',
-      lookupField: '',
-      outputFields: [],
-      matchMethod: 'hybrid',
-      returnMode: 'top1',
-    });
-
-    const masterMatchDraftFieldOptions = computed(() =>
-      (masterMatchRuleDraft.docType ? getDocSchema(masterMatchRuleDraft.docType).fields : []));
-
-    const masterMatchDraftSheetOptions = computed(() =>
-      getMasterSourceSheetOptions(masterMatchRuleDraft.masterSourceId));
-
-    const masterMatchDraftLookupOptions = computed(() =>
-      getMasterSourceColumnOptions(masterMatchRuleDraft.masterSourceId));
-
-    const masterMatchDraftOutputOptions = computed(() =>
-      getMasterSourceColumnOptions(masterMatchRuleDraft.masterSourceId));
-
-    const masterMatchDraftRequiresSheet = computed(() =>
-      masterSourceRequiresSheet(masterMatchRuleDraft.masterSourceId));
-
-    function masterMatchRuleInputSummary(rule) {
-      const r = normalizeMasterMatchRule(rule);
-      if (r.inputKind === 'standard') {
-        const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === r.standardFieldId);
-        return `標準: ${meta?.label || r.standardFieldId || r.field || '—'}`;
-      }
-      if (r.docType && r.field) {
-        return `${getDocDisplayLabel(r.docType)} · ${r.field}`;
-      }
-      return '入力未設定';
-    }
-
-    function masterMatchRuleMatchMethodSummary(rule) {
-      const r = normalizeMasterMatchRule(rule);
-      return MASTER_MATCH_STRATEGIES.find((s) => s.value === r.matchMethod)?.label || '—';
-    }
-
-    function masterMatchRuleReturnModeSummary(rule) {
-      const r = normalizeMasterMatchRule(rule);
-      return MASTER_MATCH_RETURN_MODES.find((s) => s.value === r.returnMode)?.label || '—';
-    }
-
-    function masterMatchRuleMasterRefSummary(rule) {
-      const r = normalizeMasterMatchRule(rule);
-      const parts = [getMasterSystemSourceLabel(r.masterSourceId)];
-      if (r.masterSheet) parts.push(r.masterSheet);
-      if (r.lookupField) parts.push(r.lookupField);
-      return parts.filter(Boolean).join(' · ') || '—';
-    }
-
-    function masterMatchRuleOutputSummary(rule) {
-      const outs = normalizeMasterMatchRule(rule).outputFields || [];
-      if (!outs.length) return '—';
-      if (outs.length <= 2) return outs.join('、');
-      return `${outs[0]} +${outs.length - 1}`;
-    }
-
-    function inferMasterSourceIdForLegacyRule(enriched) {
-      const field = enriched.field || '';
-      const lookup = enriched.lookupField || '';
-      if (/医療機関|機関/.test(field) || /医療機関|機関/.test(lookup)) {
-        return 'dict:medical_facility';
-      }
-      if (/薬|医薬|YJ/i.test(field)) return 'dict:drug_generic';
-      if (/診療科/.test(field) || /診療科/.test(lookup)) return 'dict:diagnosis_dept';
-      if (/傷病|診断|ICD/i.test(field) || /傷病|疾病/i.test(lookup)) return 'dict:icd10';
-      const dictId = enriched.dictionaryId || 'icd10';
-      return `dict:${dictId}`;
-    }
-
-    function masterMatchRuleFromLegacyMapping(rule, knowledgeSource) {
-      const enriched = enrichMasterRule(rule, knowledgeSource);
-      const stdField = DATA_MAPPING_STANDARD_FIELDS.find(
-        (f) => f.label === enriched.field || f.value === enriched.field,
-      );
-      const masterSourceId = inferMasterSourceIdForLegacyRule(enriched);
-      return normalizeMasterMatchRule({
-        id: enriched.id,
-        name: enriched.field,
-        inputKind: stdField ? 'standard' : 'ocr',
-        standardFieldId: stdField?.value || '',
-        docType: enriched.docType,
-        field: enriched.field,
-        masterSourceId,
-        lookupField: enriched.lookupField,
-        outputFields: enriched.outputFields,
-        matchMethod: 'hybrid',
-        returnMode: 'top1',
-      });
-    }
-
-    function repairMasterMatchRuleSources(node) {
-      if (!node?.matchRules?.length) return;
-      node.matchRules = node.matchRules.map((rule) => {
-        const r = normalizeMasterMatchRule(rule, { matchMethod: node.matchMethod });
-        const field = r.field || r.name || '';
-        const expected = inferMasterSourceIdForLegacyRule({
-          field,
-          lookupField: r.lookupField,
-          dictionaryId: r.masterSourceId?.replace(/^dict:/, ''),
-        });
-        if (r.masterSourceId === 'dict:icd10' && expected !== 'dict:icd10') {
-          return normalizeMasterMatchRule({ ...r, masterSourceId: expected }, { matchMethod: node.matchMethod });
-        }
-        return r;
-      });
-    }
-
-    function syncMasterMatchNodesFromSceneMaster() {
-      const wf = getActiveWf();
-      const ks = form.master?.knowledgeSource;
-      (wf?.nodes || []).forEach((node) => {
-        if (node.type !== 'master_match') return;
-        const normalized = normalizeMasterMatchNode(node, wf);
-        if (!normalized.matchRules?.length && form.master?.mappings?.length) {
-          normalized.matchRules = form.master.mappings.map((rule) =>
-            masterMatchRuleFromLegacyMapping(rule, ks),
-          );
-        }
-        repairMasterMatchRuleSources(normalized);
-        Object.assign(node, normalized);
-      });
-    }
-
-    function resetMasterMatchRuleFields() {
-      const src = getMasterSystemSource('dict:icd10');
-      Object.assign(masterMatchRuleDraft, {
-        name: '',
-        inputKind: 'ocr',
-        standardFieldId: DATA_MAPPING_STANDARD_FIELDS[0]?.value || '',
-        docType: sceneDocTypes.value[0] || '',
-        field: '',
-        scope: 'instance',
-        masterSourceId: 'dict:icd10',
-        masterSheet: '',
-        lookupField: src?.columns?.[0] || '',
-        outputFields: [],
-        matchMethod: 'hybrid',
-        returnMode: 'top1',
-      });
-    }
-
-    function resetMasterMatchRuleDraft() {
-      editingMasterMatchRuleId.value = null;
-      resetMasterMatchRuleFields();
-    }
-
     function ensureDataMappingEditorReady() {
       if (inspectorPanel.value !== 'data_mapping' || !inspectorExpanded.value) return;
       const node = getActiveDataMappingNode();
@@ -6835,185 +6439,6 @@ const appOptions = {
       }
       selectedDataMappingRuleId.value = rules[0]?.id || null;
     }
-
-    function ensureMasterMatchEditorReady() {
-      if (inspectorPanel.value !== 'master_match') return;
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'master_match') return;
-      const rules = masterMatchRules.value;
-      if (editingMasterMatchRuleId.value && rules.some((rule) => rule.id === editingMasterMatchRuleId.value)) {
-        return;
-      }
-      if (rules.length) {
-        editMasterMatchRule(rules[0]);
-      } else {
-        resetMasterMatchRuleFields();
-      }
-    }
-
-    function startNewMasterMatchRule() {
-      resetMasterMatchRuleDraft();
-    }
-
-    function onMasterMatchDraftSourceChange() {
-      const src = getMasterSystemSource(masterMatchRuleDraft.masterSourceId);
-      const cols = getMasterSourceColumnOptions(masterMatchRuleDraft.masterSourceId);
-      masterMatchRuleDraft.lookupField = cols[0]?.value || '';
-      masterMatchRuleDraft.outputFields = [];
-      if (src?.sourceType === 'table') {
-        masterMatchRuleDraft.masterSheet = src.sheets?.[0] || '';
-      } else {
-        masterMatchRuleDraft.masterSheet = '';
-      }
-    }
-
-    function editMasterMatchRule(rule) {
-      editingMasterMatchRuleId.value = rule.id;
-      const r = normalizeMasterMatchRule(rule, { matchMethod: 'hybrid' });
-      Object.assign(masterMatchRuleDraft, {
-        name: r.name,
-        inputKind: r.inputKind,
-        standardFieldId: r.standardFieldId,
-        docType: r.docType || sceneDocTypes.value[0] || '',
-        field: r.field,
-        scope: r.scope,
-        masterSourceId: r.masterSourceId,
-        masterSheet: r.masterSheet,
-        lookupField: r.lookupField,
-        outputFields: [...(r.outputFields || [])],
-        matchMethod: r.matchMethod,
-        returnMode: r.returnMode,
-      });
-    }
-
-    function cancelMasterMatchRuleEdit() {
-      const rules = masterMatchRules.value;
-      if (rules.length) editMasterMatchRule(rules[0]);
-      else resetMasterMatchRuleDraft();
-    }
-
-    function saveMasterMatchRuleFromDraft() {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'master_match') return;
-      if (!masterMatchRuleDraft.name.trim()) {
-        ElementPlus.ElMessage.warning('ルール名を入力してください');
-        return;
-      }
-      if (masterMatchRuleDraft.inputKind === 'standard' && !masterMatchRuleDraft.standardFieldId) {
-        ElementPlus.ElMessage.warning('標準フィールドを選択してください');
-        return;
-      }
-      if (masterMatchRuleDraft.inputKind === 'ocr' && (!masterMatchRuleDraft.docType || !masterMatchRuleDraft.field)) {
-        ElementPlus.ElMessage.warning('帳票タイプとフィールドを選択してください');
-        return;
-      }
-      if (masterSourceRequiresSheet(masterMatchRuleDraft.masterSourceId) && !masterMatchRuleDraft.masterSheet) {
-        ElementPlus.ElMessage.warning('シートを選択してください');
-        return;
-      }
-      if (!masterMatchRuleDraft.lookupField) {
-        ElementPlus.ElMessage.warning('照合列を選択してください');
-        return;
-      }
-      if (!masterMatchRuleDraft.outputFields.length) {
-        ElementPlus.ElMessage.warning('返却列を1件以上選択してください');
-        return;
-      }
-      if (!Array.isArray(node.matchRules)) node.matchRules = [];
-      const stdMeta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === masterMatchRuleDraft.standardFieldId);
-      const payload = normalizeMasterMatchRule({
-        id: editingMasterMatchRuleId.value || newRuleId('mr'),
-        name: masterMatchRuleDraft.name.trim(),
-        inputKind: masterMatchRuleDraft.inputKind,
-        standardFieldId: masterMatchRuleDraft.standardFieldId,
-        docType: masterMatchRuleDraft.docType,
-        field: masterMatchRuleDraft.inputKind === 'standard'
-          ? (stdMeta?.label || masterMatchRuleDraft.standardFieldId)
-          : masterMatchRuleDraft.field,
-        scope: masterMatchRuleDraft.scope,
-        masterSourceId: masterMatchRuleDraft.masterSourceId,
-        masterSheet: masterMatchRuleDraft.masterSheet,
-        lookupField: masterMatchRuleDraft.lookupField,
-        outputFields: [...masterMatchRuleDraft.outputFields],
-        matchMethod: masterMatchRuleDraft.matchMethod,
-        returnMode: masterMatchRuleDraft.returnMode,
-      }, { matchMethod: node.matchMethod });
-      const idx = node.matchRules.findIndex((rule) => rule.id === editingMasterMatchRuleId.value);
-      if (idx >= 0) node.matchRules[idx] = payload;
-      else node.matchRules.push(payload);
-      node.masterSourceId = node.matchRules[0]?.masterSourceId || node.masterSourceId;
-      node.knowledgeSource = resolveMasterMatchKnowledgeSource({ masterSourceId: node.masterSourceId });
-      ElementPlus.ElMessage.success('照合ルールを保存しました');
-      const savedId = payload.id;
-      syncDictFieldsOnOutput();
-      const saved = node.matchRules.find((rule) => rule.id === savedId);
-      if (saved) editMasterMatchRule(saved);
-      else resetMasterMatchRuleFields();
-      pushWorkflowHistory('マスタ照合ルールを保存');
-    }
-
-    function removeMasterMatchRule(id) {
-      const node = selectedWorkflowNode.value;
-      if (!node?.matchRules) return;
-      node.matchRules = node.matchRules.filter((rule) => rule.id !== id);
-      if (editingMasterMatchRuleId.value === id) {
-        ensureMasterMatchEditorReady();
-      }
-      syncDictFieldsOnOutput();
-      pushWorkflowHistory('マスタ照合ルールを削除');
-    }
-
-    function getEffectiveMasterMappings() {
-      const wf = form.workflows?.case;
-      const fromNodes = [];
-      (wf?.nodes || []).forEach((node) => {
-        if (node.type !== 'master_match') return;
-        (node.matchRules || []).forEach((rule) => {
-          const r = normalizeMasterMatchRule(rule, { matchMethod: node.matchMethod });
-          const src = getMasterSystemSource(r.masterSourceId);
-          const ks = src?.sourceType === 'dict'
-            ? { type: 'dict', dictionaryId: src.dictionaryId }
-            : form.master?.knowledgeSource;
-          fromNodes.push(enrichMasterRule({
-            id: r.id,
-            docType: r.inputKind === 'ocr' ? r.docType : '',
-            field: r.inputKind === 'standard'
-              ? (DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === r.standardFieldId)?.label || r.field)
-              : r.field,
-            lookupField: r.lookupField,
-            outputFields: r.outputFields,
-          }, ks));
-        });
-      });
-      if (fromNodes.length) return fromNodes;
-      return form.master.mappings;
-    }
-
-    const masterMatchSummaryRules = computed(() => masterMatchRules.value.slice(0, 5));
-
-    const masterMatchSummaryRulesOverflow = computed(() =>
-      Math.max(0, masterMatchRules.value.length - 5));
-
-    const masterMatchMcpInputSummary = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'master_match') return null;
-      const wf = getActiveWf();
-      const mapping = getMasterMatchUpstreamDataMapping(wf, node.id);
-      if (!mapping) {
-        return {
-          status: 'none',
-          label: '上流データマッピング未接続',
-        };
-      }
-      const varName = getWorkflowNodeVarName(mapping, wf);
-      const mappedCount = (mapping.mappingRules || []).filter((r) => r.sourceFieldIds?.length && r.standardFieldId).length;
-      return {
-        status: 'ok',
-        label: `標準フィールド ${mappedCount} 件`,
-        varName,
-        token: `{${varName}.standard_fields}`,
-      };
-    });
 
     const dataMappingSourceFieldOptions = computed(() => {
       const docOptions = (form.scene.documents || []).flatMap((doc) =>
@@ -7212,94 +6637,15 @@ const appOptions = {
       return (target?.mappingRules || []).filter((rule) => rule.conflictCheckEnabled).length;
     }
 
-    function getMasterMatchInputSourceLabel(value) {
-      return MASTER_MATCH_INPUT_SOURCES.find((opt) => opt.value === value)?.label || '標準フィールド';
-    }
-
     const mcpServerCatalog = computed(() => mergeMcpServerCatalog(MCP_SERVER_SEEDS, form.mcpServers || []));
 
-    const selectedMcpToolSchema = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp') return null;
-      return getMcpToolDef(node.mcpServerId, node.mcpToolId, mcpServerCatalog.value);
-    });
-
-    const mcpSelectedServer = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node?.mcpServerId) return null;
-      return getMcpServerDef(node.mcpServerId, mcpServerCatalog.value);
-    });
-
-    const mcpVariableOptions = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node) return [];
-      return buildMcpVariableOptions(getActiveWf(), node.id, form.scene.documents, getDocDisplayLabel);
-    });
-
-    function getMcpToolsForServer(serverId) {
-      return getMcpServerDef(serverId, mcpServerCatalog.value)?.tools || [];
-    }
+    const mcpVariableOptions = computed(() =>
+      buildMcpVariableOptions(getActiveWf(), null, form.scene.documents, getDocDisplayLabel),
+    );
 
     function getMcpServerStatusMeta(status) {
       return MCP_SERVER_STATUS_META[status] || MCP_SERVER_STATUS_META.connected;
     }
-
-    function selectMcpServer(server) {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp' || !server) return;
-      if (!isMcpServerSelectable(server)) {
-        ElementPlus.ElMessage.warning(`「${server.label}」は ${getMcpServerStatusMeta(server.status).label} のため選択できません`);
-        return;
-      }
-      node.mcpServerId = server.id;
-      node.mcpToolId = '';
-      node.mcpInputs = [];
-    }
-
-    function selectMcpTool(toolId) {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp' || !toolId) return;
-      node.mcpToolId = toolId;
-      node.mcpInputs = buildDefaultMcpInputs(node.mcpServerId, toolId, mcpServerCatalog.value, form.mcpToolParamProfiles);
-    }
-
-    function onMcpServerChange() {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp') return;
-      const server = getMcpServerDef(node.mcpServerId, mcpServerCatalog.value);
-      if (server && !isMcpServerSelectable(server)) {
-        ElementPlus.ElMessage.warning(`「${server.label}」は ${getMcpServerStatusMeta(server.status).label} のため選択できません`);
-        node.mcpServerId = '';
-      }
-      node.mcpToolId = '';
-      node.mcpInputs = [];
-    }
-
-    function onMcpToolChange() {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp') return;
-      node.mcpInputs = buildDefaultMcpInputs(node.mcpServerId, node.mcpToolId, mcpServerCatalog.value, form.mcpToolParamProfiles);
-    }
-
-    const mcpNodeParamSummary = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'mcp' || !node.mcpToolId) return [];
-      const tool = selectedMcpToolSchema.value;
-      if (!tool?.params?.length) return [];
-      const rows = node.mcpInputs?.length
-        ? node.mcpInputs
-        : buildDefaultMcpInputs(node.mcpServerId, node.mcpToolId, mcpServerCatalog.value, form.mcpToolParamProfiles);
-      return rows.map((row) => {
-        const meta = tool.params.find((p) => p.key === row.key);
-        const label = meta?.label || row.key;
-        let display = row.value || '—';
-        if (row.mode === 'variable') {
-          const opt = mcpVariableOptions.value.find((o) => o.value === row.value);
-          display = opt?.label || row.value || '—';
-        }
-        return { key: row.key, label, display, mode: row.mode };
-      });
-    });
 
     const mcpAdminReturnContext = ref(null);
     const mcpAdminSelectedServerId = ref('');
@@ -7313,17 +6659,11 @@ const appOptions = {
 
     const mcpAdminTools = computed(() => mcpAdminSelectedServer.value?.tools || []);
 
-    function openMcpServerManagement(serverId = '', toolId = '', fromWorkflow = false) {
-      if (fromWorkflow) {
-        mcpAdminReturnContext.value = {
-          nodeId: selectedWorkflowNodeId.value,
-        };
-      } else {
-        mcpAdminReturnContext.value = null;
-      }
-      const fallbackId = serverId || selectedWorkflowNode.value?.mcpServerId || mcpServerCatalog.value[0]?.id || '';
+    function openMcpServerManagement(serverId = '', toolId = '') {
+      mcpAdminReturnContext.value = null;
+      const fallbackId = serverId || mcpServerCatalog.value[0]?.id || '';
       mcpAdminSelectedServerId.value = fallbackId;
-      mcpAdminExpandedToolId.value = toolId || selectedWorkflowNode.value?.mcpToolId || '';
+      mcpAdminExpandedToolId.value = toolId || '';
       if (mcpAdminExpandedToolId.value) loadMcpAdminToolDraft();
       switchModule('mcp-servers');
     }
@@ -7375,16 +6715,6 @@ const appOptions = {
       }
     }
 
-    function applyMcpToolProfileToWorkflowNodes(serverId, toolId, rows) {
-      const wf = getActiveWf();
-      if (!wf?.nodes) return;
-      wf.nodes.forEach((n) => {
-        if (n.type === 'mcp' && n.mcpServerId === serverId && n.mcpToolId === toolId) {
-          n.mcpInputs = cloneJson(rows);
-        }
-      });
-    }
-
     function saveMcpAdminToolParams() {
       const serverId = mcpAdminSelectedServerId.value;
       const toolId = mcpAdminExpandedToolId.value;
@@ -7393,11 +6723,6 @@ const appOptions = {
       if (!form.mcpToolParamProfiles) form.mcpToolParamProfiles = {};
       if (!form.mcpToolParamProfiles[serverId]) form.mcpToolParamProfiles[serverId] = {};
       form.mcpToolParamProfiles[serverId][toolId] = rows;
-      applyMcpToolProfileToWorkflowNodes(serverId, toolId, rows);
-      const node = selectedWorkflowNode.value;
-      if (node?.type === 'mcp' && node.mcpServerId === serverId && node.mcpToolId === toolId) {
-        node.mcpInputs = cloneJson(rows);
-      }
       ElementPlus.ElMessage.success('Tool パラメータを保存しました');
     }
 
@@ -7408,39 +6733,6 @@ const appOptions = {
 
     function getWorkflowNodeIoFooter(node) {
       return getWorkflowNodeIo(node);
-    }
-
-    function ensureMcpInputRow(node, paramKey) {
-      if (!node?.mcpInputs) node.mcpInputs = [];
-      let row = node.mcpInputs.find((r) => r.key === paramKey);
-      if (!row) {
-        row = { key: paramKey, value: '', mode: 'fixed' };
-        node.mcpInputs.push(row);
-      }
-      return row;
-    }
-
-    function getMcpInputMode(node, paramKey) {
-      return ensureMcpInputRow(node, paramKey).mode || 'fixed';
-    }
-
-    function setMcpInputMode(node, paramKey, mode) {
-      const row = ensureMcpInputRow(node, paramKey);
-      row.mode = mode;
-      if (mode === 'variable' && !String(row.value).startsWith('{{')) {
-        row.value = mcpVariableOptions.value[0]?.value || '';
-      }
-      if (mode === 'fixed' && String(row.value).startsWith('{{')) {
-        row.value = '';
-      }
-    }
-
-    function getMcpInputValue(node, paramKey) {
-      return ensureMcpInputRow(node, paramKey).value ?? '';
-    }
-
-    function setMcpInputValue(node, paramKey, value) {
-      ensureMcpInputRow(node, paramKey).value = value;
     }
 
     const mcpServerCreateVisible = ref(false);
@@ -7491,9 +6783,6 @@ const appOptions = {
         selectMcpAdminServer(item.id);
         mcpAdminExpandedToolId.value = item.tools[0]?.id || '';
         loadMcpAdminToolDraft();
-      } else {
-        const node = selectedWorkflowNode.value;
-        if (node?.type === 'mcp') selectMcpServer(item);
       }
     }
 
@@ -7649,7 +6938,6 @@ const appOptions = {
         if (!inspectorExpanded.value) return;
         nextTick(() => {
           if (inspectorPanel.value === 'data_mapping') ensureDataMappingEditorReady();
-          if (inspectorPanel.value === 'master_match') ensureMasterMatchEditorReady();
         });
       },
     );
@@ -7672,21 +6960,6 @@ const appOptions = {
       },
       () => syncDictFieldsOnOutput(),
       { immediate: true, deep: true },
-    );
-
-    watch(
-      () => {
-        const wf = form.workflows?.case;
-        return (wf?.nodes || [])
-          .filter((node) => node.type === 'master_match')
-          .map((node) => (node.matchRules || []).map((rule) => {
-            const r = normalizeMasterMatchRule(rule, { matchMethod: node.matchMethod });
-            return `${r.id}:${r.inputKind}:${r.docType}:${r.field}:${r.scope}:${r.masterSourceId}:${r.masterSheet}:${r.lookupField}:${(r.outputFields || []).join(',')}`;
-          }).join('|'))
-          .join('\u0001');
-      },
-      () => syncDictFieldsOnOutput(),
-      { immediate: true },
     );
 
     watch(
@@ -8080,13 +7353,6 @@ const appOptions = {
     }
 
     watch(dataPickerDocs, () => { dataPickerField.value = ''; }, { deep: true });
-    watch(
-      () => masterMatchRuleDraft.docType,
-      (docType, prev) => {
-        if (docType === prev) return;
-        masterMatchRuleDraft.field = '';
-      },
-    );
     watch(textPickerDocs, () => { textPickerField.value = ''; }, { deep: true });
     watch(workflowSetupStep, (step) => {
       if (step === 2) enterWorkflowCanvasView();
@@ -8533,7 +7799,7 @@ const appOptions = {
     }
 
     function getExportRowsForDocMode(docType, mode) {
-      const matchRules = primaryMasterMatchNode.value?.matchRules || [];
+      const matchRules = getEffectiveMasterMappings();
       if (mode === 'standard') {
         if (!docType) return getAllExportStandardFieldRows();
         return buildExportStandardFieldRows(
@@ -8563,7 +7829,7 @@ const appOptions = {
     }
 
     function getAllExportStandardFieldRows() {
-      const matchRules = primaryMasterMatchNode.value?.matchRules || [];
+      const matchRules = getEffectiveMasterMappings();
       return (form.output.docFields || []).flatMap((doc) =>
         buildExportStandardFieldRows(
           doc.docType,
@@ -8897,7 +8163,6 @@ const appOptions = {
       Object.keys(form).forEach((k) => delete form[k]);
       Object.assign(form, next);
       ensureFormWorkflows(form);
-      syncMasterMatchNodesFromSceneMaster();
       savedSnapshot.value = JSON.stringify(form);
       if (options.focusScene) {
         selectedWorkflowNodeId.value = null;
@@ -9305,7 +8570,6 @@ const appOptions = {
       if (!form.master.knowledgeSource) {
         form.master.knowledgeSource = normalizeKnowledgeSource(null);
       }
-      syncMasterMatchNodesFromSceneMaster();
       initWorkflowHistory('初期状態');
       const _wfCase = form.workflows?.case;
       if (_wfCase && needsCanonicalCaseWorkflowLayout(_wfCase)) {
@@ -9410,7 +8674,6 @@ const appOptions = {
       notifyVariablePopperOptions,
       notifyVariableOptions,
       notifyVariableCascaderOptions,
-      notifyRecommendedVars,
       insertNotifyVariable,
       onNotifyVariablePickChange,
       getNotifyTemplateRecommendedVars,
@@ -9441,7 +8704,6 @@ const appOptions = {
       onCodeFieldChange,
       formatCodeInputVariableToken,
       normalizeCodeNode,
-      getHitlGateCanvasSummary,
       getHitlGateBranchCanvasLabel,
       judgmentAllowsElif,
       decisionVariableOptionGroups,
@@ -9478,8 +8740,6 @@ const appOptions = {
       decisionReturnTargetOptions,
       NOTIFY_CHANNELS,
       NOTIFY_RECIPIENT_OPTIONS,
-      NOTIFY_TEMPLATES,
-      onNotifyTemplateChange,
       getDecisionYesRule,
       getDecisionNoRule,
       getDecisionElseDisplayText,
@@ -9874,25 +9134,12 @@ const appOptions = {
       WORKFLOW_WORKSHOP_CHECKLIST,
       MCP_SERVER_SEEDS,
       MCP_REGISTRY,
-      MCP_OUTPUT_VARS,
       MCP_SERVER_STATUS_META,
       MCP_SERVER_TYPES,
       MCP_PARAM_MODES,
       mcpServerCatalog,
-      mcpSelectedServer,
       mcpVariableOptions,
       getMcpServerStatusMeta,
-      selectMcpServer,
-      selectMcpTool,
-      getMcpToolsForServer,
-      onMcpServerChange,
-      onMcpToolChange,
-      selectedMcpToolSchema,
-      getMcpInputMode,
-      setMcpInputMode,
-      getMcpInputValue,
-      setMcpInputValue,
-      formatMcpOutputVarToken,
       mcpServerCreateVisible,
       mcpServerCreateDraft,
       openMcpServerCreateDialog,
@@ -9911,39 +9158,9 @@ const appOptions = {
       setMcpAdminDraftParamMode,
       getMcpAdminParamMeta,
       isMcpCustomServer,
-      mcpNodeParamSummary,
       saveMcpServerFromDraft,
       isMcpServerSelectable,
-      MASTER_MATCH_STRATEGIES,
-      MASTER_MATCH_RETURN_MODES,
-      MASTER_MATCH_INPUT_KINDS,
-      MASTER_MATCH_INPUT_SOURCES,
-      MASTER_MATCH_EXECUTION_SCOPES,
-      MASTER_MATCH_SCOPES,
       MASTER_SYSTEM_SOURCES,
-      masterMatchRules,
-      masterMatchSummaryRules,
-      masterMatchSummaryRulesOverflow,
-      getMasterMatchInputSourceLabel,
-      masterMatchMcpInputSummary,
-      editingMasterMatchRuleId,
-      masterMatchRuleDraft,
-      masterMatchDraftFieldOptions,
-      masterMatchDraftSheetOptions,
-      masterMatchDraftLookupOptions,
-      masterMatchDraftOutputOptions,
-      masterMatchDraftRequiresSheet,
-      masterMatchRuleInputSummary,
-      masterMatchRuleMasterRefSummary,
-      masterMatchRuleOutputSummary,
-      masterMatchRuleMatchMethodSummary,
-      masterMatchRuleReturnModeSummary,
-      editMasterMatchRule,
-      startNewMasterMatchRule,
-      cancelMasterMatchRuleEdit,
-      saveMasterMatchRuleFromDraft,
-      removeMasterMatchRule,
-      onMasterMatchDraftSourceChange,
       masterSourceRequiresSheet,
       dataMappingSourceFieldOptions,
       dataMappingStandardFieldOptions,

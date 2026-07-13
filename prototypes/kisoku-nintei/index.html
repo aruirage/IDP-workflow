@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=616" />
+  <link rel="stylesheet" href="style.css?v=619" />
 </head>
 <body>
   <div id="app">
@@ -944,9 +944,8 @@
                         >×</button>
                       </div>
                       <p
-                        v-if="getWorkflowNodeCanvasSummary(node)"
-                        class="wf-node-summary"
-                        :class="{ 'wf-node-summary--decision': wfCanvasNodesCollapsed }"
+                        v-if="wfCanvasNodesCollapsed && getWorkflowNodeCanvasSummary(node)"
+                        class="wf-node-summary wf-node-summary--decision"
                         :title="getWorkflowNodeCanvasSummary(node)"
                       >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                       <div v-show="!wfCanvasNodesCollapsed" class="wf-ifelse-body">
@@ -1036,8 +1035,8 @@
                       </div>
                       <p
                         v-if="getWorkflowNodeCanvasSummary(node)"
-                        class="wf-node-summary"
-                        :class="{ 'wf-node-summary--hitl': wfCanvasNodesCollapsed }"
+                        class="wf-node-summary wf-node-summary--hitl"
+                        :class="{ 'wf-node-summary--compact': wfCanvasNodesCollapsed }"
                         :title="getWorkflowNodeCanvasSummary(node)"
                       >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                       <div
@@ -1107,6 +1106,7 @@
                       <p
                         v-if="getWorkflowNodeCanvasSummary(node)"
                         class="wf-node-summary"
+                        :class="{ 'wf-node-summary--compact': wfCanvasNodesCollapsed }"
                         :title="getWorkflowNodeCanvasSummary(node)"
                       >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                     </div>
@@ -1855,7 +1855,7 @@
                 <!-- 開始ノード -->
                 <div v-if="inspectorPanel === 'start' && selectedWorkflowNode" class="inspector-panel-section wf-start-inspector">
                   <inspector-module>
-                    <inspector-module-card title="起動条件">
+                    <inspector-module-card title="起動イベント">
                       <div class="wf-start-readonly-list">
                         <div
                           v-for="trigger in CASE_WORKFLOW_START_TRIGGERS"
@@ -2010,6 +2010,11 @@
                               <div class="workflow-output-var-main">
                                 <code class="workflow-output-var-name">{{ item.name }}</code>
                                 <span class="workflow-output-var-type">{{ item.dataType }}</span>
+                                <span
+                                  v-if="item.consumptionPathLabel"
+                                  class="workflow-output-var-consumption"
+                                  :title="'消费路径：' + item.consumptionPathLabel"
+                                >{{ item.consumptionPathLabel }}</span>
                               </div>
                               <div class="workflow-output-var-label">{{ item.label }}</div>
                             </li>
@@ -2697,9 +2702,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=616"></script>
-  <script src="scripts/mock-data.js?v=616"></script>
-  <script src="scripts/scene-config.js?v=616"></script>
-  <script src="main.js?v=616"></script>
+  <script src="scripts/workflow-core.js?v=619"></script>
+  <script src="scripts/mock-data.js?v=619"></script>
+  <script src="scripts/scene-config.js?v=619"></script>
+  <script src="main.js?v=619"></script>
 </body>
 </html>

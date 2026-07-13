@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '592-ensure-end-node';
+const PROTOTYPE_BUILD = '618-hitl-layout';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -37,7 +37,7 @@ const MODULE_PAGE_META = {
   },
   'mcp-servers': {
     title: 'MCP サーバー管理',
-    subtitle: 'Server 接続・Tool 定義・入力パラメータを集中管理。Workflow では Server / Tool の選択のみ行います。',
+    subtitle: 'Server 接続・Tool 定義・入力パラメータを集中管理します。',
   },
 };
 
@@ -51,23 +51,11 @@ const INSPECTOR_HINTS = {
   preprocess: 'OCR 前に画像補正、画像回転、画像分割を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像並び替え：同一帳票タイプ内の画像を整列。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
   ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
-  masterMatch: 'マスタデータ本体は設定ページで管理します。このノードでは現在の Workflow で使う入力フィールド、照合列、返却列、照合方式を設定します。',
   dataMapping: 'データマッピング設定で定義した全局ルールをこの Workflow で呼び出します。ノード内ではルール摘要、適用性チェック、設定ページへの導線のみ扱います。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
-  masterMatchInput: '標準フィールドは上流データマッピングから自動連携します。照合対象フィールドは標準フィールドまたは OCR 抽出フィールドから指定します。',
-  masterMatchOutput: '照合結果・全ファイル对象配列（files[]）・人工確認推奨・ステータス。後続ノードで参照できます。',
-  masterMatchOutputFields: '照合・正規化結果を書き込む出力フィールドを指定します。',
-  masterMatchFields: '帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。',
-  masterMatchScope: '同一帳票タイプに複数ファイルがある場合の照合単位です。インスタンス別＝ファイルごと、帳票タイプ集約＝タイプ単位、案件集約＝案件全体で1回照合します。',
-  masterMatchStrategy: '照合方式：キーワード検索 / ベクトル検索 / 混合検索 / コード検索。',
-  mcpTool: 'Workflow では MCP サーバーと Tool を選択するだけです。接続情報・Tool 定義・入力パラメータ（定数 / 変数参照）は「MCP サーバー管理」で設定します。\n\nOCR抽出 → MCP → マスタ照合 → AI検証 の主処理チェーンの一段。REST / Web API・DB・RPA など任意の外部連携に利用できます。',
-  mcpServer: '登録済み MCP サーバーを選択します。新規登録・Tool・パラメータの編集は「サーバー管理へ」から MCP サーバー管理画面を開いてください。',
-  mcpToolSelect: '選択中サーバーが提供する Tool を1つ選びます。パラメータの詳細設定は「Tool・パラメータ設定へ」からサーバー管理画面を開いてください。',
-  mcpParams: '各パラメータの定数 / 変数参照は MCP サーバー管理で設定します。Workflow では設定済み内容を参照のみ表示します。',
   mcpAdminOverview: 'MCP サーバー接続・Tool 一覧・各 Tool の入力パラメータをここで集中管理します。OAuth 等の認証設定も本画面（または接続ウィザード）で行います。',
-  mcpAdminTools: 'Tool ごとにパラメータ schema と既定値（定数 / 上流変数参照）を設定します。保存後、当該 Server / Tool を使う Workflow ノードに反映されます。',
-  mcpError: 'タイムアウト（秒）・リトライ上限・失敗時の動作（スキップ / リトライ / ワークフロー停止）を設定します。',
+  mcpAdminTools: 'Tool ごとにパラメータ schema と既定値（定数 / 上流変数参照）を設定します。',
   nodeOutput: '後続ノード・IF/ELSE 条件・MCP 変数参照で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
   nodeOutputPreprocess: '前処理総状態・全ファイル对象配列（files[]）。各文件含 status/url。人工分岐は条件ノードで preprocessStatus 等を参照。',
   nodeOutputOcr: 'OCR 総状態・低信頼件数・files[]（含 files[].ocrFields）。人工分岐は条件ノードで lowConfidenceFieldCount 等を参照。',
@@ -75,8 +63,7 @@ const INSPECTOR_HINTS = {
   nodeOutputStart: 'Step1 案件变量 + docTypes[]（账票类型清单）+ files[]。账票字段仅在条件选择时从 Step1 模板加载。',
   nodeOutputEnd: '案件状態提案・最終処理結果・未完了事項・成果ファイル状態・終了時刻。',
   nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
-  nodeOutputNotify: '通知送信状態・通知タイプ・送信日時・送信先・失敗理由。',
-  mcpOutput: 'Tool 実行後に後続ノードへ渡される出力変数です。IF/ELSE やマスタ照合の入力として参照できます。',
+  nodeOutputNotify: '通知送信状態・送信日時・送信失敗理由。',
   dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时三级展开：映射节点 → 標準フィールド → 字段名。',
   externalApiIo: '前工程から自動連携される入力です。',
   knowledgeSelect: 'ナレッジ数据源を選択します。+ ボタンから新規作成（文档上传 / Web Site API）ができます。',
@@ -85,7 +72,6 @@ const INSPECTOR_HINTS = {
   externalApiConfig: '检索パラメータを設定します。',
   externalApiOutput: '检索結果として後続ノードへ渡される出力変数です。',
   masterKnowledge: '照合に使用する内部マスタ辞書を選択します。辞書の項目定義は辞書設定で管理します。',
-  masterMatchRules: '帳票タイプ・OCR 項目と辞書フィールドの照合ルールを定義します。結果は案件データセットに付与されます。',
   masterApi: 'リトライ回数・キャッシュ TTL・例外時の動作を指定します。',
   masterRules: '登録済み照合ルールの一覧です。下のフォームから追加・編集できます。',
   masterRuleAdd: '帳票タイプ・照合元 OCR 項目・照合先・出力フィールドを指定してルールを追加します。',
@@ -101,7 +87,7 @@ const INSPECTOR_HINTS = {
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
   decisionOutputVar: '分岐名は後続ノードの条件式で参照できます。',
   fraudDetect: '画像の PS 痕跡・改ざんの有無を判定します。画像リスクスコアが閾値以上の場合、条件分岐または人工確認へ送ります。',
-  notify: '不備通知・処理完了通知・異常通知を送信します。通知ノードは案件状態を更新せず、停止も制御しません。',
+  notify: '件名・本文に変数を挿入して通知を送信します。通知ノードは案件状態を更新せず、停止も制御しません。',
   startTriggers: 'Workflow 入口。案件集約結果に応じてインスタンスを新規起動または続行します（読み取り専用）。',
   startTriggerCaseEvent: 'ファイルアップロード自体は Workflow を開始しません。案件集約完了後、または補件後に開始・続行します。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
@@ -270,7 +256,7 @@ const REMOVED_WORKFLOW_NODE_TYPES = new Set([
   'doc_classify', 'doc_process_rules', 'doc_effect_test', 'doc_store', 'doc_subflow',
   'supplement_upload', 'case_pool_update', 'verify_rerun', 'status_update',
   'case_link', 'scene_aggregate', 'scene_completeness',
-  'input', 'output', 'fraud_detect', 'master_match',
+  'input', 'output', 'fraud_detect', 'master_match', 'mcp',
 ]);
 
 const WORKFLOW_INSPECTOR_MAP = {
@@ -288,24 +274,39 @@ const WORKFLOW_INSPECTOR_MAP = {
 
 const CASE_WORKFLOW_START_TRIGGERS = [
   {
-    id: 'new_case_start',
+    id: 'e1',
+    eventId: 'E1',
     category: '案件集約',
-    label: '新規起動',
-    detail: '案件集約完了後、新規案件としてワークフローインスタンスを起動',
+    label: '集約完了・初回起動',
+    detail: 'caseStatus が待機中、ファイルが紐付け完了し書類が揃ったとき、新規インスタンスを起動',
+    actionLabel: '新規起動',
     triggerType: '新規起動',
   },
   {
-    id: 'resume',
-    category: '補件・帰属',
-    label: '続行',
-    detail: '補件归入・補件直掛・後続ファイル归入後、既存インスタンスを続行',
+    id: 'e2',
+    eventId: 'E2',
+    category: '案件集約',
+    label: '集約完了・既存案件へ帰属',
+    detail: '集約完了後、本批ファイルが既存案件へ帰属したとき、インスタンスを続行または起動',
+    actionLabel: '続行',
     triggerType: '続行',
   },
   {
-    id: 'reexecute',
+    id: 'e3',
+    eventId: 'E3',
+    category: '補件・帰属',
+    label: '補件・ファイル帰属',
+    detail: 'caseStatus が補件、補件ファイルがアップロードされ本案へ帰属したとき、既存インスタンスを続行',
+    actionLabel: '続行',
+    triggerType: '続行',
+  },
+  {
+    id: 'e4',
+    eventId: 'E4',
     category: '処理中止',
     label: '再実行',
-    detail: '処理中止案件が現行ワークフロー版で再実行されたとき、新規インスタンスを起動',
+    detail: 'caseStatus が処理中止、ユーザー確認後（集約は変更なし）、新規インスタンスを再実行',
+    actionLabel: '再実行',
     triggerType: '再実行',
   },
 ];
@@ -315,31 +316,34 @@ const CASE_WORKFLOW_START_TRIGGER_IDS = new Set(
 );
 
 const CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP = {
-  initial_upload: 'new_case_start',
-  cross_batch_upload: 'resume',
-  auto_supplement_bind: 'resume',
-  manual_supplement_link: 'resume',
+  initial_upload: 'e1',
+  cross_batch_upload: 'e2',
+  auto_supplement_bind: 'e3',
+  manual_supplement_link: 'e3',
+  new_case_start: 'e1',
+  resume: 'e3',
+  reexecute: 'e4',
 };
 
 const CASE_WORKFLOW_LEGACY_ROUTING_EVENT_TO_TRIGGER_IDS = {
-  CASE_AGGREGATED: ['new_case_start'],
-  SUPPLEMENT_LINKED: ['resume'],
+  CASE_AGGREGATED: ['e1', 'e2'],
+  SUPPLEMENT_LINKED: ['e3'],
 };
 
 /** @deprecated migrated to acceptedTriggers */
 const CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS = {
-  AWAITING_SUPPLEMENT: ['resume'],
-  SUPPLEMENT_RECEIVED: ['resume'],
-  SUPPLEMENT: ['resume'],
-  NEW: ['new_case_start'],
-  NEW_CASE: ['new_case_start'],
+  AWAITING_SUPPLEMENT: ['e3'],
+  SUPPLEMENT_RECEIVED: ['e3'],
+  SUPPLEMENT: ['e3'],
+  NEW: ['e1'],
+  NEW_CASE: ['e1'],
 };
 
 const WORKFLOW_END_OUTCOMES = [
   { key: 'branchStatus', label: '分岐ステータス', value: '完了', hint: 'この Workflow 分岐の終了結果' },
   { key: 'caseStatus', label: '案件状態', value: '処理完了', hint: '案件状態机への提案値' },
   { key: 'finalResult', label: '最終処理結果', value: '正常完了', hint: '正常完了 / 補件待ち / 異常 / 中止' },
-  { key: 'hasOpenItems', label: '未完了事項あり', value: 'いいえ', hint: '未完了ファイル・フィールド・待办の有無' },
+  { key: 'hasOpenItems', label: '未完了事項あり', value: 'いいえ', hint: '未完了事項の有無（open 待办・待确认文件/字段・补件待上传・跨批次 pending 未汇总・成果文件未生成等）' },
 ];
 
 const START_SUPPLEMENT_REPLAY_MODES = [
@@ -427,7 +431,7 @@ function migrateLegacyStartTriggers(triggers) {
   triggers.forEach((t) => {
     if (t.enabled === false) return;
     if (t.type === 'intake') {
-      if (!cfg.acceptedTriggers.includes('new_case_start')) cfg.acceptedTriggers.push('new_case_start');
+      if (!cfg.acceptedTriggers.includes('e1')) cfg.acceptedTriggers.push('e1');
     }
     if (t.type === 'case_status' && t.caseStatus) {
       const mapped = CASE_WORKFLOW_LEGACY_STATUS_TO_TRIGGER_IDS[t.caseStatus] || [];
@@ -466,7 +470,12 @@ function normalizeStartNode(node) {
 }
 
 function getCaseWorkflowEventLabel(event) {
-  return CASE_WORKFLOW_START_TRIGGERS.find((trigger) => trigger.triggerType === event || trigger.id === event)?.label || event;
+  const mappedId = CASE_WORKFLOW_LEGACY_TRIGGER_ID_MAP[event] || event;
+  return CASE_WORKFLOW_START_TRIGGERS.find((trigger) =>
+    trigger.actionLabel === event
+    || trigger.label === event
+    || trigger.eventId === event
+    || trigger.id === mappedId)?.label || event;
 }
 
 function formatScheduleSummary(schedule) {
@@ -498,7 +507,7 @@ const WORKFLOW_NODE_META = {
   start: {
     icon: '▶',
     title: '開始',
-    desc: '案件集約完了後の新規起動、補件・帰属後の続行、処理中止後の再実行',
+    desc: '集約完了による初回起動・既存案件への帰属、補件ファイル帰属後の続行、処理中止後の再実行',
     tasks: [],
     accent: '#067647',
   },
@@ -545,15 +554,6 @@ const WORKFLOW_NODE_META = {
     output: 'Validation Result',
     accent: '#7c3aed',
   },
-  mcp: {
-    icon: 'MCP',
-    title: 'MCP',
-    desc: '外部 API · DB · RPA 連携',
-    tasks: ['REST API', 'DB', 'RPA'],
-    input: 'Case · OCR Fields',
-    output: 'External Data',
-    accent: '#175cd3',
-  },
   decision: {
     icon: 'IF',
     title: '条件判断',
@@ -575,7 +575,7 @@ const WORKFLOW_NODE_META = {
   notify: {
     icon: 'NT',
     title: '通知',
-    desc: '補件依頼・処理完了・異常通知',
+    desc: 'システム通知・メール送信',
     tasks: [],
     input: 'Case Event',
     output: 'Notified',
@@ -606,36 +606,6 @@ function getWorkflowFlowPreviewNodeStyle(type) {
   if (!WORKFLOW_FLOW_PREVIEW_ACCENT_TYPES.has(type)) return null;
   return getWorkflowNodeAccentStyle(type);
 }
-
-const MASTER_MATCH_STRATEGIES = [
-  { value: 'keyword', label: 'キーワード検索', desc: 'キーワード・トークンによる全文検索' },
-  { value: 'vector', label: 'ベクトル検索', desc: 'ベクトル類似度による近似照合' },
-  { value: 'hybrid', label: '混合検索', desc: 'キーワードとベクトルを組み合わせた段階的照合' },
-  { value: 'parent_category', label: '上位分類', desc: '命中レコードの上位分類・親カテゴリを返却' },
-  { value: 'code', label: 'コード検索', desc: 'マスタコード・キー値の完全一致' },
-];
-
-const MASTER_MATCH_LEGACY_STRATEGIES = {
-  semantic: 'vector',
-  fuzzy: 'vector',
-  similarity: 'vector',
-  llm_normalize: 'hybrid',
-};
-
-function normalizeMasterMatchStrategy(value) {
-  const v = MASTER_MATCH_LEGACY_STRATEGIES[value] || value;
-  return MASTER_MATCH_STRATEGIES.some((s) => s.value === v) ? v : 'hybrid';
-}
-
-const MASTER_MATCH_RESULT_RETURNS = [
-  { value: 'array', label: '照合結果配列', desc: '候補・返却列・信頼度を配列で出力（全照合方式に対応）' },
-];
-
-const MASTER_MATCH_OUTPUT_FORMATS = [
-  { value: 'normalized_fields', label: '正規化フィールド', desc: '照合成功値を案件データセットのフィールドへ書き戻し' },
-  { value: 'reference_json', label: '参照 JSON', desc: 'ナレッジ检索・照合結果を JSON オブジェクトで出力' },
-  { value: 'paragraph_list', label: '分段列表', desc: '检索分段 + 照合メタデータを配列で出力' },
-];
 
 const DATA_MAPPING_STANDARD_FIELDS = [
   { value: 'claimNo', label: '案件元請求番号', dataType: 'string', category: 'claim' },
@@ -693,16 +663,6 @@ const DATA_MAPPING_EXECUTION_SCOPES = [
   { value: 'doc_type', label: '帳票タイプ単位' },
 ];
 
-const MASTER_MATCH_INPUT_SOURCES = [
-  { value: 'standard_fields', label: '標準フィールド' },
-  { value: 'ocr_fields', label: 'OCR抽出フィールド' },
-];
-
-const MASTER_MATCH_EXECUTION_SCOPES = [
-  { value: 'changed_fields', label: '変更フィールドのみ' },
-  { value: 'case', label: '案件単位' },
-];
-
 const HITL_WAIT_MINUTES = 30;
 
 const AI_VERIFY_MODULE_OPTIONS = [
@@ -750,7 +710,6 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   confirmStatus: 'created / completed / failed / timeout',
   confirmAction: 'approve（完成）/ request_supplement（補件）/ reject（案件終止）',
   notifySendStatus: 'success / failed / skipped',
-  notifyType: '不備通知 / 処理完了通知 / 異常通知',
   codeStatus: 'success / failed',
   dynamicObjectKeys: '键集合运行时生成，无固定枚举',
   dynamicArrayItems: '元素结构由运行时结果决定',
@@ -772,13 +731,119 @@ const WORKFLOW_STEP1_DOCTYPE_DEF = [
   { id: 'docTypes[]', label: '帳票タイプ一覧', scope: '帳票タイプ', type: 'Array', valueSpec: 'Step1 登録帳票タイプ ID の配列', description: 'Step1 关联账票类型列表/定义；不含各字段值' },
 ];
 
+/** 条件节点级联 L1：Step1 账票模板 OCR 字段分组 */
+const STEP1_DOCTYPE_FIELD_CASCADER_GROUP = '帳票フィールド';
+
+/** 消费路径（PRD 6.02.10.1）：condition / todo / notify / todo_notify / runtime */
+const WORKFLOW_VAR_CONSUMPTION = {
+  CONDITION: 'condition',
+  TODO: 'todo',
+  NOTIFY: 'notify',
+  TODO_NOTIFY: 'todo_notify',
+  RUNTIME: 'runtime',
+};
+
+/** 消费路径 → 出力変数面板 / tooltip 文案（PRD 6.02.10.1） */
+const WORKFLOW_VAR_CONSUMPTION_LABELS = {
+  [WORKFLOW_VAR_CONSUMPTION.CONDITION]: '条件',
+  [WORKFLOW_VAR_CONSUMPTION.TODO]: '待办',
+  [WORKFLOW_VAR_CONSUMPTION.NOTIFY]: '通知',
+  [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY]: '待办·通知',
+  [WORKFLOW_VAR_CONSUMPTION.RUNTIME]: '运行时',
+};
+
+function formatWorkflowVarConsumptionLabels(paths = []) {
+  const list = Array.isArray(paths) ? paths : [];
+  const labels = list
+    .map((path) => WORKFLOW_VAR_CONSUMPTION_LABELS[path] || path)
+    .filter(Boolean);
+  return labels.length ? labels.join(' / ') : '';
+}
+
+/** 案件级变量键 → 消费路径（出力変数面板列全量；条件/通知选择器按路径过滤） */
+const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
+  'case.caseId': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.caseNo': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.businessScene': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.caseStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.triggerType': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'docTypes[]': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.finalResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.hasOpenItems': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.resultFileStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.endedAt': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.preprocessStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.lastFailureReason': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.ocrStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.lowConfidenceFieldCount': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.standardFields': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingConflicts': [WORKFLOW_VAR_CONSUMPTION.TODO],
+  'case.mappingErrors': [WORKFLOW_VAR_CONSUMPTION.TODO],
+  'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.isException': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.requiredFieldStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.requiredDocumentStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.textValidationStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.dataValidationStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingConflictStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.signatureSealStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.missingDocuments': [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
+  'case.missingFields': [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
+  'case.aiVerifyResultJson': [WORKFLOW_VAR_CONSUMPTION.TODO],
+  'case.confirmStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.confirmAction': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.branchName': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.branchResult': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.matchedFileCount': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.notifySendStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.notifiedAt': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.notifyFailureReason': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.status': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.errorMessage': [WORKFLOW_VAR_CONSUMPTION.NOTIFY],
+  'case.result': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.latencyMs': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'files[]': [WORKFLOW_VAR_CONSUMPTION.TODO],
+};
+
 /** 节点输出目录中排除的键（改由 Step1 / 二级选择器提供；files[] 为数组不可直接比较） */
 const DECISION_CATALOG_SKIP_IDS = new Set([
   'case.ocrFields',
   'case.standardFields',
   'docTypes[]',
   'files[]',
+  'case.mappingConflicts',
+  'case.mappingErrors',
+  'case.missingDocuments',
+  'case.missingFields',
+  'case.aiVerifyResultJson',
 ]);
+
+function getWorkflowVarConsumptionPaths(item) {
+  if (!item) return [];
+  if (item.consumptionPaths?.length) return item.consumptionPaths;
+  const key = item.localId || item.id || '';
+  if (WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID[key]) {
+    return WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID[key];
+  }
+  if (item.pickerGroup === 'step1_doc' || item.pickerGroup === 'standard_field') {
+    return [WORKFLOW_VAR_CONSUMPTION.CONDITION];
+  }
+  if (item.nodeType === 'code' && item.localId && !['case.status', 'case.errorMessage'].includes(item.localId)) {
+    return [WORKFLOW_VAR_CONSUMPTION.CONDITION];
+  }
+  return [];
+}
+
+function isWorkflowVarForCatalog(item, catalogMode) {
+  const paths = getWorkflowVarConsumptionPaths(item);
+  if (catalogMode === 'condition') return paths.includes(WORKFLOW_VAR_CONSUMPTION.CONDITION);
+  if (catalogMode === 'notify') {
+    return paths.includes(WORKFLOW_VAR_CONSUMPTION.NOTIFY)
+      || paths.includes(WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY);
+  }
+  return true;
+}
 
 function isDecisionCatalogFileScopeVar(item) {
   if (!item) return false;
@@ -854,7 +919,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   end: [
     { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: '案件状態机への最終提案' },
     { id: 'case.finalResult', label: '最終処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.finalResult, description: '分岐の業務終了区分' },
-    { id: 'case.hasOpenItems', label: '未完了事項あり', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '未完了ファイル・フィールド・待办の有無' },
+    { id: 'case.hasOpenItems', label: '未完了事項あり', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '结束时刻是否存在未完了事項（open 待办、待确认文件/字段、补件待上传、跨批次 pending 未汇总、成果文件未生成、处理未完结文件等）；true=有' },
     { id: 'case.resultFileStatus', label: '成果ファイル状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.resultFileStatus, description: 'Step3 出力ファイルの生成状態' },
     { id: 'case.endedAt', label: '終了時刻', scope: '案件', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '分岐が終了した時刻' },
   ],
@@ -896,7 +961,6 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   notify: [
     { id: 'case.notifySendStatus', label: '送信状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifySendStatus, description: '通知送信の成否' },
-    { id: 'case.notifyType', label: '通知タイプ', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.notifyType, description: '送信した通知テンプレート種別' },
     { id: 'case.notifiedAt', label: '送信日時', scope: '案件', type: 'DateTime', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeDateTime, description: '通知送信時刻' },
     { id: 'case.notifyFailureReason', label: '送信失敗理由', scope: '案件', type: 'String', valueSpec: '送信失敗時のみ写入；无固定取值', description: '送信失敗時のエラー詳細' },
   ],
@@ -905,17 +969,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否' },
     { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細' },
   ],
-  mcp: [
-    { id: 'case.result', label: 'Tool 実行結果', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: 'MCP Tool の返却値' },
-    { id: 'case.status', label: 'HTTP / 実行ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'Tool 実行ステータス' },
-    { id: 'case.latencyMs', label: 'レイテンシ (ms)', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'Tool 実行時間（ミリ秒）' },
-  ],
 };
-
-const MCP_OUTPUT_VARS = WORKFLOW_NODE_OUTPUT_VAR_DEFS.mcp.map((item) => ({
-  ...item,
-  token: `{${item.id}}`,
-}));
 
 const WORKFLOW_NODE_OUTPUT_HINT_KEYS = {
   start: 'nodeOutputStart',
@@ -926,14 +980,13 @@ const WORKFLOW_NODE_OUTPUT_HINT_KEYS = {
   ai_verify: 'nodeOutputVerify',
   hitl_gate: 'nodeOutputHitl',
   notify: 'nodeOutputNotify',
-  mcp: 'mcpOutput',
   code: 'codeOutput',
 };
 
 function getCodeNodeOutputVarDefs(node) {
   const systemDefs = [
-    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否' },
-    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細' },
+    { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否', consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.CONDITION] },
+    { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細', consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.NOTIFY] },
   ];
   if (!node?.returnContent) return systemDefs;
   const params = Array.isArray(node.outputParams) && node.outputParams.length
@@ -956,6 +1009,7 @@ function getCodeNodeOutputVarDefs(node) {
       type: mappedType,
       valueSpec: valueSpecByType[mappedType] || WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys,
       description: 'Python 関数の戻り値',
+      consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.CONDITION],
     };
   });
   return [...userDefs, ...systemDefs];
@@ -965,10 +1019,6 @@ function formatWorkflowOutputVarToken(node, workflow, varId) {
   return `{${getWorkflowNodeVarName(node, workflow)}.${varId}}`;
 }
 
-function formatMcpOutputVarToken(node, workflow, varId) {
-  return formatWorkflowOutputVarToken(node, workflow, varId);
-}
-
 function getWorkflowNodeOutputVarItems(node, workflow = null) {
   if (!node?.type) return [];
   const defs = node.type === 'code'
@@ -976,15 +1026,20 @@ function getWorkflowNodeOutputVarItems(node, workflow = null) {
     : WORKFLOW_NODE_OUTPUT_VAR_DEFS[node.type];
   if (!defs?.length) return [];
   const visibleDefs = defs.filter((item) => !item.optional);
-  return visibleDefs.map((item) => ({
-    ...item,
-    localId: item.id,
-    path: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
-    token: formatWorkflowOutputVarToken(node, workflow, item.id),
-  }));
+  return visibleDefs.map((item) => {
+    const consumptionPaths = getWorkflowVarConsumptionPaths(item);
+    return {
+      ...item,
+      localId: item.id,
+      path: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
+      token: formatWorkflowOutputVarToken(node, workflow, item.id),
+      consumptionPaths,
+      consumptionPathLabel: formatWorkflowVarConsumptionLabels(consumptionPaths),
+    };
+  });
 }
 
-function appendNodeOutputVarCatalog(node, workflow, options) {
+function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'condition') {
   if (!node?.type) return;
   const items = getWorkflowNodeOutputVarItems(node, workflow);
   if (!items.length) return;
@@ -992,7 +1047,8 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
   const title = meta.title;
   items.forEach((item) => {
     if (DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
-    if (isDecisionCatalogFileScopeVar(item)) return;
+    if (!isWorkflowVarForCatalog(item, catalogMode)) return;
+    if (catalogMode === 'condition' && isDecisionCatalogFileScopeVar(item)) return;
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
       label: item.label,
@@ -1005,6 +1061,8 @@ function appendNodeOutputVarCatalog(node, workflow, options) {
       nodeId: node.id,
       varName: getWorkflowNodeVarName(node, workflow),
       pickerGroup: 'node',
+      localId: item.id,
+      consumptionPaths: getWorkflowVarConsumptionPaths(item),
     });
   });
 }
@@ -1019,7 +1077,7 @@ function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options) {
         value: `docTypes.${docType}.${field}`,
         label: `${docType} · ${field}`,
         displayName: field,
-        group: '帳票フィールド（Step1）',
+        group: STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
         scope: '帳票タイプ',
         dataType: 'String',
         description: '条件用字段选择（非节点输出变量）；运行时按 files[].classificationResult + files[].ocrFields 取值',
@@ -1053,6 +1111,7 @@ function appendDataMappingStandardFieldCatalog(node, workflow, options) {
       pickerGroup: 'standard_field',
       pickerStandardFieldId: field.value,
       pickerStandardFieldLabel: field.label,
+      consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.CONDITION],
     });
   });
 }
@@ -1123,8 +1182,8 @@ function buildDecisionVariableCascaderTree(options) {
   if (step1DocMap.size) {
     tree.push({
       id: 'group:step1',
-      text: '帳票フィールド（Step1）',
-      title: '帳票フィールド（Step1）',
+      text: STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
+      title: STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
       items: [...step1DocMap.values()],
     });
   }
@@ -1346,31 +1405,6 @@ function getWorkflowNodeIo(node) {
   return { input: meta.input || '', output: meta.output || '' };
 }
 
-function parseMcpInputsFromLegacy(node) {
-  if (Array.isArray(node.mcpInputs) && node.mcpInputs.length) {
-    return node.mcpInputs.map((row) => {
-      const value = row.value ?? '';
-      const mode = row.mode || (String(value).trim().startsWith('{{') ? 'variable' : 'fixed');
-      return { key: row.key || '', value, mode };
-    });
-  }
-  if (typeof node.mcpParams === 'string' && node.mcpParams.trim()) {
-    try {
-      const obj = JSON.parse(node.mcpParams);
-      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-        return Object.entries(obj).map(([key, value]) => ({
-          key,
-          value: String(value),
-          mode: 'fixed',
-        }));
-      }
-    } catch {
-      /* legacy free-text — ignore */
-    }
-  }
-  return [];
-}
-
 function buildDefaultMcpInputs(serverId, toolId, catalog = MCP_SERVER_SEEDS, profiles = null) {
   const saved = profiles?.[serverId]?.[toolId];
   if (Array.isArray(saved) && saved.length) return cloneJson(saved);
@@ -1389,25 +1423,6 @@ function resolveMcpToolParamRows(serverId, toolId, catalog, profiles) {
 
 function isMcpCustomServer(serverId) {
   return String(serverId || '').startsWith('mcp-custom-');
-}
-
-function normalizeMcpNode(node, workflow = null) {
-  const base = ensureWorkflowNodeVarName(node, workflow);
-  const serverId = base.mcpServerId || base.mcpServer || '';
-  const toolId = base.mcpToolId || base.mcpTool || '';
-  let mcpInputs = parseMcpInputsFromLegacy(base);
-  if (!mcpInputs.length && serverId && toolId) {
-    mcpInputs = buildDefaultMcpInputs(serverId, toolId);
-  }
-  return {
-    ...base,
-    mcpServerId: serverId,
-    mcpToolId: toolId,
-    mcpInputs,
-    mcpTimeout: base.mcpTimeout ?? 30,
-    mcpRetryMax: base.mcpRetryMax ?? 3,
-    mcpErrorAction: base.mcpErrorAction || 'retry',
-  };
 }
 
 function guessDataMappingSourceForStandard(standardFieldId) {
@@ -1615,127 +1630,9 @@ function normalizeAiVerifyNode(node, workflow = null) {
   };
 }
 
-function getMasterMatchUpstreamDataMapping(workflow, nodeId) {
-  const upstreamIds = getDecisionUpstreamNodeIds(workflow, nodeId);
-  const nodes = workflow?.nodes || [];
-  const mappingNodes = upstreamIds
-    .map((id) => nodes.find((n) => n.id === id))
-    .filter((n) => n?.type === 'data_mapping');
-  return mappingNodes[mappingNodes.length - 1] || null;
-}
-
-const MASTER_MATCH_RETURN_MODES = [
-  { value: 'top1', label: '最上位候補のみ' },
-  { value: 'candidates', label: '候補一覧' },
-  { value: 'parent_category', label: '上位分類' },
-];
-
-const MASTER_MATCH_INPUT_KINDS = [
-  { value: 'standard', label: '標準フィールド' },
-  { value: 'ocr', label: 'OCR抽出フィールド' },
-];
-
-const MASTER_MATCH_SCOPES = [
-  { value: 'instance', label: 'インスタンス別' },
-  { value: 'doc_type', label: '帳票タイプ集約' },
-  { value: 'case', label: '案件集約' },
-];
-
-function normalizeMasterMatchRule(rule, nodeDefaults = {}) {
-  const r = rule || {};
-  const defaults = nodeDefaults || {};
-  let masterSourceId = r.masterSourceId || '';
-  if (!masterSourceId && r.dictionaryId) masterSourceId = `dict:${r.dictionaryId}`;
-  if (!masterSourceId) masterSourceId = defaults.masterSourceId || 'dict:icd10';
-  const src = typeof getMasterSystemSource === 'function' ? getMasterSystemSource(masterSourceId) : null;
-  const defaultLookup = src?.sourceType === 'dict'
-    ? (getMasterDictionary(src.dictionaryId)?.lookupField || '')
-    : (src?.columns?.[0] || '');
-  return {
-    id: r.id || `mr_${Date.now().toString(36)}`,
-    name: (r.name || r.field || '照合ルール').trim(),
-    inputKind: r.inputKind === 'standard' ? 'standard' : 'ocr',
-    standardFieldId: r.standardFieldId || '',
-    docType: r.docType || '',
-    field: r.field || '',
-    scope: ['instance', 'doc_type', 'case'].includes(r.scope) ? r.scope : 'instance',
-    masterSourceId,
-    masterSheet: r.masterSheet || '',
-    lookupField: r.lookupField || r.dictLookupField || defaultLookup,
-    outputFields: Array.isArray(r.outputFields) ? [...r.outputFields] : [],
-    matchMethod: normalizeMasterMatchStrategy(r.matchMethod || r.matchStrategy || defaults.matchMethod || 'hybrid'),
-    returnMode: ['top1', 'candidates', 'parent_category'].includes(r.returnMode) ? r.returnMode : 'top1',
-  };
-}
-
-function normalizeMasterMatchNode(node, workflow = null) {
-  const base = ensureWorkflowNodeVarName(node, workflow);
-  const nodeDefaults = {
-    matchMethod: normalizeMasterMatchStrategy(base.matchMethod || base.matchStrategy || 'hybrid'),
-    resultReturn: base.resultReturn === 'array' ? 'array' : 'array',
-    masterSourceId: base.masterSourceId || 'dict:icd10',
-  };
-  let matchRules = Array.isArray(base.matchRules)
-    ? base.matchRules.map((rule) => normalizeMasterMatchRule(rule, nodeDefaults))
-    : [];
-  if (!matchRules.length && Array.isArray(base.matchFieldIds) && base.matchFieldIds.length) {
-    matchRules = base.matchFieldIds.map((token, index) => {
-      const raw = String(token);
-      if (raw.startsWith('standard.')) {
-        const standardFieldId = raw.slice('standard.'.length);
-        const meta = DATA_MAPPING_STANDARD_FIELDS.find((f) => f.value === standardFieldId);
-        return normalizeMasterMatchRule({
-          id: `mr_legacy_${index}`,
-          name: meta?.label || standardFieldId,
-          inputKind: 'standard',
-          standardFieldId,
-          field: meta?.label || standardFieldId,
-        }, nodeDefaults);
-      }
-      const dot = raw.indexOf('.');
-      const docType = dot >= 0 ? raw.slice(0, dot) : raw;
-      const field = dot >= 0 ? raw.slice(dot + 1) : '';
-      return normalizeMasterMatchRule({
-        id: `mr_legacy_${index}`,
-        name: field || docType,
-        inputKind: 'ocr',
-        docType,
-        field,
-      }, nodeDefaults);
-    });
-  }
-  const primarySourceId = matchRules[0]?.masterSourceId || nodeDefaults.masterSourceId;
-  const knowledgeSource = typeof resolveMasterMatchKnowledgeSource === 'function'
-    ? resolveMasterMatchKnowledgeSource({ masterSourceId: primarySourceId })
-    : (base.knowledgeSource || { type: 'dict', dictionaryId: 'icd10' });
-  const inputSource = MASTER_MATCH_INPUT_SOURCES.some((opt) => opt.value === base.inputSource)
-    ? base.inputSource
-    : 'standard_fields';
-  const executionScope = MASTER_MATCH_EXECUTION_SCOPES.some((opt) => opt.value === base.executionScope)
-    ? base.executionScope
-    : 'changed_fields';
-  return {
-    ...base,
-    configRef: base.configRef || 'current_scene',
-    targetDocTypes: Array.isArray(base.targetDocTypes) ? base.targetDocTypes.filter(Boolean) : [],
-    inputSource,
-    executionScope,
-    matchMethod: nodeDefaults.matchMethod,
-    resultReturn: nodeDefaults.resultReturn,
-    masterSourceId: primarySourceId,
-    matchRules,
-    knowledgeSource,
-  };
-}
-
-function getMcpNodeCanvasSummary(node) {
-  const server = getMcpServerDef(node?.mcpServerId || node?.mcpServer);
-  const tool = getMcpToolDef(node?.mcpServerId || node?.mcpServer, node?.mcpToolId || node?.mcpTool);
-  if (!server && !tool) return null;
-  return {
-    serverLabel: server?.label || node?.mcpServerId || '未設定',
-    toolLabel: tool?.label || node?.mcpToolId || 'ツール未選択',
-  };
+function countNotifyTemplateVarRefs(subject = '', body = '') {
+  const matches = String(`${subject}\n${body}`).match(/\{\{[^}]+\}\}/g);
+  return matches ? new Set(matches).size : 0;
 }
 
 const WORKFLOW_NODE_SIZE = {
@@ -1785,8 +1682,6 @@ const INSPECTOR_HEAD_HINT_KEYS = {
   image: 'preprocess',
   ocr: 'ocrExtract',
   data_mapping: 'dataMapping',
-  master_match: 'masterMatch',
-  mcp: 'mcpTool',
   ai_verify: 'aiVerify',
   decision: 'decision',
   hitl_gate: 'hitlGate',
@@ -1827,6 +1722,169 @@ const PREPROCESS_SETTING_ITEMS = [
     docTypesKey: 'sortDocTypes',
   },
 ];
+
+/** 画布节点摘要：统一分隔符与未配置占位 */
+const WORKFLOW_CANVAS_SUMMARY_SEP = ' · ';
+const WORKFLOW_CANVAS_SUMMARY_EMPTY = '未設定';
+const WORKFLOW_CANVAS_SUMMARY_LINE_H = 22;
+
+const PREPROCESS_CANVAS_SHORT_LABELS = {
+  rotate: '回転',
+  perspective: '補正',
+  split: '分割',
+  sort: '並替',
+};
+
+const AI_VERIFY_CANVAS_SHORT_LABELS = {
+  required_fields: '必須項目',
+  required_documents: '必要書類',
+  text: 'テキスト',
+  data: 'データ',
+  mapping_conflict: '競合',
+  signature_seal: '署名',
+};
+
+function joinWorkflowCanvasSummary(...parts) {
+  return parts
+    .filter((part) => part != null && String(part).trim())
+    .join(WORKFLOW_CANVAS_SUMMARY_SEP);
+}
+
+function buildPreprocessCanvasSummaryChips(imageConfig = {}) {
+  return PREPROCESS_SETTING_ITEMS
+    .filter((item) => imageConfig[item.switchKey])
+    .map((item) => {
+      const types = imageConfig[item.docTypesKey];
+      const count = Array.isArray(types) && types.length ? types.length : 0;
+      const short = PREPROCESS_CANVAS_SHORT_LABELS[item.key] || item.label;
+      return count > 0 ? `${short} ${count}件` : item.label;
+    });
+}
+
+function buildAiVerifyCanvasSummaryChips(node, getModuleRuleCount) {
+  const countFn = typeof getModuleRuleCount === 'function' ? getModuleRuleCount : () => 0;
+  return AI_VERIFY_MODULE_OPTIONS
+    .filter((opt) => node?.moduleEnabled?.[opt.key] !== false)
+    .map((opt) => {
+      const count = countFn(opt.key) || 0;
+      const short = AI_VERIFY_CANVAS_SHORT_LABELS[opt.key] || opt.label;
+      return count > 0 ? `${short} ${count}件` : short;
+    });
+}
+
+function splitWorkflowCanvasSummaryParts(summary) {
+  if (!summary) return [];
+  return String(summary)
+    .split(WORKFLOW_CANVAS_SUMMARY_SEP)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function getWorkflowNodeReuseSummaryPrefix(node) {
+  if (!node?.reuseReview) return '';
+  const statusLabel = node.reuseStatus === 'ready' ? 'コピー済' : '要確認';
+  const sourceName = node.reuseSourceSceneName || node.reuseReview?.sourceSceneName || '';
+  const clipped = truncateWorkflowPreview(sourceName, 10);
+  return clipped ? `${statusLabel}: ${clipped}` : statusLabel;
+}
+
+const HITL_GATE_CANVAS_ROLE_FALLBACK = '案件担当者';
+
+function formatHitlGateCanvasRoleLabel(role) {
+  const raw = String(role || '').trim();
+  if (!raw) return HITL_GATE_CANVAS_ROLE_FALLBACK;
+  const options = typeof HITL_ROLE_OPTIONS !== 'undefined' ? HITL_ROLE_OPTIONS : [];
+  const match = options.find((item) => item.value === raw);
+  return match?.label || raw;
+}
+
+function buildHitlGateCanvasSummary(node, workflow = null) {
+  const targetLabel = getHitlGatePreset(node, workflow)?.label || '人工確認';
+  const roleLabel = formatHitlGateCanvasRoleLabel(node?.role);
+  return joinWorkflowCanvasSummary(targetLabel, roleLabel);
+}
+
+/** 画布节点单行摘要（统一 ` · ` 分隔；未配置 `未設定`） */
+function buildWorkflowNodeCanvasSummary(node, ctx = {}) {
+  if (!node || isWorkflowTerminalNode(node)) return '';
+  const reusePrefix = getWorkflowNodeReuseSummaryPrefix(node);
+  const workflow = typeof ctx.getWf === 'function' ? ctx.getWf() : null;
+  const verifyConfig = ctx.verify || null;
+  const sceneContext = ctx.sceneContext || null;
+
+  switch (node.type) {
+    case 'preprocess': {
+      const chips = buildPreprocessCanvasSummaryChips(ctx.image || {});
+      if (!chips.length) {
+        return reusePrefix
+          ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
+          : WORKFLOW_CANVAS_SUMMARY_EMPTY;
+      }
+      return joinWorkflowCanvasSummary(reusePrefix, `${chips.length}件有効`, ...chips.slice(0, 2));
+    }
+    case 'ocr': {
+      const stats = ctx.ocrStats || { total: 0, enabled: 0 };
+      if (!stats.total) {
+        return reusePrefix
+          ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
+          : WORKFLOW_CANVAS_SUMMARY_EMPTY;
+      }
+      return joinWorkflowCanvasSummary(
+        reusePrefix,
+        `関連帳票 ${stats.total} 件`,
+        `有効 ${stats.enabled} 件`,
+      );
+    }
+    case 'data_mapping': {
+      const ruleCount = Number(ctx.dataMappingRuleCount) || 0;
+      return joinWorkflowCanvasSummary(reusePrefix, ruleCount ? `ルール ${ruleCount}件` : '設定参照');
+    }
+    case 'ai_verify': {
+      const chips = buildAiVerifyCanvasSummaryChips(node, ctx.getAiVerifyModuleRuleCount);
+      if (!chips.length) {
+        return reusePrefix
+          ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
+          : WORKFLOW_CANVAS_SUMMARY_EMPTY;
+      }
+      return joinWorkflowCanvasSummary(reusePrefix, `${chips.length}件有効`, ...chips.slice(0, 2));
+    }
+    case 'decision': {
+      const opts = workflow && node?.id
+        ? getDecisionVariableOptions(workflow, node.id, verifyConfig, sceneContext)
+        : [];
+      const preview = getDecisionNodeCanvasSummary(node, opts);
+      return joinWorkflowCanvasSummary(reusePrefix, preview || WORKFLOW_CANVAS_SUMMARY_EMPTY);
+    }
+    case 'hitl_gate':
+    case 'confirm':
+    case 'ocr_confirm':
+    case 'verify_confirm':
+      return joinWorkflowCanvasSummary(reusePrefix, buildHitlGateCanvasSummary(node, workflow));
+    case 'notify': {
+      const normalized = normalizeNotifyNode(node, workflow);
+      const ch = NOTIFY_CHANNELS.find((c) => c.value === normalized.channel);
+      const channelLabel = ch?.label || WORKFLOW_CANVAS_SUMMARY_EMPTY;
+      const varCount = countNotifyTemplateVarRefs(normalized.subject, normalized.body);
+      const parts = [channelLabel];
+      if (varCount > 0) parts.push(`${varCount}項目`);
+      return joinWorkflowCanvasSummary(reusePrefix, ...parts);
+    }
+    case 'code': {
+      const normalized = normalizeCodeNode(node, workflow);
+      const inCount = normalized.inputs?.length || 0;
+      const outCount = normalized.returnContent ? (normalized.outputParams?.length || 0) : 0;
+      const parts = [];
+      if (inCount) parts.push(`入力 ${inCount}件`);
+      if (outCount) parts.push(`出力 ${outCount}件`);
+      const summary = joinWorkflowCanvasSummary(reusePrefix, ...parts);
+      return summary || (reusePrefix
+        ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
+        : WORKFLOW_CANVAS_SUMMARY_EMPTY);
+    }
+    default:
+      return reusePrefix || '';
+  }
+}
 
 const NODE_IO_DEFAULTS = {
   preprocess: {
@@ -1884,13 +1942,11 @@ const WORKFLOW_NODE_ICON_SVG = {
   preprocess: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h7M14 6h2M4 14h2M9 14h7M11 4v4M7 12v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
   ocr: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 8h6M7 11h4M4 2.8V6M16 2.8V6M4 14v3.2M16 14v3.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
   data_mapping: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h4M12 5h4M4 15h4M12 15h4M8 5c2.2 0 2.8 2 4 5 1.2 3 1.8 5 4 5M8 15c2.2 0 2.8-2 4-5 1.2-3 1.8-5 4-5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
-  master_match: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6c0-1.4 2.7-2.5 6-2.5s6 1.1 6 2.5-2.7 2.5-6 2.5S4 7.4 4 6Z" fill="none" stroke="currentColor" stroke-width="1.45"/><path d="M4 6v4c0 1.4 2.7 2.5 6 2.5.7 0 1.4-.1 2-.2M16 6v3.2M13 14.2l1.5 1.5 3-3" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   ai_verify: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5 15.5 6v4.2c0 3.2-2.1 5.3-5.5 6.3-3.4-1-5.5-3.1-5.5-6.3V6L10 3.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="m7.5 10.2 1.7 1.7 3.5-3.8" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   decision: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4v4.2a3 3 0 0 0 3 3h1M5 8.2a3 3 0 0 1 3-3h1M12 5h4M12 11.2h4M12 16h4M9 11.2a3 3 0 0 1-3 3H5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
   hitl_gate: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4.8 16c.7-2.4 2.5-3.7 5.2-3.7 1 0 1.8.2 2.5.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="m13 15 1.5 1.5 3-3.4" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   notify: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8.5a4 4 0 1 1 8 0c0 4 1.6 4.4 1.6 5.6H4.4C4.4 12.9 6 12.5 6 8.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M8.4 16a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
   code: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.2 6-3.5 4 3.5 4M12.8 6l3.5 4-3.5 4M11 4.8 9 15.2" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  mcp: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5.5h10v9H5v-9Z" fill="none" stroke="currentColor" stroke-width="1.45"/><path d="M8 8.5h4M8 11.5h2.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="M10 3.5v2M10 14.5v2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
 };
 
 function getWorkflowNodeIconSvg(type) {
@@ -2022,13 +2078,22 @@ const NOTIFY_TEMPLATE_VAR_REFS = {
   missingDocuments: { nodeType: 'ai_verify', varId: 'case.missingDocuments', legacyLabel: '不足書類一覧' },
   missingFields: { nodeType: 'ai_verify', varId: 'case.missingFields', legacyLabel: '不足項目一覧' },
   endedAt: { nodeType: 'end', varId: 'case.endedAt', legacyLabel: '処理完了日時', workflowScope: true },
+  lastFailureReason: {
+    nodeType: 'preprocess',
+    varId: 'case.lastFailureReason',
+    legacyLabel: '最終失敗原因',
+    fallbackNodeTypes: ['code'],
+    fallbackVarId: 'case.errorMessage',
+  },
   errorMessage: {
     nodeType: 'code',
     varId: 'case.errorMessage',
     legacyLabel: '異常内容',
-    fallbackNodeTypes: ['ai_verify'],
-    fallbackVarId: 'case.aiVerifyResultJson',
+    fallbackNodeTypes: ['preprocess'],
+    fallbackVarId: 'case.lastFailureReason',
   },
+  notifiedAt: { nodeType: 'notify', varId: 'case.notifiedAt', legacyLabel: '送信日時' },
+  notifyFailureReason: { nodeType: 'notify', varId: 'case.notifyFailureReason', legacyLabel: '送信失敗理由' },
 };
 
 const NOTIFY_TEMPLATES = [
@@ -2182,8 +2247,8 @@ function insertNotifyVariableText(text, varPath) {
   return needsSpace ? `${current} ${token}` : `${current}${token}`;
 }
 
-function getNotifyVariableOptions(workflow, nodeId, verifyConfig = null) {
-  return getDecisionVariableOptions(workflow, nodeId, verifyConfig);
+function getNotifyVariableOptions(workflow, nodeId, verifyConfig = null, sceneContext = null) {
+  return buildNotifyVariableCatalog(workflow, nodeId, verifyConfig, sceneContext);
 }
 
 function getNotifyRecipientsLabel(channel) {
@@ -2391,14 +2456,12 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
   }
   if (judgmentContext === 'processing_completion') {
     const ifConditions = [];
-    resolveUpstreamNodesByType(workflow, nodeId, 'master_match').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.masterStatus`, 'success'));
-    });
-    if (!ifConditions.length) ifConditions.push(judgmentCond('master_match.case.masterStatus', 'success'));
     resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').forEach((n) => {
       ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyStatus`, 'success'));
     });
-    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) ifConditions.push(judgmentCond('verify.case.verifyStatus', 'success'));
+    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) {
+      ifConditions.push(judgmentCond('verify.case.verifyStatus', 'success'));
+    }
     resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
       ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.confirmStatus`, 'completed'));
     });
@@ -2502,24 +2565,31 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 const HITL_GATE_LAYOUT = {
   minW: 224,
   headerH: 50,
+  summaryH: 34,
   bodyPadTop: 4,
   bodyPadBottom: 8,
   rowGap: 4,
   rowH: 28,
   labelCharW: 14,
+  summaryCharW: 12,
 };
 
-function getHitlGateNodeLayoutMetrics(node) {
+function getHitlGateNodeLayoutMetrics(node, canvasSummary = '') {
   const actions = normalizeHitlGateActions(node?.actions);
-  const { minW, headerH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW } = HITL_GATE_LAYOUT;
+  const { minW, headerH, summaryH, bodyPadTop, bodyPadBottom, rowGap, rowH, labelCharW, summaryCharW } = HITL_GATE_LAYOUT;
   let maxLabelLen = 0;
   actions.forEach((action) => {
     maxLabelLen = Math.max(maxLabelLen, getHitlGateActionLabel(action).length);
   });
-  const cardW = Math.max(minW, 56 + maxLabelLen * labelCharW);
+  const summaryLen = String(canvasSummary || '').length;
+  const cardW = Math.max(
+    minW,
+    56 + maxLabelLen * labelCharW,
+    summaryLen ? 76 + summaryLen * summaryCharW : 0,
+  );
   const branchesH = actions.length * rowH + Math.max(0, actions.length - 1) * rowGap;
-  const shellH = headerH + bodyPadTop + branchesH + bodyPadBottom;
-  const branchStartY = headerH + bodyPadTop;
+  const shellH = headerH + summaryH + bodyPadTop + branchesH + bodyPadBottom;
+  const branchStartY = headerH + summaryH + bodyPadTop;
   const rows = actions.map((action, index) => {
     const yCenter = Math.round(
       branchStartY + index * (rowH + rowGap) + rowH / 2,
@@ -2934,7 +3004,7 @@ const DECISION_DEFAULT_OPERATOR_BY_TYPE = {
   datetime: 'is',
   string: 'is',
   enum: 'is',
-  array: 'contains',
+  array: 'length_greater_than',
   object: 'is_not_empty',
   file: 'is_not_empty',
 };
@@ -2964,23 +3034,77 @@ function isDecisionOperatorAvailableForType(operator, dataType = '') {
   return op.types?.includes('all') || op.types?.includes(type);
 }
 
-function getDecisionOperatorsForType(dataType = '') {
-  if (!String(dataType || '').trim()) return DECISION_OPERATORS.filter((op) => op.types?.includes('all'));
-  const type = normalizeDecisionDataType(dataType);
-  const options = DECISION_OPERATORS.filter((op) => isDecisionOperatorAvailableForType(op, type));
-  return options.length ? options : DECISION_OPERATORS.filter((op) => op.types?.includes('all'));
+/** 条件节点禁用运算符（PRD 6.02.10.1：无 いずれか / 数组聚合；多值用 AND/OR） */
+const DECISION_OPERATORS_EXCLUDED_FROM_CONDITION = new Set([
+  'in',
+  'not_in',
+  'contains_any',
+  'contains_all',
+]);
+
+/** 失败时写入的可选 String 变量（允许 未設定 / 設定済み） */
+const DECISION_OPTIONAL_STRING_VAR_SUFFIXES = [
+  'lastFailureReason',
+  'errorMessage',
+  'notifyFailureReason',
+];
+
+function isDecisionOptionalStringVariable(variableOption) {
+  if (variableOption?.pickerGroup === 'step1_doc') return true;
+  const value = String(variableOption?.value || variableOption?.localId || '');
+  return DECISION_OPTIONAL_STRING_VAR_SUFFIXES.some((suffix) => value.endsWith(suffix));
 }
 
-function getDecisionDefaultOperator(dataType = '') {
+function getDecisionOperatorsForType(dataType = '', variableOption = null) {
+  if (!String(dataType || '').trim()) {
+    return DECISION_OPERATORS
+      .filter((op) => op.types?.includes('all'))
+      .filter((op) => !DECISION_OPERATORS_EXCLUDED_FROM_CONDITION.has(op.value));
+  }
+  const type = normalizeDecisionDataType(dataType);
+  let options = DECISION_OPERATORS.filter((op) => isDecisionOperatorAvailableForType(op, type));
+  options = options.filter((op) => !DECISION_OPERATORS_EXCLUDED_FROM_CONDITION.has(op.value));
+
+  if (type === 'enum') {
+    options = options.filter((op) => ['is', 'is_not'].includes(op.value));
+  } else if (type === 'boolean') {
+    options = options.filter((op) => ['is_true', 'is_false'].includes(op.value));
+  } else if (type === 'string') {
+    if (!isDecisionOptionalStringVariable(variableOption)) {
+      options = options.filter((op) => !['is_empty', 'is_not_empty'].includes(op.value));
+    }
+  } else if (type === 'array') {
+    options = options.filter((op) => (
+      op.value.startsWith('length_') || op.value === 'contains' || op.value === 'not_contains'
+    ));
+  } else if (type === 'object') {
+    options = options.filter((op) => ['is_empty', 'is_not_empty', 'has_key'].includes(op.value));
+  } else if (type === 'file') {
+    options = [];
+  }
+
+  return options.length
+    ? options
+    : DECISION_OPERATORS
+      .filter((op) => op.types?.includes('all'))
+      .filter((op) => !DECISION_OPERATORS_EXCLUDED_FROM_CONDITION.has(op.value));
+}
+
+function getDecisionDefaultOperator(dataType = '', variableOption = null) {
   if (!String(dataType || '').trim()) return 'is';
   const type = normalizeDecisionDataType(dataType);
+  if (type === 'string' && isDecisionOptionalStringVariable(variableOption)) return 'contains';
   const preferred = DECISION_DEFAULT_OPERATOR_BY_TYPE[type] || 'is';
-  return isDecisionOperatorAvailableForType(preferred, type) ? preferred : getDecisionOperatorsForType(type)[0]?.value || 'is';
+  return isDecisionOperatorAvailableForType(preferred, type)
+    ? preferred
+    : getDecisionOperatorsForType(dataType, variableOption)[0]?.value || 'is';
 }
 
-function normalizeDecisionOperatorForType(value, dataType = '') {
+function normalizeDecisionOperatorForType(value, dataType = '', variableOption = null) {
   const raw = normalizeDecisionOperator(value);
-  return isDecisionOperatorAvailableForType(raw, dataType) ? raw : getDecisionDefaultOperator(dataType);
+  const available = getDecisionOperatorsForType(dataType, variableOption);
+  if (available.some((op) => op.value === raw)) return raw;
+  return getDecisionDefaultOperator(dataType, variableOption);
 }
 
 function normalizeDecisionOperator(value) {
@@ -3008,6 +3132,9 @@ function getDecisionUpstreamNodeIds(workflow, nodeId) {
 
 function appendDecisionVarOption(options, spec) {
   const localId = spec.localId || String(spec.value || '').split('.').pop() || '';
+  const consumptionPaths = spec.consumptionPaths?.length
+    ? spec.consumptionPaths
+    : getWorkflowVarConsumptionPaths({ ...spec, localId: spec.localId || localId });
   options.push({
     group: spec.group || '変数',
     nodeType: spec.nodeType || '',
@@ -3021,6 +3148,9 @@ function appendDecisionVarOption(options, spec) {
     label: spec.label,
     displayName: spec.displayName || localId || spec.value,
     hint: spec.hint || `{${spec.value}}`,
+    pickerGroup: spec.pickerGroup || '',
+    consumptionPaths,
+    consumptionPathLabel: formatWorkflowVarConsumptionLabels(consumptionPaths),
   });
 }
 
@@ -3030,7 +3160,7 @@ function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null, sce
   getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
     const n = nodeMap[id];
     if (!n || n.type === 'decision') return;
-    appendNodeOutputVarCatalog(n, workflow, options);
+    appendNodeOutputVarCatalog(n, workflow, options, 'condition');
     if (n.type === 'data_mapping') appendDataMappingStandardFieldCatalog(n, workflow, options);
   });
   const docTypes = sceneContext?.docTypes || [];
@@ -3038,6 +3168,46 @@ function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null, sce
   if (docTypes.length) {
     appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options);
   }
+  return options;
+}
+
+function appendWorkflowScopedNotifyCatalog(workflow, notifyNodeId, options) {
+  if (!workflow?.nodes?.length) return;
+  Object.values(NOTIFY_TEMPLATE_VAR_REFS).forEach((ref) => {
+    if (!ref?.workflowScope || !ref.varId) return;
+    const node = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
+    if (!node) return;
+    const varName = getWorkflowNodeVarName(node, workflow);
+    const value = `${varName}.${ref.varId}`;
+    if ((options || []).some((opt) => opt.value === value)) return;
+    const item = getWorkflowNodeOutputVarItems(node, workflow).find((row) => row.id === ref.varId);
+    if (!item || !isWorkflowVarForCatalog(item, 'notify')) return;
+    appendDecisionVarOption(options, {
+      value,
+      label: item.label,
+      displayName: String(ref.varId || '').split('.').pop() || ref.varId,
+      group: getWorkflowNodeMeta(node.type).title,
+      scope: item.scope || '案件',
+      dataType: item.type || '',
+      description: item.description || item.label,
+      nodeType: node.type,
+      nodeId: node.id,
+      varName,
+      localId: ref.varId,
+      consumptionPaths: getWorkflowVarConsumptionPaths(item),
+    });
+  });
+}
+
+function buildNotifyVariableCatalog(workflow, nodeId, verifyConfig = null, sceneContext = null) {
+  const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
+  const options = [];
+  getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
+    const n = nodeMap[id];
+    if (!n || n.type === 'decision') return;
+    appendNodeOutputVarCatalog(n, workflow, options, 'notify');
+  });
+  appendWorkflowScopedNotifyCatalog(workflow, nodeId, options);
   return options;
 }
 
@@ -3081,6 +3251,13 @@ function formatDecisionVariableDisplay(value, options = []) {
   if (opt.pickerGroup === 'standard_field') {
     const fieldLabel = opt.pickerStandardFieldLabel || opt.displayName || opt.label;
     return [opt.group, '標準フィールド', fieldLabel].filter(Boolean).join(' › ');
+  }
+  if (opt.pickerGroup === 'step1_doc') {
+    return [
+      opt.group || STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
+      opt.pickerDocType,
+      opt.pickerField || opt.displayName,
+    ].filter(Boolean).join(' › ');
   }
   const group = opt.group || '';
   const secondary = getDecisionVariableSecondaryLabel(opt);
@@ -3433,7 +3610,11 @@ function decisionConditionPreview(decisionCase, variableOptions = []) {
   const conditions = decisionCase?.conditions || [];
   if (!conditions.length) return 'Condition NOT setup';
   const parts = conditions.map((c) => {
-    const variable = formatDecisionVariableDisplay(c.variable, variableOptions) || '—';
+    const opt = (variableOptions || []).find((o) => o.value === c.variable);
+    const variable = opt?.label
+      || formatDecisionVariableCanvasDisplay(c.variable, variableOptions)
+      || formatDecisionVariableDisplay(c.variable, variableOptions)
+      || '—';
     const operator = DECISION_OPERATORS.find((o) => o.value === c.operator)?.label || c.operator;
     if (!decisionUsesValueField(c.operator)) return `${variable} ${operator}`;
     const value = c.value ? c.value : '…';
@@ -3457,7 +3638,23 @@ function getDecisionNodeCanvasPreview(node, variableOptions = []) {
     if (preview && preview !== '条件未設定') return preview;
     return i === 0 ? 'IF' : 'ELIF';
   });
-  return parts.filter(Boolean).join(' · ');
+  return parts.filter(Boolean).join(WORKFLOW_CANVAS_SUMMARY_SEP);
+}
+
+/** 画布单行摘要：首条条件 + 其余分支计数 */
+function getDecisionNodeCanvasSummary(node, variableOptions = []) {
+  const cases = node?.cases || [];
+  if (!cases.length) return WORKFLOW_CANVAS_SUMMARY_EMPTY;
+  const firstCase = cases[0];
+  const caseLabel = String(firstCase.label || '').trim();
+  let head = caseLabel || decisionConditionPreview(firstCase, variableOptions);
+  if (!head || head === '条件未設定') head = 'IF';
+  if (cases.length > 1) return joinWorkflowCanvasSummary(head, `他 ${cases.length - 1}件`);
+  if (caseLabel) {
+    const condCount = (firstCase.conditions || []).filter((c) => c?.variable).length;
+    if (condCount > 0) return joinWorkflowCanvasSummary(head, `${condCount}件の条件`);
+  }
+  return head;
 }
 
 function getDecisionElseCanvasPreview(node) {
@@ -3809,15 +4006,6 @@ function buildDefaultCaseWorkflow() {
         x: 0,
         y: 0,
         ...(isStart ? { isStart: true } : {}),
-      }, wf);
-    } else if (type === 'master_match') {
-      node = normalizeMasterMatchNode({
-        id,
-        type,
-        label: label || 'マスタ照合',
-        x: 0,
-        y: 0,
-        matchRules: [],
       }, wf);
     } else if (type === 'start' || type === 'end') {
       node = type === 'start'
@@ -4304,9 +4492,13 @@ function migrateRemoveCaseLinkNodes(workflow) {
   workflow.edges = workflow.edges.filter((e) => !removeIds.has(e.from) && !removeIds.has(e.to));
 }
 
-function migrateRemoveMasterMatchNodes(workflow) {
+const DEPRECATED_WORKFLOW_NODE_REMOVE_TYPES = new Set(['master_match', 'mcp']);
+
+function migrateRemoveDeprecatedWorkflowNodes(workflow) {
   if (!workflow?.nodes?.length) return;
-  const removeIds = new Set(workflow.nodes.filter((n) => n.type === 'master_match').map((n) => n.id));
+  const removeIds = new Set(
+    workflow.nodes.filter((n) => DEPRECATED_WORKFLOW_NODE_REMOVE_TYPES.has(n.type)).map((n) => n.id),
+  );
   if (!removeIds.size) return;
   removeIds.forEach((nodeId) => {
     const inMain = workflow.edges.filter((e) => e.to === nodeId && !e.branch);
@@ -4331,18 +4523,9 @@ function migrateRemoveMasterMatchNodes(workflow) {
   workflow.edges = workflow.edges.filter((e) => !removeIds.has(e.from) && !removeIds.has(e.to));
 }
 
-function migrateMcpNodesToDataMapping(workflow) {
-  if (!workflow?.nodes?.length) return;
-  workflow.nodes = workflow.nodes.map((node) => {
-    if (node.type !== 'mcp') return node;
-    return {
-      ...node,
-      type: 'data_mapping',
-      label: 'データマッピング',
-      mappingRules: node.mappingRules || defaultDataMappingRules(),
-      mappingMode: 'standard',
-    };
-  });
+/** @deprecated use migrateRemoveDeprecatedWorkflowNodes */
+function migrateRemoveMasterMatchNodes(workflow) {
+  migrateRemoveDeprecatedWorkflowNodes(workflow);
 }
 
 function migrateDefaultHumanBufferFlags(workflow) {
@@ -4371,8 +4554,7 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
   if (!Array.isArray(w.edges)) w.edges = [];
   migrateRemoveLegacyIoNodes(w);
   migrateRemoveCaseLinkNodes(w);
-  migrateRemoveMasterMatchNodes(w);
-  migrateMcpNodesToDataMapping(w);
+  migrateRemoveDeprecatedWorkflowNodes(w);
   migrateDefaultHitlWaitFlags(w);
   if (w.nodes.some((n) => REMOVED_WORKFLOW_NODE_TYPES.has(n.type))) {
     w.nodes = w.nodes.filter((n) => !REMOVED_WORKFLOW_NODE_TYPES.has(n.type));
@@ -4571,6 +4753,14 @@ function formatWorkflowHistoryTime(date = new Date()) {
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function measureWorkflowCanvasSummaryHeight(summary, contentWidth) {
+  if (!summary) return 0;
+  const CHAR_W = 7;
+  const LINE_H = 18;
+  const lines = Math.max(1, Math.ceil((String(summary).length * CHAR_W) / Math.max(contentWidth, 120)));
+  return lines * LINE_H;
+}
+
 function measureWorkflowNodeBodyHeight(tasks, contentWidth) {
   if (!tasks?.length) return 0;
   if (tasks.length === 1) return 22;
@@ -4603,7 +4793,7 @@ function measureWorkflowNodeBodyHeight(tasks, contentWidth) {
   return totalHeight + rowMaxHeight;
 }
 
-function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
+function getWorkflowNodeSize(node, taskCount = 0, tasks = [], canvasSummary = '') {
   if (node?.type === 'start' || node?.type === 'end') {
     return { ...WORKFLOW_NODE_SIZE.terminal };
   }
@@ -4618,7 +4808,7 @@ function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
   }
 
   if (isHitlGateNode(node)) {
-    const metrics = getHitlGateNodeLayoutMetrics(node);
+    const metrics = getHitlGateNodeLayoutMetrics(node, canvasSummary);
     return { w: metrics.w, h: metrics.h };
   }
 
@@ -4639,10 +4829,13 @@ function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
 
   const showIoFooter = false;
   const footerH = showIoFooter ? IO_FOOTER_H : 0;
+  const hasSummary = Boolean(canvasSummary || tagTexts.length);
 
-  if (!tagTexts.length) return { w: nodeW, h: Math.max(76, HEADER_H + footerH) + (node?.isStart ? 6 : 0) };
+  if (!hasSummary) return { w: nodeW, h: Math.max(76, HEADER_H + footerH) + (node?.isStart ? 6 : 0) };
 
-  const bodyHeight = measureWorkflowNodeBodyHeight(tagTexts, contentWidth);
+  const bodyHeight = canvasSummary
+    ? measureWorkflowCanvasSummaryHeight(canvasSummary, contentWidth)
+    : WORKFLOW_CANVAS_SUMMARY_LINE_H;
   let h = HEADER_H + BODY_TOP_PAD + bodyHeight + BODY_BOTTOM_PAD + footerH;
   if (node?.isStart) h += 6;
   return { w: nodeW, h: Math.max(76, h) };
@@ -4650,27 +4843,8 @@ function getWorkflowNodeSize(node, taskCount = 0, tasks = []) {
 
 function estimateWorkflowNodeLayoutTasks(node) {
   if (!node || isWorkflowTerminalNode(node)) return [];
-  if (node.type === 'decision') {
-    const tags = [];
-    (node.cases || []).forEach((c) => {
-      if (c.label) tags.push(c.label);
-    });
-    if (node.elseLabel) tags.push(`ELSE:${node.elseLabel}`);
-    return tags.length ? tags : ['条件判断'];
-  }
-  if (isHitlGateNode(node)) {
-    return [node.label || '人工確認'];
-  }
-  if (node.type === 'hitl_gate') return [node.label || '人工確認'];
-  if (node.type === 'preprocess') return ['前処理'];
-  if (node.type === 'ocr') return ['OCR抽出'];
-  if (node.type === 'data_mapping') return ['データマッピング'];
-  if (node.type === 'ai_verify') return [];
-  if (node.type === 'master_match') return ['マスタ照合'];
-  if (node.type === 'notify') return ['通知'];
-  const meta = WORKFLOW_NODE_META[node.type];
-  if (meta?.tasks?.length) return [...meta.tasks];
-  return [meta?.title || node.label || node.type];
+  if (node.type === 'decision' || isHitlGateNode(node)) return [];
+  return ['summary'];
 }
 
 function getWorkflowNodeLayoutSize(node) {

@@ -949,10 +949,11 @@ const KNOWLEDGE_RETRIEVAL_MODES = [
   { value: 'vector', label: 'Vector Search' },
 ];
 
-const KNOWLEDGE_OUTPUT_VARS = (WORKFLOW_NODE_OUTPUT_VAR_DEFS.mcp || []).map((item) => ({
-  ...item,
-  token: `{${item.id}}`,
-}));
+const KNOWLEDGE_OUTPUT_VARS = [
+  { id: 'case.result', label: 'Tool 実行結果', scope: '案件', type: 'Object', token: '{case.result}' },
+  { id: 'case.status', label: 'HTTP / 実行ステータス', scope: '案件', type: 'Enum', token: '{case.status}' },
+  { id: 'case.latencyMs', label: 'レイテンシ (ms)', scope: '案件', type: 'Number', token: '{case.latencyMs}' },
+];
 
 const KNOWLEDGE_SOURCE_SEEDS = [
   {
