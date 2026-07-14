@@ -941,7 +941,7 @@ function sceneForm(sceneOrId) {
     ? cloneWorkflowTestCaseDefault()
     : null;
   data.workflowTestStatus = 'untested';
-  data.outputTestStatus = 'untested';
+  data.outputConfigStatus = 'unsaved';
   return data;
 }
 
@@ -972,7 +972,7 @@ function sceneFormByScene(scene) {
     ? cloneWorkflowTestCaseDefault()
     : null;
   data.workflowTestStatus = 'untested';
-  data.outputTestStatus = 'untested';
+  data.outputConfigStatus = 'unsaved';
   return data;
 }
 
@@ -1012,9 +1012,12 @@ function normalizeLoadedForm(form) {
   form.workflowTestStatus = ['untested', 'success', 'failed'].includes(form.workflowTestStatus)
     ? form.workflowTestStatus
     : 'untested';
-  form.outputTestStatus = ['untested', 'success', 'failed'].includes(form.outputTestStatus)
-    ? form.outputTestStatus
-    : 'untested';
+  if (!['unsaved', 'valid', 'invalid'].includes(form.outputConfigStatus)) {
+    form.outputConfigStatus = form.outputTestStatus === 'success'
+      ? 'valid'
+      : (form.outputTestStatus === 'failed' ? 'invalid' : 'unsaved');
+  }
+  delete form.outputTestStatus;
   return form;
 }
 

@@ -100,7 +100,6 @@ const appOptions = {
       ['要確認', '待确认'],
       ['公開可能', '可发布'],
       ['保存', '保存'],
-      ['保存してテスト', '保存并测试'],
       ['公開', '发布'],
       ['リセット', '重置'],
       ['テスト', '测试'],
@@ -1639,7 +1638,7 @@ const appOptions = {
     const canPublishWorkflowScene = computed(() => form.scene.publishStatus === 'ready');
 
     function updateSceneReadyState() {
-      form.scene.publishStatus = form.workflowTestStatus === 'success' && form.outputTestStatus === 'success'
+      form.scene.publishStatus = form.workflowTestStatus === 'success' && form.outputConfigStatus === 'valid'
         ? 'ready'
         : 'pending_review';
     }
@@ -1695,6 +1694,11 @@ const appOptions = {
     const exportDataMappingConfigured = computed(() => {
       const rules = primaryDataMappingNode.value?.mappingRules || [];
       return rules.some((rule) => rule.standardFieldId);
+    });
+
+    const selectedStandardOutputFieldCount = computed(() => {
+      if (!exportDataMappingConfigured.value) return 0;
+      return getAllExportStandardFieldRows().filter((row) => isExportStandardFieldChecked(row)).length;
     });
 
     const exportOcrConfigured = computed(() => {
@@ -4707,6 +4711,10 @@ const appOptions = {
           proceedToWorkflowStep();
           if (workflowSetupStep.value !== 2) return;
         }
+        if (form.workflowTestStatus !== 'success') {
+          ElementPlus.ElMessage.warning('Step2 の Workflow テストを先に完了してください');
+          return;
+        }
         syncOutputDocFieldsBySceneDocs();
         ensureDefaultExportFileSelection();
         if (!outputSelectedDocType.value && form.output.docFields?.[0]?.docType) {
@@ -4926,7 +4934,7 @@ const appOptions = {
           const name = applySceneSetupDraftToData(form);
           form.scene.publishStatus = 'pending_review';
           form.workflowTestStatus = 'untested';
-          form.outputTestStatus = 'untested';
+          form.outputConfigStatus = 'unsaved';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -4937,7 +4945,7 @@ const appOptions = {
           const name = applySceneSetupDraftToData(stored);
           stored.scene.publishStatus = 'pending_review';
           stored.workflowTestStatus = 'untested';
-          stored.outputTestStatus = 'untested';
+          stored.outputConfigStatus = 'unsaved';
           scene.name = name;
           saveStorage(scene.id, stored);
           if (scene.id === currentSceneId.value) {
@@ -4998,7 +5006,7 @@ const appOptions = {
           const name = applySceneSetupDraftToData(form);
           form.scene.publishStatus = 'pending_review';
           form.workflowTestStatus = 'untested';
-          form.outputTestStatus = 'untested';
+          form.outputConfigStatus = 'unsaved';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -5007,7 +5015,7 @@ const appOptions = {
           const name = applySceneSetupDraftToData(stored);
           stored.scene.publishStatus = 'pending_review';
           stored.workflowTestStatus = 'untested';
-          stored.outputTestStatus = 'untested';
+          stored.outputConfigStatus = 'unsaved';
           scene.name = name;
           saveStorage(scene.id, stored);
           selectScene(scene.id, { skipFinishRename: true, focusScene: true });
@@ -5036,8 +5044,27 @@ const appOptions = {
       );
       if (linkErr) return linkErr;
       if (!getActiveWf()?.nodes?.length) return 'Workflowノードを設定してください';
+      return '';
+    }
+
+    function validateOutputConfig() {
+      syncOutputDocFieldsBySceneDocs();
       if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
-      if ((outputFieldCount.value + outputTableStats.value.columns) <= 0) return 'エクスポート字段を1件以上選択してください';
+      const hasStandardSelection = (form.output.exportStandardFieldIds || []).length > 0
+        || form.output.exportFieldModeByDoc?.__standardRoot === 'standard'
+        || Object.values(form.output.exportFieldModeByDoc || {}).includes('standard');
+      if (hasStandardSelection && !exportDataMappingConfigured.value) {
+        return 'Workflow にデータマッピングノードを設定してください';
+      }
+      if ((outputFieldCount.value + outputTableStats.value.columns + selectedStandardOutputFieldCount.value) <= 0) {
+        return 'エクスポート字段を1件以上選択してください';
+      }
+      if (form.output.deliveryMethod === 'api' && !String(form.output.apiExportEndpoint || '').trim()) {
+        return 'API Endpoint を入力してください';
+      }
+      if (form.output.deliveryMethod === 'shared_folder' && !String(form.output.sharedFolderPath || '').trim()) {
+        return '共有フォルダパスを入力してください';
+      }
       return '';
     }
 
@@ -5047,8 +5074,10 @@ const appOptions = {
       if (form.workflowTestStatus !== 'success') {
         return 'Step2 の Workflow テストを完了してください';
       }
-      if (form.outputTestStatus !== 'success') {
-        return 'Step3 の出力設定テストを完了してください';
+      const outputErr = validateOutputConfig();
+      if (outputErr) return outputErr;
+      if (form.outputConfigStatus !== 'valid') {
+        return 'Step3 の出力設定を保存してください';
       }
       if (form.scene.publishStatus !== 'ready') {
         return 'ワークフローテストを完了してください';
@@ -7626,6 +7655,10 @@ const appOptions = {
 
     function onExportPreviewRowClick(node) {
       if (node.kind === 'folder' && node.outputMode === 'standard') {
+        if (!exportDataMappingConfigured.value) {
+          ElementPlus.ElMessage.warning('Workflow にデータマッピングノードを設定してください');
+          return;
+        }
         outputSelectedDocType.value = '';
         outputSelectedFileId.value = '';
         outputSelectedExportScope.value = 'standard';
@@ -8086,10 +8119,10 @@ const appOptions = {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
       form.scene.publishStatus = 'pending_review';
       if (currentNode.value === 'output') {
-        form.outputTestStatus = 'untested';
+        form.outputConfigStatus = 'unsaved';
       } else {
         form.workflowTestStatus = 'untested';
-        form.outputTestStatus = 'untested';
+        form.outputConfigStatus = 'unsaved';
       }
     }
 
@@ -8266,26 +8299,19 @@ const appOptions = {
       advance();
     }
 
-    function validateOutputStepTest() {
-      syncOutputDocFieldsBySceneDocs();
+    function validateOutputStepSave() {
       const err = validateWorkflowReadyForTest();
       if (err) return err;
       if (form.workflowTestStatus !== 'success') {
         return 'Step2 の Workflow テストを先に完了してください';
       }
-      if (form.output.deliveryMethod === 'api' && !String(form.output.apiExportEndpoint || '').trim()) {
-        return 'API Endpoint を入力してください';
-      }
-      if (form.output.deliveryMethod === 'shared_folder' && !String(form.output.sharedFolderPath || '').trim()) {
-        return '共有フォルダパスを入力してください';
-      }
-      return '';
+      return validateOutputConfig();
     }
 
-    function saveAndRunOutputTestFromStep3() {
+    function saveOutputConfigFromStep3() {
       if (!handleSave({ silent: true })) return;
-      const err = validateOutputStepTest();
-      form.outputTestStatus = err ? 'failed' : 'success';
+      const err = validateOutputStepSave();
+      form.outputConfigStatus = err ? 'invalid' : 'valid';
       updateSceneReadyState();
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
@@ -8293,7 +8319,7 @@ const appOptions = {
         ElementPlus.ElMessage.warning(err);
         return;
       }
-      ElementPlus.ElMessage.success('出力設定テストを完了しました');
+      ElementPlus.ElMessage.success('保存しました');
     }
 
     const workflowTestStepRows = computed(() => workflowTestDraft.steps || []);
@@ -8583,12 +8609,13 @@ const appOptions = {
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
       runWorkflowTest,
-      saveAndRunOutputTestFromStep3,
+      saveOutputConfigFromStep3,
       workflowTestStatusLabel,
       applyWorkflowTestContinue,
       sceneStats,
       canPublishWorkflowScene,
       outputFieldCount,
+      selectedStandardOutputFieldCount,
       outputTableStats,
       getSceneMainDocTypes,
       getSceneMainDocType,
