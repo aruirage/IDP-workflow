@@ -54,11 +54,11 @@ const INSPECTOR_HINTS = {
   nodeOutputPreprocess: '前処理総状態・全ファイル对象配列（files[]）。各文件含 status/url。人工分岐は条件ノードで preprocessStatus 等を参照。',
   nodeOutputOcr: 'OCR 総状態・低信頼件数・files[]（含 files[].ocrFields）。人工分岐は条件ノードで lowConfidenceFieldCount 等を参照。',
   nodeOutputVerify: 'AI検証総状態・6 類検証結果・全ファイル对象配列（files[]）・不足書類/項目明細。',
-  nodeOutputStart: 'Step1 案件変数（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。起動イベントは案件状態に対応する 3 種（読み取り専用）。账票字段仅在条件选择时从 Step1 模板加载。',
+  nodeOutputStart: 'Step1 system context: caseId / caseNo / businessScene + docTypes[] + files[]. These are not condition variables. OCR fields are loaded from the Step1 template only in the condition picker.',
   nodeOutputEnd: '終了パターン（案件状態提案 × 最終処理結果）と公開時判定ルール（読み取り専用）。',
   nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
   nodeOutputNotify: '通知送信状態・送信日時・送信失敗理由。',
-  dataMappingOutput: 'case.standardFields + files[] + ステータス。条件选标准字段时三级展开：映射节点 → 標準フィールド → 字段名。',
+  dataMappingOutput: 'case.standardFields + files[] + status。条件选标准字段时三级展开：映射节点 → 標準フィールド → 字段名。',
   externalApiIo: '前工程から自動連携される入力です。',
   knowledgeSelect: 'ナレッジ数据源を選択します。+ ボタンから新規作成（文档上传 / Web Site API）ができます。',
   knowledgeRetrieval: 'Vector Search の類似度・Top N・参照文字数上限を設定します（Dify Knowledge Retrieval 相当）。',
@@ -89,11 +89,11 @@ const INSPECTOR_HINTS = {
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
   notifyRecipients: 'システム通知の場合は通知先ロールを選択します。メールの場合は宛先アドレスを指定します。',
   notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
-  code: 'Python スクリプトで上流変数を加工し、後続ノードへ結果を渡します。入力変数・出力変数の定義は本パネルで設定します。',
+  code: 'Python スクリプトで上流変数を加工します。スクリプト戻り値はスクリプト内で完結し、変数プールには入りません。',
   codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」から変数を登録できます。',
-  codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は {ノード変数名.result} へ格納されます。',
+  codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は変数プールへ公開されません。',
   codeReturn: 'OFF の場合、ユーザー定義の戻り値は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。',
-  codeOutput: 'スクリプト戻り値の各項目名とデータ型を定義します。後続ノードでは {ノード変数名.項目名} 形式で参照できます。',
+  codeOutput: '変数プールへ公開されるのは status と errorMessage のみです。ユーザー定義の戻り値は条件ノードや通知ノードでは選択できません。',
   codeParamName: 'スクリプト内で参照する引数の名前です。64 文字以内で指定します。',
   codeParamDataType: '引数または出力値のデータ型を選択します。',
   codeParamSource: '参照パラメータは上流変数プール JSON を実行時に自動注入します。カスタムは固定値を直接入力します。',
@@ -645,17 +645,17 @@ function getWorkflowFlowPreviewNodeStyle(type) {
 }
 
 const DATA_MAPPING_STANDARD_FIELDS = [
-  { value: 'claimNo', label: '案件元請求番号', dataType: 'string', category: 'claim' },
-  { value: 'policyNo', label: '証券番号', dataType: 'string', category: 'contract' },
-  { value: 'contractorName', label: '契約者氏名', dataType: 'string', category: 'customer' },
-  { value: 'insuredName', label: '被保険者氏名', dataType: 'string', category: 'customer' },
-  { value: 'insuredBirthDate', label: '被保険者生年月日', dataType: 'date', category: 'customer' },
-  { value: 'claimType', label: '請求区分', dataType: 'string', category: 'claim' },
-  { value: 'admissionDate', label: '入院日', dataType: 'date', category: 'medical' },
-  { value: 'dischargeDate', label: '退院日', dataType: 'date', category: 'medical' },
-  { value: 'claimAmount', label: '請求金額', dataType: 'number', category: 'claim' },
-  { value: 'medicalInstitutionName', label: '医療機関名', dataType: 'string', category: 'medical' },
-  { value: 'diagnosisName', label: '傷病名・診断名', dataType: 'string', category: 'medical' },
+  { value: 'claimNo', label: 'Claim Number', dataType: 'string', category: 'claim' },
+  { value: 'policyNo', label: 'Policy Number', dataType: 'string', category: 'contract' },
+  { value: 'contractorName', label: 'Contractor Name', dataType: 'string', category: 'customer' },
+  { value: 'insuredName', label: 'Insured Name', dataType: 'string', category: 'customer' },
+  { value: 'insuredBirthDate', label: 'Insured Birth Date', dataType: 'string', category: 'customer' },
+  { value: 'claimType', label: 'Claim Type', dataType: 'string', category: 'claim' },
+  { value: 'admissionDate', label: 'Admission Date', dataType: 'string', category: 'medical' },
+  { value: 'dischargeDate', label: 'Discharge Date', dataType: 'string', category: 'medical' },
+  { value: 'claimAmount', label: 'Claim Amount', dataType: 'string', category: 'claim' },
+  { value: 'medicalInstitutionName', label: 'Medical Institution Name', dataType: 'string', category: 'medical' },
+  { value: 'diagnosisName', label: 'Diagnosis Name', dataType: 'string', category: 'medical' },
 ];
 
 const DATA_MAPPING_FIELD_CATEGORIES = [
@@ -756,7 +756,6 @@ const WORKFLOW_STEP1_CASE_FIELDS = [
   { id: 'case.caseId', label: '案件ID', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 案件唯一标识' },
   { id: 'case.caseNo', label: '案件番号', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Workflow 対象の案件番号' },
   { id: 'case.businessScene', label: '業務シーン', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 で設定した業務シーン名' },
-  { id: 'case.caseStatus', label: '案件状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.caseStatus, description: 'Step1 案件列表聚合状态' },
 ];
 
 const WORKFLOW_DOCTYPE_OUTPUT_NODES = new Set(['start']);
@@ -783,7 +782,7 @@ const WORKFLOW_VAR_CONSUMPTION_LABELS = {
   [WORKFLOW_VAR_CONSUMPTION.CONDITION]: '条件',
   [WORKFLOW_VAR_CONSUMPTION.TODO]: '待办',
   [WORKFLOW_VAR_CONSUMPTION.NOTIFY]: '通知',
-  [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY]: '待办·通知',
+  [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY]: '待办 / 通知',
   [WORKFLOW_VAR_CONSUMPTION.RUNTIME]: '运行时',
 };
 
@@ -866,9 +865,6 @@ function getWorkflowVarConsumptionPaths(item) {
     return WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID[key];
   }
   if (item.pickerGroup === 'step1_doc' || item.pickerGroup === 'standard_field') {
-    return [WORKFLOW_VAR_CONSUMPTION.CONDITION];
-  }
-  if (item.nodeType === 'code' && item.localId && !['case.status', 'case.errorMessage'].includes(item.localId)) {
     return [WORKFLOW_VAR_CONSUMPTION.CONDITION];
   }
   return [];
@@ -981,7 +977,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   data_mapping: [
     { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マッピング全体の集約状態' },
-    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件級标准字段（条件选择：映射节点 → 標準フィールド → 字段名）' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件级标准字段容器（条件选择：映射节点 → 標準フィールド → 字段名）' },
     { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級に集約したフィールド競合' },
     { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ルール不適用、字段缺失、変換失敗の明細' },
     ...workflowNodeFileOutputFields('data_mapping'),
@@ -1034,31 +1030,7 @@ function getCodeNodeOutputVarDefs(node) {
     { id: 'case.status', label: 'ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'スクリプト実行の成否', consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.CONDITION] },
     { id: 'case.errorMessage', label: 'エラーメッセージ', scope: '案件', type: 'String', valueSpec: '失敗時のみ写入；无固定取值', description: '実行失敗時の詳細', consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.NOTIFY] },
   ];
-  if (!node?.returnContent) return systemDefs;
-  const params = Array.isArray(node.outputParams) && node.outputParams.length
-    ? node.outputParams
-    : [{ name: 'result', dataType: 'dict' }];
-  const userDefs = params.map((row) => {
-    const name = (row?.name || 'result').trim() || 'result';
-    const typeMap = { string: 'String', int: 'Number', float: 'Number', dict: 'Object', array: 'Array' };
-    const mappedType = typeMap[row?.dataType] || 'Object';
-    const valueSpecByType = {
-      String: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString,
-      Number: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount,
-      Object: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys,
-      Array: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems,
-    };
-    return {
-      id: `case.${name}`,
-      label: name,
-      scope: '案件',
-      type: mappedType,
-      valueSpec: valueSpecByType[mappedType] || WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys,
-      description: 'Python 関数の戻り値',
-      consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-    };
-  });
-  return [...userDefs, ...systemDefs];
+  return systemDefs;
 }
 
 function formatWorkflowOutputVarToken(node, workflow, varId) {
@@ -1095,6 +1067,7 @@ function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'cond
     if (catalogMode === 'condition' && DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
     if (!isWorkflowVarForCatalog(item, catalogMode)) return;
     if (isDecisionCatalogTemporalDataType(item.type)) return;
+    if (catalogMode === 'condition' && normalizeDecisionDataType(item.type) === 'array') return;
     if (catalogMode === 'condition' && isDecisionCatalogFileScopeVar(item)) return;
     appendDecisionVarOption(options, {
       value: `${getWorkflowNodeVarName(node, workflow)}.${item.id}`,
@@ -1127,9 +1100,9 @@ function appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, ge
         label: `${docTypeLabel} · ${field}`,
         displayName: field,
         group: STEP1_DOCTYPE_FIELD_CASCADER_GROUP,
-        scope: '帳票タイプ',
+        scope: 'Document Type',
         dataType: 'String',
-        description: '条件用字段选择（非节点输出变量）；运行时按 files[].classificationResult + files[].ocrFields 取值',
+        description: 'Condition field selection, not a node output variable. Runtime value comes from files[].classificationResult + files[].ocrFields.',
         nodeType: 'step1_template',
         nodeId: 'step1',
         varName: '',
@@ -1147,15 +1120,14 @@ function appendDataMappingStandardFieldCatalog(node, workflow, options) {
   const varName = getWorkflowNodeVarName(node, workflow);
   const meta = getWorkflowNodeMeta(node.type);
   DATA_MAPPING_STANDARD_FIELDS.forEach((field) => {
-    if (isDecisionCatalogTemporalDataType(field.dataType)) return;
     appendDecisionVarOption(options, {
       value: `${varName}.case.standardFields.${field.value}`,
       label: field.label,
       displayName: field.label,
       group: meta.title,
       scope: '案件',
-      dataType: field.dataType || 'String',
-      description: 'データマッピング標準フィールド',
+      dataType: 'String',
+      description: 'Data mapping standard field.',
       nodeType: node.type,
       nodeId: node.id,
       varName,
@@ -1913,11 +1885,8 @@ const NOTIFY_TEMPLATE_VAR_REFS = {
     nodeType: 'end',
     varId: 'case.caseStatus',
     legacyLabel: '案件状態',
-    workflowScope: true,
-    fallbackNodeTypes: ['start'],
-    fallbackVarId: 'case.caseStatus',
   },
-  finalResult: { nodeType: 'end', varId: 'case.finalResult', legacyLabel: '最終処理結果', workflowScope: true },
+  finalResult: { nodeType: 'end', varId: 'case.finalResult', legacyLabel: '最終処理結果' },
   missingDocuments: { nodeType: 'ai_verify', varId: 'case.missingDocuments', legacyLabel: '不足書類一覧' },
   missingFields: { nodeType: 'ai_verify', varId: 'case.missingFields', legacyLabel: '不足項目一覧' },
   errorMessage: {
@@ -1973,18 +1942,8 @@ function getNotifyTemplateVarRefKeys(templateValue) {
   return tpl?.varRefs ? [...tpl.varRefs] : [];
 }
 
-function getNotifyVarFallbackPath(ref) {
-  if (!ref) return '';
-  const typeName = ref.nodeType === 'ai_verify' ? 'verify' : ref.nodeType;
-  return `${typeName}.${ref.varId}`;
-}
-
 function resolveNotifyTemplateNode(workflow, notifyNodeId, ref) {
   if (!ref || !workflow?.nodes?.length) return null;
-  if (ref.workflowScope) {
-    const scoped = workflow.nodes.filter((n) => n.type === ref.nodeType);
-    return scoped.length ? scoped[scoped.length - 1] : null;
-  }
   const upstream = resolveUpstreamNodesByType(workflow, notifyNodeId, ref.nodeType);
   if (upstream.length) return upstream[0];
   if (ref.nodeType === 'start') return workflow.nodes.find((n) => n.type === 'start') || null;
@@ -2000,16 +1959,24 @@ function resolveNotifyTemplateNode(workflow, notifyNodeId, ref) {
 function resolveNotifyTemplateVarToken(workflow, notifyNodeId, refKey) {
   const ref = NOTIFY_TEMPLATE_VAR_REFS[refKey];
   if (!ref) return '';
+  if (!workflow || !notifyNodeId) return '';
+  const options = getNotifyVariableOptions(workflow, notifyNodeId);
   const node = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
-  if (node) return formatWorkflowOutputVarToken(node, workflow, ref.varId);
+  if (node) {
+    const token = formatWorkflowOutputVarToken(node, workflow, ref.varId);
+    const value = token.replace(/^\{|\}$/g, '');
+    if (options.some((item) => item.value === value)) return token;
+  }
   if (ref.fallbackNodeTypes?.length && ref.fallbackVarId) {
     for (const nodeType of ref.fallbackNodeTypes) {
       const fallbackNode = resolveNotifyTemplateNode(workflow, notifyNodeId, { ...ref, nodeType, fallbackNodeTypes: [] });
-      if (fallbackNode) return formatWorkflowOutputVarToken(fallbackNode, workflow, ref.fallbackVarId);
+      if (!fallbackNode) continue;
+      const token = formatWorkflowOutputVarToken(fallbackNode, workflow, ref.fallbackVarId);
+      const value = token.replace(/^\{|\}$/g, '');
+      if (options.some((item) => item.value === value)) return token;
     }
   }
-  const fallbackPath = getNotifyVarFallbackPath(ref);
-  return fallbackPath ? `{${fallbackPath}}` : '';
+  return '';
 }
 
 function buildNotifyTemplateFieldText(templateValue, field, workflow = null, notifyNodeId = '') {
@@ -2049,6 +2016,7 @@ function getNotifyTemplateRecommendedVars(templateValue, workflow = null, notify
     const token = resolveNotifyTemplateVarToken(workflow, notifyNodeId, key);
     const value = token.replace(/^\{|\}$/g, '');
     const opt = options.find((item) => item.value === value);
+    if (!opt) return null;
     return {
       key,
       value,
@@ -2056,7 +2024,7 @@ function getNotifyTemplateRecommendedVars(templateValue, workflow = null, notify
       token,
       group: opt?.group || '',
     };
-  }).filter((item) => item.token);
+  }).filter((item) => item?.token);
 }
 
 /** @deprecated use getNotifyTemplateRecommendedVars */
@@ -2775,55 +2743,55 @@ const DECISION_RESULT_VALUES = [
 ];
 
 const DECISION_OPERATORS = [
-  { value: 'is', label: '=', types: ['all'], placeholder: '値を入力' },
-  { value: 'is_not', label: '≠', types: ['all'], placeholder: '値を入力' },
-  { value: 'is_empty', label: '未設定', types: ['all'], requiresValue: false },
-  { value: 'is_not_empty', label: '設定済み', types: ['all'], requiresValue: false },
+  { value: 'is', label: '=', types: ['all'], placeholder: 'Enter value' },
+  { value: 'is_not', label: '≠', types: ['all'], placeholder: 'Enter value' },
+  { value: 'is_empty', label: 'is empty', types: ['all'], requiresValue: false },
+  { value: 'is_not_empty', label: 'is not empty', types: ['all'], requiresValue: false },
   { value: 'is_true', label: 'true', types: ['boolean'], requiresValue: false },
   { value: 'is_false', label: 'false', types: ['boolean'], requiresValue: false },
-  { value: 'greater_than', label: '>', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
-  { value: 'greater_than_or_equal', label: '≥', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
-  { value: 'less_than', label: '<', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
-  { value: 'less_than_or_equal', label: '≤', types: ['number', 'date', 'datetime'], placeholder: '比較値を入力' },
-  { value: 'between', label: '範囲内', types: ['number', 'date', 'datetime'], placeholder: '開始値, 終了値' },
-  { value: 'not_between', label: '範囲外', types: ['number', 'date', 'datetime'], placeholder: '開始値, 終了値' },
-  { value: 'contains', label: '含む', types: ['string', 'enum', 'array'], placeholder: '含める値' },
-  { value: 'not_contains', label: '含まない', types: ['string', 'enum', 'array'], placeholder: '除外する値' },
-  { value: 'starts_with', label: 'で始まる', types: ['string'], placeholder: '先頭文字列' },
-  { value: 'ends_with', label: 'で終わる', types: ['string'], placeholder: '末尾文字列' },
-  { value: 'matches_regex', label: '正規表現に一致', types: ['string'], placeholder: '正規表現' },
-  { value: 'not_matches_regex', label: '正規表現に不一致', types: ['string'], placeholder: '正規表現' },
-  { value: 'text_length_equals', label: '文字数 =', types: ['string'], placeholder: '文字数' },
-  { value: 'text_length_greater_than', label: '文字数 >', types: ['string'], placeholder: '文字数' },
-  { value: 'text_length_greater_than_or_equal', label: '文字数 ≥', types: ['string'], placeholder: '文字数' },
-  { value: 'text_length_less_than', label: '文字数 <', types: ['string'], placeholder: '文字数' },
-  { value: 'text_length_less_than_or_equal', label: '文字数 ≤', types: ['string'], placeholder: '文字数' },
-  { value: 'in', label: 'いずれか', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: '値1, 値2, ...' },
-  { value: 'not_in', label: 'いずれでもない', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: '値1, 値2, ...' },
-  { value: 'within_last_days', label: '直近N日以内', types: ['date', 'datetime'], placeholder: '日数' },
-  { value: 'older_than_days', label: 'N日以前', types: ['date', 'datetime'], placeholder: '日数' },
-  { value: 'length_equals', label: '件数 =', types: ['array'], placeholder: '件数' },
-  { value: 'length_greater_than', label: '件数 >', types: ['array'], placeholder: '件数' },
-  { value: 'length_greater_than_or_equal', label: '件数 ≥', types: ['array'], placeholder: '件数' },
-  { value: 'length_less_than', label: '件数 <', types: ['array'], placeholder: '件数' },
-  { value: 'length_less_than_or_equal', label: '件数 ≤', types: ['array'], placeholder: '件数' },
-  { value: 'contains_any', label: 'いずれかを含む', types: ['array'], placeholder: '値1, 値2, ...' },
-  { value: 'contains_all', label: 'すべて含む', types: ['array'], placeholder: '値1, 値2, ...' },
-  { value: 'has_key', label: 'キーを含む', types: ['object'], placeholder: 'キー名' },
-  { value: 'not_has_key', label: 'キーを含まない', types: ['object'], placeholder: 'キー名' },
-  { value: 'json_path_exists', label: 'パスあり', types: ['object'], placeholder: '例：result.status' },
-  { value: 'json_path_not_exists', label: 'パスなし', types: ['object'], placeholder: '例：result.status' },
-  { value: 'json_path_equals', label: 'パス値 =', types: ['object'], placeholder: '例：result.status = success' },
-  { value: 'json_path_not_equals', label: 'パス値 ≠', types: ['object'], placeholder: '例：result.status = failed' },
-  { value: 'json_path_contains', label: 'パス値に含む', types: ['object'], placeholder: '例：messages[] = 不備' },
-  { value: 'file_name_contains', label: 'ファイル名に含む', types: ['file'], placeholder: 'ファイル名' },
-  { value: 'file_name_not_contains', label: 'ファイル名に含まない', types: ['file'], placeholder: 'ファイル名' },
-  { value: 'file_extension_is', label: '拡張子 =', types: ['file'], placeholder: 'pdf' },
-  { value: 'file_extension_in', label: '拡張子いずれか', types: ['file'], placeholder: 'pdf, jpg, png' },
-  { value: 'file_size_greater_than', label: 'サイズ >', types: ['file'], placeholder: 'MB' },
-  { value: 'file_size_less_than_or_equal', label: 'サイズ ≤', types: ['file'], placeholder: 'MB' },
-  { value: 'file_page_count_greater_than', label: 'ページ数 >', types: ['file'], placeholder: 'ページ数' },
-  { value: 'file_page_count_less_than_or_equal', label: 'ページ数 ≤', types: ['file'], placeholder: 'ページ数' },
+  { value: 'greater_than', label: '>', types: ['number', 'date', 'datetime'], placeholder: 'Enter comparison value' },
+  { value: 'greater_than_or_equal', label: '≥', types: ['number', 'date', 'datetime'], placeholder: 'Enter comparison value' },
+  { value: 'less_than', label: '<', types: ['number', 'date', 'datetime'], placeholder: 'Enter comparison value' },
+  { value: 'less_than_or_equal', label: '≤', types: ['number', 'date', 'datetime'], placeholder: 'Enter comparison value' },
+  { value: 'between', label: 'between', types: ['number', 'date', 'datetime'], placeholder: 'Start value, end value' },
+  { value: 'not_between', label: 'not between', types: ['number', 'date', 'datetime'], placeholder: 'Start value, end value' },
+  { value: 'contains', label: 'contains', types: ['string', 'enum', 'array'], placeholder: 'Value to include' },
+  { value: 'not_contains', label: 'not contains', types: ['string', 'enum', 'array'], placeholder: 'Value to exclude' },
+  { value: 'starts_with', label: 'starts with', types: ['string'], placeholder: 'Prefix text' },
+  { value: 'ends_with', label: 'ends with', types: ['string'], placeholder: 'Suffix text' },
+  { value: 'matches_regex', label: 'matches regex', types: ['string'], placeholder: 'Regular expression' },
+  { value: 'not_matches_regex', label: 'does not match regex', types: ['string'], placeholder: 'Regular expression' },
+  { value: 'text_length_equals', label: 'length =', types: ['string'], placeholder: 'Character count' },
+  { value: 'text_length_greater_than', label: 'length >', types: ['string'], placeholder: 'Character count' },
+  { value: 'text_length_greater_than_or_equal', label: 'length ≥', types: ['string'], placeholder: 'Character count' },
+  { value: 'text_length_less_than', label: 'length <', types: ['string'], placeholder: 'Character count' },
+  { value: 'text_length_less_than_or_equal', label: 'length ≤', types: ['string'], placeholder: 'Character count' },
+  { value: 'in', label: 'in', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: 'Value 1, value 2, ...' },
+  { value: 'not_in', label: 'not in', types: ['string', 'enum', 'number', 'date', 'datetime'], placeholder: 'Value 1, value 2, ...' },
+  { value: 'within_last_days', label: 'within last N days', types: ['date', 'datetime'], placeholder: 'Days' },
+  { value: 'older_than_days', label: 'older than N days', types: ['date', 'datetime'], placeholder: 'Days' },
+  { value: 'length_equals', label: 'length =', types: ['array'], placeholder: 'Item count' },
+  { value: 'length_greater_than', label: 'length >', types: ['array'], placeholder: 'Item count' },
+  { value: 'length_greater_than_or_equal', label: 'length ≥', types: ['array'], placeholder: 'Item count' },
+  { value: 'length_less_than', label: 'length <', types: ['array'], placeholder: 'Item count' },
+  { value: 'length_less_than_or_equal', label: 'length ≤', types: ['array'], placeholder: 'Item count' },
+  { value: 'contains_any', label: 'contains any', types: ['array'], placeholder: 'Value 1, value 2, ...' },
+  { value: 'contains_all', label: 'contains all', types: ['array'], placeholder: 'Value 1, value 2, ...' },
+  { value: 'has_key', label: 'has key', types: ['object'], placeholder: 'Key name' },
+  { value: 'not_has_key', label: 'does not have key', types: ['object'], placeholder: 'Key name' },
+  { value: 'json_path_exists', label: 'path exists', types: ['object'], placeholder: 'e.g. result.status' },
+  { value: 'json_path_not_exists', label: 'path does not exist', types: ['object'], placeholder: 'e.g. result.status' },
+  { value: 'json_path_equals', label: 'path value =', types: ['object'], placeholder: 'e.g. result.status = success' },
+  { value: 'json_path_not_equals', label: 'path value ≠', types: ['object'], placeholder: 'e.g. result.status = failed' },
+  { value: 'json_path_contains', label: 'path value contains', types: ['object'], placeholder: 'e.g. messages[] = issue' },
+  { value: 'file_name_contains', label: 'file name contains', types: ['file'], placeholder: 'File name' },
+  { value: 'file_name_not_contains', label: 'file name does not contain', types: ['file'], placeholder: 'File name' },
+  { value: 'file_extension_is', label: 'extension =', types: ['file'], placeholder: 'pdf' },
+  { value: 'file_extension_in', label: 'extension in', types: ['file'], placeholder: 'pdf, jpg, png' },
+  { value: 'file_size_greater_than', label: 'size >', types: ['file'], placeholder: 'MB' },
+  { value: 'file_size_less_than_or_equal', label: 'size ≤', types: ['file'], placeholder: 'MB' },
+  { value: 'file_page_count_greater_than', label: 'page count >', types: ['file'], placeholder: 'Page count' },
+  { value: 'file_page_count_less_than_or_equal', label: 'page count ≤', types: ['file'], placeholder: 'Page count' },
 ];
 
 const DECISION_VALUELESS_OPERATORS = new Set(
@@ -2902,19 +2870,6 @@ const DECISION_OPERATORS_EXCLUDED_FROM_CONDITION = new Set([
   'older_than_days',
 ]);
 
-/** 失败时写入的可选 String 变量（允许 未設定 / 設定済み） */
-const DECISION_OPTIONAL_STRING_VAR_SUFFIXES = [
-  'lastFailureReason',
-  'errorMessage',
-  'notifyFailureReason',
-];
-
-function isDecisionOptionalStringVariable(variableOption) {
-  if (variableOption?.pickerGroup === 'step1_doc') return true;
-  const value = String(variableOption?.value || variableOption?.localId || '');
-  return DECISION_OPTIONAL_STRING_VAR_SUFFIXES.some((suffix) => value.endsWith(suffix));
-}
-
 function getDecisionOperatorsForType(dataType = '', variableOption = null) {
   if (!String(dataType || '').trim()) {
     return DECISION_OPERATORS
@@ -2930,20 +2885,18 @@ function getDecisionOperatorsForType(dataType = '', variableOption = null) {
   } else if (type === 'boolean') {
     options = options.filter((op) => ['is_true', 'is_false'].includes(op.value));
   } else if (type === 'string') {
-    if (!isDecisionOptionalStringVariable(variableOption)) {
-      options = options.filter((op) => !['is_empty', 'is_not_empty'].includes(op.value));
-    }
+    options = options.filter((op) => ['is', 'is_not', 'contains', 'is_empty', 'is_not_empty'].includes(op.value));
   } else if (type === 'array') {
-    options = options.filter((op) => (
-      op.value.startsWith('length_') || op.value === 'contains' || op.value === 'not_contains'
-    ));
+    options = [];
   } else if (type === 'object') {
-    options = options.filter((op) => ['is_empty', 'is_not_empty', 'has_key'].includes(op.value));
+    options = options.filter((op) => ['is_empty', 'is_not_empty'].includes(op.value));
   } else if (type === 'file') {
     options = [];
   } else if (type === 'date' || type === 'datetime') {
     options = [];
   }
+
+  if (['array', 'file', 'date', 'datetime'].includes(type)) return [];
 
   return options.length
     ? options
@@ -2955,7 +2908,6 @@ function getDecisionOperatorsForType(dataType = '', variableOption = null) {
 function getDecisionDefaultOperator(dataType = '', variableOption = null) {
   if (!String(dataType || '').trim()) return 'is';
   const type = normalizeDecisionDataType(dataType);
-  if (type === 'string' && isDecisionOptionalStringVariable(variableOption)) return 'contains';
   const preferred = DECISION_DEFAULT_OPERATOR_BY_TYPE[type] || 'is';
   return isDecisionOperatorAvailableForType(preferred, type)
     ? preferred
@@ -2993,13 +2945,12 @@ function getDecisionUpstreamNodeIds(workflow, nodeId) {
 }
 
 function appendDecisionVarOption(options, spec) {
-  if (isDecisionCatalogTemporalDataType(spec?.dataType)) return;
   const localId = spec.localId || String(spec.value || '').split('.').pop() || '';
   const consumptionPaths = spec.consumptionPaths?.length
     ? spec.consumptionPaths
     : getWorkflowVarConsumptionPaths({ ...spec, localId: spec.localId || localId });
   options.push({
-    group: spec.group || '変数',
+    group: spec.group || 'Variables',
     nodeType: spec.nodeType || '',
     nodeId: spec.nodeId || '',
     varName: spec.varName || '',
@@ -3040,15 +2991,6 @@ function buildDecisionVariableCatalog(workflow, nodeId, verifyConfig = null, sce
   return options;
 }
 
-function resolveNotifyCatalogNode(workflow, notifyNodeId, ref) {
-  const upstream = resolveNotifyTemplateNode(workflow, notifyNodeId, ref);
-  if (upstream) return upstream;
-  if (!ref?.nodeType || !workflow?.nodes?.length) return null;
-  const matches = workflow.nodes.filter((n) => n.type === ref.nodeType);
-  if (!matches.length) return null;
-  return ref.nodeType === 'end' ? matches[matches.length - 1] : matches[0];
-}
-
 function dedupeNotifyVarOptions(options = []) {
   const seen = new Set();
   return options.filter((opt) => {
@@ -3056,34 +2998,6 @@ function dedupeNotifyVarOptions(options = []) {
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
-}
-
-function appendWorkflowScopedNotifyCatalog(workflow, notifyNodeId, options) {
-  if (!workflow?.nodes?.length) return;
-  Object.entries(NOTIFY_TEMPLATE_VAR_REFS).forEach(([refKey, ref]) => {
-    if (!ref?.varId) return;
-    const node = resolveNotifyCatalogNode(workflow, notifyNodeId, ref);
-    if (!node) return;
-    const varName = getWorkflowNodeVarName(node, workflow);
-    const value = `${varName}.${ref.varId}`;
-    if ((options || []).some((opt) => opt.value === value)) return;
-    const item = getWorkflowNodeOutputVarItems(node, workflow).find((row) => row.id === ref.varId);
-    if (!item || !isWorkflowVarForCatalog(item, 'notify')) return;
-    appendDecisionVarOption(options, {
-      value,
-      label: item.label,
-      displayName: String(ref.varId || '').split('.').pop() || ref.varId,
-      group: getWorkflowNodeMeta(node.type).title,
-      scope: item.scope || '案件',
-      dataType: item.type || '',
-      description: item.description || item.label,
-      nodeType: node.type,
-      nodeId: node.id,
-      varName,
-      localId: ref.varId,
-      consumptionPaths: getWorkflowVarConsumptionPaths(item),
-    });
   });
 }
 
@@ -3102,7 +3016,6 @@ function buildNotifyVariableCatalog(workflow, nodeId, verifyConfig = null, scene
   if (docTypes.length) {
     appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, getDocLabelFn);
   }
-  appendWorkflowScopedNotifyCatalog(workflow, nodeId, options);
   return dedupeNotifyVarOptions(options);
 }
 
@@ -3131,7 +3044,7 @@ function getDecisionVariableOptions(workflow, nodeId, verifyConfig = null, scene
 }
 
 function getDecisionVariableLabel(value, options = []) {
-  return options.find((o) => o.value === value)?.label || value || '変数';
+  return options.find((o) => o.value === value)?.label || value || 'Variable';
 }
 
 function getDecisionVariableSecondaryLabel(option) {
