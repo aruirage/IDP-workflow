@@ -6470,6 +6470,14 @@ code.export-config-meta-value {
   white-space: nowrap;
   flex-shrink: 0;
 }
+.wf-publish-badge.is-pending_review {
+  background: #fff7e6;
+  color: #b54708;
+}
+.wf-publish-badge.is-ready {
+  background: #e8f2ff;
+  color: #175cd3;
+}
 .wf-publish-badge.is-published {
   background: #ecfdf3;
   color: #039855;

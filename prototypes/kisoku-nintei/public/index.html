@@ -617,7 +617,7 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
-              <span class="wf-publish-badge" :class="{ 'is-published': form.scene.publishStatus === 'published' }">{{ scenePublishBadge }}</span>
+              <span class="wf-publish-badge" :class="'is-' + form.scene.publishStatus">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
@@ -1916,13 +1916,13 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
-              <span class="wf-publish-badge" :class="{ 'is-published': form.scene.publishStatus === 'published' }">{{ scenePublishBadge }}</span>
+              <span class="wf-publish-badge" :class="'is-' + form.scene.publishStatus">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(2)">前へ</el-button>
-              <el-button @click="handleSave">保存</el-button>
-              <el-button type="primary" @click="publishWorkflowScene">公開</el-button>
+              <el-button type="warning" @click="saveAndRunWorkflowTestFromStep3">保存してテスト</el-button>
+              <el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開</el-button>
             </div>
           </div>
 

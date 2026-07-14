@@ -97,7 +97,10 @@ const appOptions = {
       ['業務シーン追加', '新增业务场景'],
       ['下書き保存', '保存草稿'],
       ['下書き', '草稿'],
+      ['要確認', '待确认'],
+      ['公開可能', '可发布'],
       ['保存', '保存'],
+      ['保存してテスト', '保存并测试'],
       ['公開', '发布'],
       ['リセット', '重置'],
       ['テスト', '测试'],
@@ -163,7 +166,6 @@ const appOptions = {
       ['終了未到達', '未到达终了节点'],
       ['未実行', '未执行'],
       ['実行中', '执行中'],
-      ['要確認', '待确认'],
       ['確認済', '已确认'],
       ['スキップ', '跳过'],
       ['折りたたむ', '折叠'],
@@ -1626,11 +1628,15 @@ const appOptions = {
     const isLastNode = computed(() => nodeIndex.value === NODE_ORDER.length - 1);
     const saveButtonText = computed(() => (isLastNode.value ? '設定を完了' : '保存'));
     const scenePublishBadge = computed(() => {
-      if (form.scene.publishStatus === 'published') {
-        return '公開済み';
-      }
-      return '下書き';
+      const labels = {
+        draft: '下書き',
+        pending_review: '要確認',
+        ready: '公開可能',
+        published: '公開済み',
+      };
+      return labels[form.scene.publishStatus] || labels.draft;
     });
+    const canPublishWorkflowScene = computed(() => form.scene.publishStatus === 'ready');
 
     const sceneStats = computed(() => {
       const docs = form.scene.documents;
@@ -4912,7 +4918,7 @@ const appOptions = {
         if (!scene) return;
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'draft';
+          form.scene.publishStatus = 'pending_review';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -4921,7 +4927,7 @@ const appOptions = {
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'draft';
+          stored.scene.publishStatus = 'pending_review';
           scene.name = name;
           saveStorage(scene.id, stored);
           if (scene.id === currentSceneId.value) {
@@ -4980,14 +4986,14 @@ const appOptions = {
         if (!scene) return false;
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'draft';
+          form.scene.publishStatus = 'pending_review';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'draft';
+          stored.scene.publishStatus = 'pending_review';
           scene.name = name;
           saveStorage(scene.id, stored);
           selectScene(scene.id, { skipFinishRename: true, focusScene: true });
@@ -5004,7 +5010,7 @@ const appOptions = {
       return true;
     }
 
-    function validateWorkflowPublish() {
+    function validateWorkflowReadyForTest() {
       const sceneErr = validateSceneAggregate();
       if (sceneErr) return sceneErr;
       if (!form.scene.documents?.length) return '関連帳票を1件以上追加してください';
@@ -5018,6 +5024,15 @@ const appOptions = {
       if (!getActiveWf()?.nodes?.length) return 'Workflowノードを設定してください';
       if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
       if ((outputFieldCount.value + outputTableStats.value.columns) <= 0) return 'エクスポート字段を1件以上選択してください';
+      return '';
+    }
+
+    function validateWorkflowPublish() {
+      const err = validateWorkflowReadyForTest();
+      if (err) return err;
+      if (form.scene.publishStatus !== 'ready') {
+        return 'ワークフローテストを完了してください';
+      }
       return '';
     }
 
@@ -8047,18 +8062,24 @@ const appOptions = {
       return '';
     }
 
+    function markScenePendingReview() {
+      if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
+      form.scene.publishStatus = 'pending_review';
+    }
+
     function handleSave() {
       if (currentNode.value === 'scene') {
         const err = validateSceneAggregate();
         if (err) {
           ElementPlus.ElMessage.warning(err);
-          return;
+          return false;
         }
       }
-      form.scene.publishStatus = 'draft';
+      markScenePendingReview();
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
       ElementPlus.ElMessage.success('下書きを保存しました');
+      return true;
     }
 
 
@@ -8153,7 +8174,7 @@ const appOptions = {
       }, 4200);
     }
 
-    function runWorkflowTest() {
+    function runWorkflowTest(options = {}) {
       const err = validateWorkflowTestCase(workflowTestDraft.testCase);
       if (err) {
         ElementPlus.ElMessage.warning(err);
@@ -8188,6 +8209,13 @@ const appOptions = {
             sceneContext,
           );
           applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
+          if (options.updateSceneStatus) {
+            form.scene.publishStatus = workflowTestDraft.summary?.overallStatus === 'success'
+              ? 'ready'
+              : 'pending_review';
+            savedSnapshot.value = JSON.stringify(form);
+            saveStorage(currentSceneId.value, form);
+          }
           workflowTestDraft.selectedStepId = workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
             || workflowTestDraft.selectedStepId;
           workflowTestRunTimer = null;
@@ -8209,6 +8237,18 @@ const appOptions = {
       };
 
       advance();
+    }
+
+    function saveAndRunWorkflowTestFromStep3() {
+      syncOutputDocFieldsBySceneDocs();
+      const err = validateWorkflowReadyForTest();
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return;
+      }
+      if (!handleSave()) return;
+      openWorkflowTestDialog();
+      window.setTimeout(() => runWorkflowTest({ updateSceneStatus: true }), 0);
     }
 
     const workflowTestStepRows = computed(() => workflowTestDraft.steps || []);
@@ -8498,9 +8538,11 @@ const appOptions = {
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
       runWorkflowTest,
+      saveAndRunWorkflowTestFromStep3,
       workflowTestStatusLabel,
       applyWorkflowTestContinue,
       sceneStats,
+      canPublishWorkflowScene,
       outputFieldCount,
       outputTableStats,
       getSceneMainDocTypes,
