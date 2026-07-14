@@ -2194,12 +2194,39 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   });
 }
 
+/** Step2→Step3 门禁：终了节点结构与到达要件 */
+function validateWorkflowEndRequirements(workflow) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const edges = (wf.edges || []).filter((edge) => !edge.visualHidden);
+  const endNodes = (wf.nodes || []).filter((node) => node.type === 'end');
+  if (!endNodes.length) return '終了ノードを1件以上配置してください';
+  if (endNodes.some((node) => edges.some((edge) => edge.from === node.id))) {
+    return '終了ノードから出る接続は設定できません';
+  }
+  const analysis = analyzeWorkflowTestCanvas(wf);
+  if (analysis.multipleStartNodes) return '開始ノードは1件のみにしてください';
+  const branchIssue = Object.values(analysis.branchIssues || {})[0];
+  if (branchIssue) return `終了ノード到達要件を満たしていません：${branchIssue}`;
+  const reachableIds = typeof getWorkflowTestReachableNodeIds === 'function'
+    ? getWorkflowTestReachableNodeIds(wf)
+    : [];
+  const reachable = new Set(reachableIds);
+  if (reachable.size && !endNodes.some((node) => reachable.has(node.id))) {
+    return '開始ノードから終了ノードへ到達できません';
+  }
+  if (analysis.canvasHighlights.some((item) => item.kind === 'unreachable' || item.kind === 'isolated')) {
+    return '終了ノード到達要件を満たしていません：未接続または到達不能なノードがあります';
+  }
+  return '';
+}
+
 function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) {
   const list = steps || [];
   const wf = workflow || { nodes: [], edges: [] };
   const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
   const passed = list.filter((step) => ['success', 'skipped'].includes(step.status)).length;
   const hasError = list.some((step) => step.status === 'error');
+  const stoppedEarly = hasError && list.some((step) => step.status === 'pending');
   const endStep = [...list].reverse().find((step) => step.type === 'end');
   const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
   const hasCanvasIssue = canvasAnalysis.canvasHighlights.length > 0;
@@ -2207,7 +2234,7 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   let overallLabel = '成功';
   if (hasError || hasCanvasIssue) {
     overallStatus = 'error';
-    overallLabel = '失敗';
+    overallLabel = stoppedEarly ? '失敗（停止）' : '失敗';
   } else if (!reachedEnd) {
     overallStatus = 'error';
     overallLabel = '終了未到達';

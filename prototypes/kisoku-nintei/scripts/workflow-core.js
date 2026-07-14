@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '629-notify-slim';
+const PROTOTYPE_BUILD = '634-drop-test-status';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
@@ -90,16 +90,17 @@ const INSPECTOR_HINTS = {
   notifyRecipients: 'システム通知の通知先ロールを選択します。',
   notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
   code: 'Python スクリプトで上流変数を加工します。スクリプト戻り値はスクリプト内で完結し、変数プールには入りません。',
-  codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数の対応を定義します。「+ 追加」から変数を登録できます。',
-  codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は変数プールへ公開されません。',
+  codeInput: 'パラメータ名とデータ型を定義します。ソース初期値は上流ノードの files[] JSON です。追加後、スクリプトでパラメータ名を参照します。',
+  codePython: 'def main(inputs: dict) -> dict 形式で記述します。追加した入力変数は inputs[\'名前\'] で参照します。',
   codeReturn: 'ON の場合、スクリプト戻り値を本ノードの実行ログで確認できます。戻り値は変数プールへ公開されません。',
-  codeOutput: 'カスタム関数ノードは出力変数を公開しません。戻り値は本ノードの実行ログとデバッグ表示でのみ確認できます。',
-  codeParamName: 'スクリプト内で参照する引数の名前です。64 文字以内で指定します。',
-  codeParamDataType: '選択した参照変数のデータ型です。',
-  codeParamSource: '上流変数プールから参照変数を選択します。選択した値は設定したパラメータ名で Python スクリプトに渡されます。',
-  codeParamReference: '上流変数プール JSON を実行時に自動注入します。',
+  codeOutput: '下流が参照できるのは内置の status / errorMessage のみ。スクリプト戻り値はログ・デバッグ用です。',
+  codeParamName: 'スクリプト内で参照する引数の名前です。inputs[\'名前\'] で参照します。',
+  codeParamDataType: 'string / int / dict / array / float から選択します。',
+  codeParamSource: 'デフォルトは上流ノードの全 files[] 出力をまとめた JSON です。個別の files[] へ変更もできます。',
+  codeParamReference: '上流ノードの files[] 出力 JSON を実行時に注入します。',
   codeParamCustom: '固定値としてスクリプトへ渡す値を入力します。',
   codeParamRequired: '必須にすると、値が未設定の場合は実行時にエラーとして扱われます。',
+  codeScriptInsert: '追加済みの入力変数名だけをスクリプトへ挿入できます。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
   output: '自動エクスポート設定です。命名規則・ファイル形式・出力フィールドを指定します。',
   outputFields: 'OCR 抽出フィールドの出力有無と順序を設定します。',
@@ -944,6 +945,34 @@ const WORKFLOW_FILE_ARRAY_OUTPUT_NOTES = {
   start: '各元素含 classificationResult 等基础字段',
 };
 
+function buildWorkflowFilesArrayExample(nodeType = '') {
+  const base = {
+    id: 'file_001',
+    name: '領収書.pdf',
+    type: 'pdf',
+    extension: '.pdf',
+    url: 's3://bucket/case/file_001.pdf',
+    size: 245760,
+    caseId: 'CASE-2026-0001',
+    classificationResult: '領収書',
+    status: 'Processed',
+    uploadedAt: '2026-07-14T10:00:00+09:00',
+    updatedAt: '2026-07-14T10:01:00+09:00',
+  };
+  if (nodeType === 'ocr' || nodeType === 'data_mapping') {
+    base.ocrFields = { 氏名: '山田太郎', 請求金額: '12800' };
+  }
+  if (nodeType === 'ai_verify') {
+    base.failedRules = [{ ruleId: 'c2', message: '請求金額が診療明細合計と不一致' }];
+  }
+  if (nodeType === 'hitl_gate') {
+    base.manualEdits = [{ field: '氏名', before: '山田', after: '山田太郎' }];
+  }
+  return [base];
+}
+
+const WORKFLOW_FILES_ARRAY_EXAMPLE = buildWorkflowFilesArrayExample('start');
+
 function workflowNodeFileOutputFields(nodeType) {
   const note = WORKFLOW_FILE_ARRAY_OUTPUT_NOTES[nodeType];
   return [{
@@ -955,7 +984,37 @@ function workflowNodeFileOutputFields(nodeType) {
     description: note
       ? `案件内全ファイル配列。${note}`
       : '本ノード実行後の案件内全ファイル（状態・URL 等を含む）',
+    example: buildWorkflowFilesArrayExample(nodeType),
   }];
+}
+
+/** 出力変数パネル（i 详情）用 Array 示例；非 Array 返回空串 */
+function getWorkflowOutputVarExample(item) {
+  if (!item) return '';
+  if (item.example != null) {
+    return typeof item.example === 'string'
+      ? item.example
+      : JSON.stringify(item.example, null, 2);
+  }
+  const id = String(item.localId || item.id || item.name || '');
+  const bare = id.includes('.') ? id.split('.').pop() : id;
+  const type = String(item.type || item.dataType || '');
+  const isArray = /Array/i.test(type) || bare.endsWith('[]') || bare.includes('[]');
+  if (!isArray) return '';
+
+  if (bare === 'files[]' || bare === 'files') {
+    return JSON.stringify(WORKFLOW_FILES_ARRAY_EXAMPLE, null, 2);
+  }
+  if (/missingDocuments|missingFields/i.test(bare)) {
+    return JSON.stringify(['受診券', '診療明細書'], null, 2);
+  }
+  if (/Conflicts|Errors|failedRules|manualEdits/i.test(bare)) {
+    return JSON.stringify([{ code: 'E001', message: 'example issue' }], null, 2);
+  }
+  if (/docTypes\[\]/i.test(bare) || bare === 'docTypes') {
+    return JSON.stringify([{ docType: '領収書', required: true }], null, 2);
+  }
+  return JSON.stringify([{ id: 'item_1', value: 'example' }], null, 2);
 }
 
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
@@ -1046,7 +1105,7 @@ function formatWorkflowOutputVarToken(node, workflow, varId) {
 function getWorkflowNodeOutputVarItems(node, workflow = null) {
   if (!node?.type) return [];
   const defs = node.type === 'code'
-    ? []
+    ? getCodeNodeOutputVarDefs(node)
     : WORKFLOW_NODE_OUTPUT_VAR_DEFS[node.type];
   if (!defs?.length) return [];
   const visibleDefs = defs.filter((item) => !item.optional);
@@ -2510,14 +2569,18 @@ function normalizeNotifyNode(node, workflow = null) {
 }
 
 const CODE_PARAM_DATA_TYPES = [
-  { value: 'string', label: '文字列' },
-  { value: 'int', label: '整数' },
-  { value: 'float', label: '浮動小数' },
-  { value: 'dict', label: '辞書' },
-  { value: 'array', label: '配列' },
+  { value: 'string', label: 'string' },
+  { value: 'int', label: 'int' },
+  { value: 'dict', label: 'dict' },
+  { value: 'array', label: 'array' },
+  { value: 'float', label: 'float' },
 ];
 
+/** 自定义函数入参默认 source：上游各节点 files[] 输出汇总 JSON */
+const CODE_UPSTREAM_FILES_JSON = '__upstream_files_json__';
+
 const CODE_PARAM_SOURCES = [
+  { value: 'upstream_files_json', label: '上流 files[] JSON' },
   { value: 'reference', label: '参照パラメータ' },
 ];
 
@@ -2525,23 +2588,40 @@ const CODE_PARAM_SOURCES = [
 const CODE_OUTPUT_TYPES = CODE_PARAM_DATA_TYPES;
 
 function migrateCodeDataType(value) {
-  const legacy = { number: 'float', object: 'dict', boolean: 'string' };
-  const mapped = legacy[value] || value;
+  const legacy = {
+    number: 'float',
+    object: 'dict',
+    boolean: 'string',
+    String: 'string',
+    Number: 'float',
+    Object: 'dict',
+    Array: 'array',
+    文字列: 'string',
+    整数: 'int',
+    浮動小数: 'float',
+    辞書: 'dict',
+    配列: 'array',
+  };
+  const mapped = legacy[value] || String(value || '').toLowerCase();
   return CODE_PARAM_DATA_TYPES.some((t) => t.value === mapped) ? mapped : 'string';
 }
 
 function getCodeParamDataTypeLabel(value) {
-  return CODE_PARAM_DATA_TYPES.find((t) => t.value === value)?.label || value || '文字列';
+  return CODE_PARAM_DATA_TYPES.find((t) => t.value === value)?.label || value || 'string';
 }
 
 function getCodeParamSourceLabel(value) {
-  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '参照パラメータ';
+  return CODE_PARAM_SOURCES.find((s) => s.value === value)?.label || '上流 files[] JSON';
+}
+
+function isCodeUpstreamFilesJsonSource(variable) {
+  return !variable || variable === CODE_UPSTREAM_FILES_JSON;
 }
 
 const DEFAULT_CODE_PYTHON = `def main(inputs: dict) -> dict:
     """
     inputs: 追加した入力変数をまとめた dict
-    入力変数は設定したパラメータ名で参照できます
+    例: inputs['input_1'] でパラメータ名を参照
     """
     return inputs
 `;
@@ -2550,10 +2630,10 @@ function createCodeInputRow(index = 0) {
   return {
     id: newRuleId('cin'),
     name: `input_${index + 1}`,
-    dataType: 'string',
-    source: 'reference',
+    dataType: 'dict',
+    source: 'upstream_files_json',
     required: true,
-    variable: '',
+    variable: CODE_UPSTREAM_FILES_JSON,
   };
 }
 
@@ -2568,21 +2648,24 @@ function createCodeParamDialogDraft(mode = 'input') {
   return {
     id: '',
     name: '',
-    dataType: 'string',
-    source: 'reference',
+    dataType: 'dict',
+    source: 'upstream_files_json',
     required: true,
-    variable: '',
+    variable: CODE_UPSTREAM_FILES_JSON,
   };
 }
 
 function normalizeCodeInputRow(row, index = 0) {
+  const variable = row?.variable || CODE_UPSTREAM_FILES_JSON;
+  const filesJson = isCodeUpstreamFilesJsonSource(variable)
+    || row?.source === 'upstream_files_json';
   return {
     id: row?.id || newRuleId('cin'),
     name: (row?.name || '').trim() || `input_${index + 1}`,
-    dataType: migrateCodeDataType(row?.dataType || row?.type || 'string'),
-    source: 'reference',
+    dataType: migrateCodeDataType(row?.dataType || row?.type || (filesJson ? 'dict' : 'string')),
+    source: filesJson ? 'upstream_files_json' : 'reference',
     required: row?.required !== false,
-    variable: row?.variable || '',
+    variable: filesJson ? CODE_UPSTREAM_FILES_JSON : variable,
   };
 }
 
@@ -2617,18 +2700,80 @@ function normalizeCodeNode(node, workflow = null) {
   return withVar;
 }
 
-function buildCodeVariableOptions(workflow, nodeId, verifyConfig = null) {
-  return getDecisionVariableOptions(workflow, nodeId, verifyConfig);
+/**
+ * 自定义函数入参 source 选项：
+ * 1) 默认：上游全部 files[] 汇总 JSON
+ * 2) 各上游节点各自的 files[]（file 型输出）
+ */
+function buildCodeSourceVariableOptions(workflow, nodeId) {
+  const options = [{
+    group: 'デフォルト',
+    nodeType: '',
+    nodeId: '',
+    varName: '',
+    localId: 'files[]',
+    scope: 'ファイル',
+    dataType: 'dict',
+    description: '上流ノードが出力する files[] をまとめた JSON',
+    value: CODE_UPSTREAM_FILES_JSON,
+    label: '上流ノードの files[] JSON',
+    displayName: '上流ノードの files[] JSON',
+    hint: '{upstream.files[]}',
+    consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
+    consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
+  }];
+  const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
+  getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
+    const n = nodeMap[id];
+    if (!n) return;
+    const defs = n.type === 'code'
+      ? getCodeNodeOutputVarDefs(n)
+      : (WORKFLOW_NODE_OUTPUT_VAR_DEFS[n.type] || []);
+    if (!defs.some((item) => item.id === 'files[]')) return;
+    const varName = getWorkflowNodeVarName(n, workflow);
+    const meta = getWorkflowNodeMeta(n.type);
+    const nodeTitle = meta?.title || n.label || varName;
+    appendDecisionVarOption(options, {
+      group: nodeTitle,
+      nodeType: n.type,
+      nodeId: n.id,
+      varName,
+      localId: 'files[]',
+      scope: 'ファイル',
+      dataType: 'array',
+      description: `${nodeTitle} の files[] 出力`,
+      value: `${varName}.files[]`,
+      label: `${nodeTitle} · files[]`,
+      displayName: `${nodeTitle} · files[]`,
+      hint: `{${varName}.files[]}`,
+      consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
+    });
+  });
+  return options;
+}
+
+function buildCodeVariableOptions(workflow, nodeId) {
+  return buildCodeSourceVariableOptions(workflow, nodeId);
 }
 
 function formatCodeInputVariableToken(variable) {
+  if (isCodeUpstreamFilesJsonSource(variable)) return '上流 files[] JSON';
   if (!variable) return '—';
   return variable.includes('.') && !variable.startsWith('{') ? `{${variable}}` : variable;
 }
 
 function formatCodeInputRowDisplay(row) {
   if (!row) return '—';
+  if (row.source === 'upstream_files_json' || isCodeUpstreamFilesJsonSource(row.variable)) {
+    return '上流 files[] JSON';
+  }
   return formatCodeInputVariableToken(row.variable);
+}
+
+function formatCodeScriptVarSnippet(paramName) {
+  const name = String(paramName || '').trim();
+  if (!name) return '';
+  return `inputs['${name}']`;
 }
 
 function migrateHitlDecisionsInWorkflow(workflow) {

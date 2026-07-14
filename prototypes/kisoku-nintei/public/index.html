@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=632" />
+  <link rel="stylesheet" href="style.css?v=646" />
 </head>
 <body>
   <div id="app">
@@ -264,6 +264,11 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-sep">/</span>
               <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-scene">{{ currentScene?.name || sceneSetupDraft.name }}</span>
+              <span
+                v-if="currentScene || sceneSetupDraft.name"
+                class="wf-publish-badge"
+                :class="'is-' + scenePublishStatusKey"
+              >{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
@@ -280,28 +285,6 @@
 
           <div class="wf-setup-page">
             <div class="wf-setup-page-body">
-              <div v-if="sceneReuseReviewVisible" class="reuse-review-banner">
-                <div class="reuse-review-banner-main">
-                  <el-tag type="warning" effect="light">要確認</el-tag>
-                  <div>
-                    <div class="reuse-review-title">既存シーンからコピーした設定です</div>
-                    <p class="reuse-review-note">{{ form.scene.reuseReview.note }}</p>
-                  </div>
-                </div>
-                <div class="reuse-review-check-grid">
-                  <div
-                    v-for="(check, i) in form.scene.reuseReview.checks.slice(0, 6)"
-                    :key="'scene-reuse-' + i"
-                    class="reuse-review-check"
-                  >
-                    <el-tag :type="getReuseStatusTone(check.status)" effect="light" size="small">
-                      {{ getReuseStatusLabel(check.status) }}
-                    </el-tag>
-                    <span class="reuse-review-check-title">{{ getConfigReuseScopeLabel(check.scope) }} / {{ check.title }}</span>
-                    <span class="reuse-review-check-detail">{{ check.detail }}</span>
-                  </div>
-                </div>
-              </div>
               <div class="wf-setup-step1-shell">
                 <div class="wf-setup-config-stack">
                 <section class="wf-setup-step1-section">
@@ -617,7 +600,7 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
-              <span class="wf-publish-badge" :class="'is-' + form.scene.publishStatus">{{ scenePublishBadge }}</span>
+              <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
@@ -1064,17 +1047,6 @@
                   <button
                     type="button"
                     class="wf-canvas-tool-btn"
-                    :class="{ 'is-active': wfCanvasNodesCollapsed }"
-                    :title="wfCanvasNodesCollapsed ? 'すべて展開' : 'すべて折りたたむ'"
-                    @click="toggleWorkflowNodesCollapsed"
-                  >
-                    <svg v-if="!wfCanvasNodesCollapsed" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 5h8M4 11h8M6 8h4" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M3 3.5h10v9H3z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
-                    <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4.5h8M4 8h8M4 11.5h5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M3 3h10v10H3z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
-                  </button>
-                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
-                  <button
-                    type="button"
-                    class="wf-canvas-tool-btn"
                     :class="{ 'is-active': wfNodePicker.visible || wfNodePlacement.active }"
                     :disabled="!isWorkflowTopologyEditable"
                     title="ノードを追加"
@@ -1203,43 +1175,6 @@
               >
                 <div :class="inspectorExpanded ? 'idp-editor-surface-scroll' : ''">
                   <div :class="inspectorExpanded ? 'idp-editor-surface-inner' : ''">
-                <div
-                  v-if="selectedNodeReuseReviewVisible"
-                  class="inspector-panel-section"
-                >
-                  <inspector-module>
-                    <inspector-module-card title="コピー確認">
-                    <div class="reuse-review-banner-main">
-                      <el-tag :type="selectedWorkflowNode.reuseStatus === 'ready' ? 'success' : 'warning'" effect="light">
-                        {{ selectedWorkflowNode.reuseStatus === 'ready' ? '確認済' : '要確認' }}
-                      </el-tag>
-                      <div>
-                        <div class="reuse-review-title">コピー元：{{ selectedWorkflowNode.reuseReview.sourceSceneName }}</div>
-                        <p class="reuse-review-note">{{ selectedWorkflowNode.reuseReview.note }}</p>
-                      </div>
-                    </div>
-                    <div class="reuse-review-check-grid reuse-review-check-grid--single">
-                      <div
-                        v-for="(check, i) in selectedWorkflowNode.reuseReview.checks"
-                        :key="'node-reuse-check-' + i"
-                        class="reuse-review-check"
-                      >
-                        <el-tag :type="getReuseStatusTone(check.status)" effect="light" size="small">
-                          {{ getReuseStatusLabel(check.status) }}
-                        </el-tag>
-                        <span class="reuse-review-check-title">{{ check.title }}</span>
-                        <span class="reuse-review-check-detail">{{ check.detail }}</span>
-                      </div>
-                    </div>
-                    <el-button
-                      v-if="selectedWorkflowNode.reuseStatus !== 'ready'"
-                      type="primary"
-                      size="small"
-                      @click="confirmSelectedNodeReuseReview"
-                    >確認済みにする</el-button>
-                    </inspector-module-card>
-                  </inspector-module>
-                </div>
                 <!-- ワークフロー概要 -->
                 <div v-show="inspectorMode === 'overview'" class="inspector-panel-section wf-overview-panel">
                   <inspector-module>
@@ -1596,12 +1531,12 @@
                       <template #action>
                         <el-button type="primary" link @click="addCodeInputRow">+ 追加</el-button>
                       </template>
+                      <p class="code-param-hint">ソース初期値は上流ノードの files[] JSON。追加後、スクリプトでパラメータ名を参照します。</p>
                       <ul v-if="(selectedWorkflowNode.inputs || []).length" class="code-param-list">
                         <li v-for="row in selectedWorkflowNode.inputs" :key="row.id" class="code-param-list-item">
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}</span>
                             <span class="code-param-list-tag">{{ getCodeParamDataTypeLabel(row.dataType) }}</span>
-                            <span class="code-param-list-tag">{{ formatCodeInputVariableType(row) }}</span>
                             <span v-if="row.required" class="code-param-list-tag code-param-list-tag--req">必須</span>
                             <code class="code-param-list-value">{{ formatCodeInputVariableDisplay(row) }}</code>
                           </div>
@@ -1611,8 +1546,32 @@
                           </div>
                         </li>
                       </ul>
+                      <p v-else class="code-param-empty">入力変数がありません</p>
                     </inspector-module-card>
                     <inspector-module-card title="Python スクリプト">
+                      <div class="inspector-field code-script-insert-field">
+                        <inspector-field-label label="変数を挿入" :hint="localizedInspectorHints.codeScriptInsert || '追加済みの入力変数名だけをスクリプトへ挿入できます。'"></inspector-field-label>
+                        <el-select
+                          v-model="codeScriptInsertPick"
+                          class="inspector-field-control"
+                          clearable
+                          filterable
+                          :disabled="!codeScriptInputOptions.length"
+                          :placeholder="codeScriptInputOptions.length ? '入力変数を選択' : '先に入力変数を追加'"
+                          popper-class="idp-inspector-select-popper"
+                          @change="onCodeScriptInsertPick"
+                        >
+                          <el-option
+                            v-for="opt in codeScriptInputOptions"
+                            :key="'code-script-' + opt.value"
+                            :label="opt.label"
+                            :value="opt.value"
+                          >
+                            <span>{{ opt.label }}</span>
+                            <span class="inspector-ifelse-cascader-type">{{ opt.dataType }}</span>
+                          </el-option>
+                        </el-select>
+                      </div>
                       <div class="inspector-field">
                         <el-input
                           v-model="selectedWorkflowNode.pythonCode"
@@ -1626,7 +1585,7 @@
                         />
                       </div>
                     </inspector-module-card>
-                    <inspector-module-card title="処理設定">
+                    <inspector-module-card title="実行結果">
                       <div class="inspector-switch-row">
                         <inspector-field-label label="ユーザーへ出力" :hint="localizedInspectorHints.codeReturn"></inspector-field-label>
                         <el-switch v-model="selectedWorkflowNode.returnContent" @change="onCodeFieldChange" />
@@ -1826,39 +1785,37 @@
                   v-if="showWorkflowNodeOutputSection && !inspectorExpanded"
                   class="workflow-node-output-section"
                 >
-                  <details class="workflow-output-dropdown" open>
-                    <summary class="workflow-output-trigger">
-                      <span class="inspector-module-title">出力変数</span>
-                      <span class="workflow-output-trigger-count">{{ workflowOutputVariableRows.length }}</span>
-                      <span class="workflow-output-trigger-caret" aria-hidden="true">⌄</span>
-                    </summary>
-                    <div class="workflow-output-panel">
-                      <div class="workflow-output-group-list">
-                        <section
-                          v-for="group in workflowOutputVariableGroups"
-                          :key="'output-scope-' + group.label"
-                          class="workflow-output-group"
-                        >
-                          <div class="workflow-output-group-title">{{ group.label }}</div>
-                          <ul class="workflow-output-var-list">
-                            <li v-for="item in group.items" :key="item.id" class="workflow-output-var-item">
-                              <div class="workflow-output-var-main">
-                                <code class="workflow-output-var-name">{{ item.name }}</code>
-                                <span class="workflow-output-var-type">{{ item.dataType }}</span>
-                              </div>
-                              <el-tooltip
-                                effect="dark"
-                                placement="top"
-                                :content="formatWorkflowOutputInfo(item)"
-                              >
-                                <button type="button" class="workflow-output-var-info" aria-label="変数説明">i</button>
-                              </el-tooltip>
-                            </li>
-                          </ul>
-                        </section>
-                      </div>
+                  <div class="workflow-output-heading">
+                    <span class="inspector-module-title">出力変数</span>
+                    <span class="workflow-output-count">{{ workflowOutputVariableRows.length }}</span>
+                  </div>
+                  <div class="workflow-output-panel">
+                    <div class="workflow-output-group-list">
+                      <section
+                        v-for="group in workflowOutputVariableGroups"
+                        :key="'output-scope-' + group.label"
+                        class="workflow-output-group"
+                      >
+                        <div class="workflow-output-group-title">{{ group.label }}</div>
+                        <ul class="workflow-output-var-list">
+                          <li v-for="item in group.items" :key="item.id" class="workflow-output-var-item">
+                            <div class="workflow-output-var-main">
+                              <code class="workflow-output-var-name">{{ item.name }}</code>
+                              <span class="workflow-output-var-type">{{ item.dataType }}</span>
+                            </div>
+                            <el-tooltip
+                              effect="dark"
+                              placement="top"
+                              popper-class="workflow-output-var-tooltip"
+                              :content="formatWorkflowOutputInfo(item)"
+                            >
+                              <button type="button" class="workflow-output-var-info" aria-label="変数説明">i</button>
+                            </el-tooltip>
+                          </li>
+                        </ul>
+                      </section>
                     </div>
-                  </details>
+                  </div>
                 </div>
 
                   </div>
@@ -1874,19 +1831,29 @@
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
-              <span class="wf-publish-badge" :class="'is-' + form.scene.publishStatus">{{ scenePublishBadge }}</span>
+              <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(2)">前へ</el-button>
-              <el-button @click="saveOutputConfigFromStep3">保存</el-button>
+              <el-button :disabled="step3ExportCandidatesEmpty" @click="saveOutputConfigFromStep3">保存</el-button>
               <el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開</el-button>
             </div>
           </div>
 
           <div class="wf-export-step-page">
             <div class="export-config export-config--step">
-              <div class="export-config-body">
+              <div
+                v-if="step3ExportCandidatesEmpty"
+                class="export-config-empty-panel"
+              >
+                <p class="export-config-empty-title">出力可能な項目がありません</p>
+                <p class="export-config-empty-desc">
+                  OCR 抽出フィールドと標準フィールド（データマッピング）が未設定です。Workflow で OCR 抽出またはデータマッピングを設定してから再度開いてください。
+                </p>
+                <el-button type="primary" plain @click="goToWorkflowSetupStep(2)">ワークフローへ戻る</el-button>
+              </div>
+              <div v-else class="export-config-body">
                 <aside class="export-config-sidebar">
                   <div class="export-config-sidebar-head">
                     <div class="export-config-sidebar-head-main">
@@ -1935,10 +1902,7 @@
                 </aside>
 
                 <main class="export-config-detail">
-                  <div v-if="!exportDataMappingConfigured && !exportOcrConfigured" class="export-config-empty">
-                    出力可能な項目がありません。Workflow に OCR 抽出またはデータマッピングノードを設定してください。
-                  </div>
-                  <template v-else-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
+                  <template v-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
                     <div v-if="activeOutputDocFields" class="export-config-detail-head export-config-detail-head--compact">
                       <div class="export-config-detail-title">
                         <strong>{{ activeExportFileLabel }}</strong>
@@ -2432,36 +2396,47 @@
           />
         </div>
         <div class="inspector-field">
-          <inspector-field-label label="参照変数" :hint="localizedInspectorHints.codeParamSource"></inspector-field-label>
-          <el-cascader
-            v-model="codeParamDialogDraft.variable"
+          <inspector-field-label label="データ型" :hint="localizedInspectorHints.codeParamDataType"></inspector-field-label>
+          <el-select
+            v-model="codeParamDialogDraft.dataType"
             class="inspector-field-control"
-            placeholder="変数を選択"
-            :options="codeVariableCascaderOptions"
-            :props="{ value: 'id', label: 'text', children: 'items', emitPath: false }"
-            :show-all-levels="false"
-            separator=" › "
-            filterable
-            clearable
-            popper-class="inspector-ifelse-select-popper inspector-ifelse-cascader-popper idp-inspector-select-popper"
-            @change="onCodeParamVariableChange"
+            placeholder="Data Type"
+            popper-class="idp-inspector-select-popper"
+            @change="onCodeParamDataTypeChange"
           >
-            <template #default="{ node, data }">
-              <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
-                <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
-                <span v-if="data.dataType" class="inspector-ifelse-cascader-type">{{ data.dataType }}</span>
-              </div>
-            </template>
-          </el-cascader>
+            <el-option
+              v-for="opt in CODE_PARAM_DATA_TYPES"
+              :key="'code-dtype-' + opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
         </div>
         <div class="inspector-field">
-          <inspector-field-label label="データ型" :hint="localizedInspectorHints.codeParamDataType"></inspector-field-label>
-          <div class="readonly-id-box">{{ codeParamDialogDraft.dataType || 'String' }}</div>
+          <inspector-field-label label="ソース" :hint="localizedInspectorHints.codeParamSource"></inspector-field-label>
+          <el-select
+            v-model="codeParamDialogDraft.variable"
+            class="inspector-field-control"
+            placeholder="ソースを選択"
+            filterable
+            popper-class="idp-inspector-select-popper"
+            @change="onCodeParamVariableChange"
+          >
+            <el-option
+              v-for="opt in codeVariableOptions"
+              :key="'code-src-' + opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            >
+              <span>{{ opt.label }}</span>
+              <span class="inspector-ifelse-cascader-type">{{ opt.dataType }}</span>
+            </el-option>
+          </el-select>
         </div>
-          <div class="inspector-switch-row code-param-required-row">
-            <inspector-field-label label="必須" :hint="localizedInspectorHints.codeParamRequired"></inspector-field-label>
-            <el-switch v-model="codeParamDialogDraft.required" />
-          </div>
+        <div class="inspector-switch-row code-param-required-row">
+          <inspector-field-label label="必須" :hint="localizedInspectorHints.codeParamRequired"></inspector-field-label>
+          <el-switch v-model="codeParamDialogDraft.required" />
+        </div>
       </div>
       <template #footer>
         <el-button @click="closeCodeParamDialog">キャンセル</el-button>
@@ -2475,9 +2450,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=632"></script>
-  <script src="scripts/mock-data.js?v=632"></script>
-  <script src="scripts/scene-config.js?v=632"></script>
-  <script src="main.js?v=632"></script>
+  <script src="scripts/workflow-core.js?v=646"></script>
+  <script src="scripts/mock-data.js?v=646"></script>
+  <script src="scripts/scene-config.js?v=646"></script>
+  <script src="main.js?v=646"></script>
 </body>
 </html>

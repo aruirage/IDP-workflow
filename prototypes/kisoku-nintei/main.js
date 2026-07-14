@@ -140,6 +140,9 @@ const appOptions = {
       ['精密マッチング', '精准匹配'],
       ['近似マッチング', '近似匹配'],
       ['エクスポート対象', '导出对象'],
+      ['出力可能な項目がありません', '没有可输出的项目'],
+      ['OCR 抽出フィールドと標準フィールド（データマッピング）が未設定です。Workflow で OCR 抽出またはデータマッピングを設定してから再度開いてください。', '尚未配置 OCR 抽出字段与标准字段（数据映射）。请在 Workflow 中设置 OCR 抽出或数据映射后再打开。'],
+      ['ワークフローへ戻る', '返回工作流'],
       ['出力項目を設定', '设置输出项目'],
       ['標準フィールド', '标准字段'],
       ['OCR抽出値', 'OCR抽出值'],
@@ -260,6 +263,17 @@ const appOptions = {
       ['辞書', '字典'],
       ['配列', '数组'],
       ['参照変数 JSON', '参照变量 JSON'],
+      ['上流ノードの files[] JSON', '上游节点的 files[] JSON'],
+      ['上流 files[] JSON', '上游 files[] JSON'],
+      ['変数を挿入', '插入变量'],
+      ['入力変数を選択', '选择输入变量'],
+      ['先に入力変数を追加', '请先添加输入变量'],
+      ['ソース', '来源'],
+      ['ソースを選択', '选择来源'],
+      ['ソース初期値は上流ノードの files[] JSON。追加後、スクリプトでパラメータ名を参照します。', '来源默认是上游节点的 files[] JSON。添加后可在脚本中用参数名引用。'],
+      ['追加済みの入力変数名だけをスクリプトへ挿入できます。', '只能插入已添加的输入变量名到脚本。'],
+      ['string / int / dict / array / float から選択します。', '从 string / int / dict / array / float 中选择。'],
+      ['デフォルトは上流ノードの全 files[] 出力をまとめた JSON です。個別の files[] へ変更もできます。', '默认是上游全部 files[] 输出汇总 JSON。也可改为单个上游 files[]。'],
       ['コンテキスト', '上下文'],
       ['ゲート設定', '网关设定'],
       ['人工確認のコンテキストと審査ロールを指定します。', '指定人工确认的上下文和审核角色。'],
@@ -954,6 +968,15 @@ const appOptions = {
       ['実行中…', '执行中…'],
       ['テストファイルを選択しました', '已选择测试文件'],
       ['Workflow テストを実行しました', '已执行 Workflow 测试'],
+      ['テスト成功。画布状態を公開可能に更新しました', '测试成功。画布状态已更新为可发布'],
+      ['Workflow テストが失敗しました', 'Workflow 测试失败'],
+      ['テスト失敗で停止：', '测试失败并停止：'],
+      ['失敗（停止）', '失败（已停止）'],
+      ['テストは成功しましたが、終了ノード要件を満たしていません', '测试成功，但终了节点未满足校验要求'],
+      ['Step2 の Workflow テストを完了してください', '请先完成 Step2 的 Workflow 测试'],
+      ['終了ノードを1件以上配置してください', '请至少配置 1 个终了节点'],
+      ['終了ノードから出る接続は設定できません', '终了节点不能再连出'],
+      ['開始ノードから終了ノードへ到達できません', '无法从开始节点到达终了节点'],
       ['下書きを保存しました', '已保存草稿'],
       ['説明', '说明'],
       ['本批処理', '本批处理'],
@@ -1619,21 +1642,53 @@ const appOptions = {
     const isFirstNode = computed(() => nodeIndex.value === 0);
     const isLastNode = computed(() => nodeIndex.value === NODE_ORDER.length - 1);
     const saveButtonText = computed(() => (isLastNode.value ? '設定を完了' : '保存'));
+    function normalizeScenePublishStatus(status) {
+      if (status === 'ready' || status === 'published') return status;
+      // pending_review 已取消；旧数据与未知值一律回退为下書き
+      return 'draft';
+    }
+
+    const scenePublishStatusKey = computed(() => {
+      const raw = normalizeScenePublishStatus(form.scene.publishStatus);
+      if (raw === 'published') return 'published';
+      // 显示态与门禁对齐：未测通不得显示公開可能（避免旧缓存误导）
+      const endErr = typeof validateWorkflowEndRequirements === 'function'
+        ? validateWorkflowEndRequirements(getActiveWf())
+        : '';
+      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
+      return step2Ok ? 'ready' : 'draft';
+    });
     const scenePublishBadge = computed(() => {
       const labels = {
         draft: '下書き',
-        pending_review: '要確認',
         ready: '公開可能',
         published: '公開済み',
       };
-      return labels[form.scene.publishStatus] || labels.draft;
+      return labels[scenePublishStatusKey.value] || labels.draft;
     });
-    const canPublishWorkflowScene = computed(() => form.scene.publishStatus === 'ready');
+    // 公开：画布已可发布（Step2 测试+终了校验通过）且 Step3 输出配置有效
+    const canPublishWorkflowScene = computed(() =>
+      scenePublishStatusKey.value === 'ready' && form.outputConfigStatus === 'valid');
+
+    function getStep2GateError() {
+      const baseErr = validateWorkflowReadyForTest();
+      if (baseErr) return baseErr;
+      if (form.workflowTestStatus !== 'success') {
+        return 'Step2 の Workflow テストを完了してください';
+      }
+      const endErr = validateWorkflowEndRequirements(getActiveWf());
+      if (endErr) return endErr;
+      return '';
+    }
+
+    const canEnterWorkflowStep3 = computed(() => !getStep2GateError());
 
     function updateSceneReadyState() {
-      form.scene.publishStatus = form.workflowTestStatus === 'success' && form.outputConfigStatus === 'valid'
-        ? 'ready'
-        : 'pending_review';
+      if (form.scene.publishStatus === 'published') return;
+      // Step2 测试成功且终了节点符合要求 → 画布状态「公開可能」；否则下書き
+      const endErr = validateWorkflowEndRequirements(getActiveWf());
+      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
+      form.scene.publishStatus = step2Ok ? 'ready' : 'draft';
     }
 
     const sceneStats = computed(() => {
@@ -1701,6 +1756,14 @@ const appOptions = {
       const docType = outputSelectedDocType.value;
       if (!docType) return enabled.length > 0;
       return enabled.includes(docType);
+    });
+
+    /** Step3：场景级无 OCR 抽出候选且无标准字段时，整页展示缺省空态 */
+    const step3ExportCandidatesEmpty = computed(() => {
+      if (exportDataMappingConfigured.value) return false;
+      const ocrNode = primaryOcrNode.value;
+      const enabled = form.processing?.ocrExtract?.enabledTypes || [];
+      return !(ocrNode && enabled.length > 0);
     });
 
     const outputExportFieldMode = computed({
@@ -2194,11 +2257,25 @@ const appOptions = {
       const wf = getActiveWf();
       const node = selectedWorkflowNode.value;
       if (!wf || !node || node.type !== 'code') return [];
-      return getDecisionVariableOptions(wf, node.id, form.verify, decisionSceneContext.value);
+      return buildCodeSourceVariableOptions(wf, node.id);
     });
 
     const codeVariableCascaderOptions = computed(() =>
       buildDecisionVariableCascaderTree(codeVariableOptions.value));
+
+    const codeScriptInputOptions = computed(() => {
+      const node = selectedWorkflowNode.value;
+      if (!node || node.type !== 'code') return [];
+      return (node.inputs || [])
+        .filter((row) => row?.name)
+        .map((row) => ({
+          value: row.name,
+          label: row.name,
+          dataType: row.dataType || 'string',
+        }));
+    });
+
+    const codeScriptInsertPick = ref('');
 
     function getCodeVariableOption(value) {
       if (!value) return null;
@@ -2206,13 +2283,17 @@ const appOptions = {
     }
 
     function formatCodeInputVariableDisplay(row) {
-      if (!row?.variable) return '変数未選択';
-      return formatDecisionVariableDisplay(row.variable, codeVariableOptions.value) || row.variable;
+      if (!row) return 'ソース未設定';
+      if (row.source === 'upstream_files_json' || isCodeUpstreamFilesJsonSource(row.variable)) {
+        return '上流 files[] JSON';
+      }
+      if (!row.variable) return 'ソース未設定';
+      return formatDecisionVariableDisplay(row.variable, codeVariableOptions.value)
+        || formatCodeInputVariableToken(row.variable);
     }
 
     function formatCodeInputVariableType(row) {
-      const opt = getCodeVariableOption(row?.variable);
-      return opt?.dataType || row?.dataType || 'String';
+      return getCodeParamDataTypeLabel(row?.dataType) || 'string';
     }
 
     function insertNotifyVariable(field, varPath) {
@@ -2295,14 +2376,34 @@ const appOptions = {
     const codeParamDialogSavable = computed(() => {
       const draft = codeParamDialogDraft.value;
       if (!draft?.name?.trim()) return false;
+      if (!draft.dataType) return false;
       return !!draft.variable;
     });
 
     function onCodeParamVariableChange(variable) {
       const draft = codeParamDialogDraft.value;
       if (!draft) return;
+      if (isCodeUpstreamFilesJsonSource(variable)) {
+        draft.source = 'upstream_files_json';
+        draft.variable = CODE_UPSTREAM_FILES_JSON;
+        if (!draft.dataType || draft.dataType === 'string') draft.dataType = 'dict';
+        return;
+      }
+      draft.source = 'reference';
+      draft.variable = variable || '';
       const opt = getCodeVariableOption(variable);
-      draft.dataType = opt?.dataType || 'String';
+      if (opt?.dataType) {
+        const mapped = migrateCodeDataType(opt.dataType);
+        // files[] 单体默认 array；不覆盖用户已改成其它类型的选择（除首次）
+        if (!draft._userPickedDataType) draft.dataType = mapped;
+      }
+    }
+
+    function onCodeParamDataTypeChange() {
+      const draft = codeParamDialogDraft.value;
+      if (!draft) return;
+      draft._userPickedDataType = true;
+      draft.dataType = migrateCodeDataType(draft.dataType);
     }
 
     function openCodeParamDialog(mode = 'input', row = null) {
@@ -2310,18 +2411,24 @@ const appOptions = {
       if (!node || node.type !== 'code') return;
       codeParamDialogMode.value = 'input';
       if (row) {
+        const normalized = normalizeCodeInputRow(row);
         codeParamDialogDraft.value = {
-          id: row.id,
-          name: row.name,
-          dataType: row.dataType || formatCodeInputVariableType(row) || 'String',
-          source: 'reference',
-          required: row.required !== false,
-          variable: row.variable || '',
+          id: normalized.id,
+          name: normalized.name,
+          dataType: normalized.dataType,
+          source: normalized.source,
+          required: normalized.required !== false,
+          variable: normalized.variable,
+          _userPickedDataType: true,
         };
       } else {
         const draft = createCodeParamDialogDraft('input');
         const count = (node.inputs || []).length;
         draft.name = `input_${count + 1}`;
+        draft.variable = CODE_UPSTREAM_FILES_JSON;
+        draft.source = 'upstream_files_json';
+        draft.dataType = 'dict';
+        draft._userPickedDataType = false;
         codeParamDialogDraft.value = draft;
       }
       codeParamDialogVisible.value = true;
@@ -2340,9 +2447,9 @@ const appOptions = {
         id: draft.id || newRuleId('cin'),
         name: draft.name.trim(),
         dataType: draft.dataType,
-        source: 'reference',
+        source: draft.source,
         required: draft.required,
-        variable: draft.variable || '',
+        variable: draft.variable || CODE_UPSTREAM_FILES_JSON,
       }, node.inputs.length);
       const idx = node.inputs.findIndex((r) => r.id === draft.id);
       if (idx >= 0) node.inputs[idx] = payload;
@@ -2360,6 +2467,23 @@ const appOptions = {
       if (!node || node.type !== 'code' || !node.inputs?.length) return;
       node.inputs = node.inputs.filter((r) => r.id !== rowId);
       pushWorkflowHistory('入参を削除');
+    }
+
+    function insertCodeScriptVariable(paramName) {
+      const node = selectedWorkflowNode.value;
+      if (!node || node.type !== 'code' || !paramName) return;
+      const snippet = formatCodeScriptVarSnippet(paramName);
+      if (!snippet) return;
+      const current = String(node.pythonCode || '');
+      const needsSpace = current && !/\s$/.test(current);
+      node.pythonCode = `${current}${needsSpace ? '\n' : ''}${snippet}`;
+      codeScriptInsertPick.value = '';
+      pushWorkflowHistory('スクリプトへ入力変数を挿入');
+    }
+
+    function onCodeScriptInsertPick(paramName) {
+      if (!paramName) return;
+      insertCodeScriptVariable(paramName);
     }
 
     function onCodeFieldChange() {
@@ -2587,7 +2711,12 @@ const appOptions = {
         item?.valueSpec ? `取值: ${item.valueSpec}` : '',
         item?.description,
       ].filter(Boolean);
-      return [...new Set(parts)].join(' / ') || '説明なし';
+      const base = [...new Set(parts)].join('\n') || '説明なし';
+      const example = typeof getWorkflowOutputVarExample === 'function'
+        ? getWorkflowOutputVarExample(item)
+        : '';
+      if (!example) return base;
+      return `${base}\n\n例:\n${example}`;
     }
 
     const WORKFLOW_OUTPUT_SCOPE_ORDER = ['案件変数', 'ファイル変数', '帳票タイプ変数'];
@@ -2700,15 +2829,10 @@ const appOptions = {
       scenes.value.find((scene) => scene.id === nodeReuseDraft.sourceSceneId) || null,
     );
 
-    const sceneReuseReviewVisible = computed(() =>
-      !!(form.scene && form.scene.reuseReview && !form.scene.reuseReview.step1Confirmed),
-    );
+    // 复制场景后的 Step1「要確認」横幅已取消，不再展示
+    const sceneReuseReviewVisible = computed(() => false);
 
-    const selectedNodeReuseReviewVisible = computed(() =>
-      inspectorMode.value === 'node'
-      && !!(selectedWorkflowNode.value && selectedWorkflowNode.value.reuseReview)
-      && !inspectorExpanded.value,
-    );
+    const selectedNodeReuseReviewVisible = computed(() => false);
 
     function loadReusableSceneForm(sceneId) {
       const scene = scenes.value.find((s) => s.id === sceneId);
@@ -4686,10 +4810,12 @@ const appOptions = {
           proceedToWorkflowStep();
           if (workflowSetupStep.value !== 2) return;
         }
-        if (form.workflowTestStatus !== 'success') {
-          ElementPlus.ElMessage.warning('Step2 の Workflow テストを先に完了してください');
+        const step2Err = getStep2GateError();
+        if (step2Err) {
+          ElementPlus.ElMessage.warning(step2Err);
           return;
         }
+        updateSceneReadyState();
         syncOutputDocFieldsBySceneDocs();
         ensureDefaultExportFileSelection();
         if (!outputSelectedDocType.value && form.output.docFields?.[0]?.docType) {
@@ -4907,7 +5033,7 @@ const appOptions = {
         if (!scene) return;
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'pending_review';
+          form.scene.publishStatus = 'draft';
           form.workflowTestStatus = 'untested';
           form.outputConfigStatus = 'unsaved';
           scene.name = name;
@@ -4918,7 +5044,7 @@ const appOptions = {
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'pending_review';
+          stored.scene.publishStatus = 'draft';
           stored.workflowTestStatus = 'untested';
           stored.outputConfigStatus = 'unsaved';
           scene.name = name;
@@ -4979,7 +5105,7 @@ const appOptions = {
         if (!scene) return false;
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'pending_review';
+          form.scene.publishStatus = 'draft';
           form.workflowTestStatus = 'untested';
           form.outputConfigStatus = 'unsaved';
           scene.name = name;
@@ -4988,7 +5114,7 @@ const appOptions = {
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'pending_review';
+          stored.scene.publishStatus = 'draft';
           stored.workflowTestStatus = 'untested';
           stored.outputConfigStatus = 'unsaved';
           scene.name = name;
@@ -5024,6 +5150,9 @@ const appOptions = {
 
     function validateOutputConfig() {
       syncOutputDocFieldsBySceneDocs();
+      if (step3ExportCandidatesEmpty.value) {
+        return '出力可能な項目がありません';
+      }
       if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
       const hasStandardSelection = (form.output.exportStandardFieldIds || []).length > 0
         || form.output.exportFieldModeByDoc?.__standardRoot === 'standard'
@@ -5044,18 +5173,15 @@ const appOptions = {
     }
 
     function validateWorkflowPublish() {
-      const err = validateWorkflowReadyForTest();
-      if (err) return err;
-      if (form.workflowTestStatus !== 'success') {
-        return 'Step2 の Workflow テストを完了してください';
-      }
+      const step2Err = getStep2GateError();
+      if (step2Err) return step2Err;
       const outputErr = validateOutputConfig();
       if (outputErr) return outputErr;
       if (form.outputConfigStatus !== 'valid') {
         return 'Step3 の出力設定を保存してください';
       }
       if (form.scene.publishStatus !== 'ready') {
-        return 'ワークフローテストを完了してください';
+        return 'Step2 の Workflow テストを完了してください';
       }
       return '';
     }
@@ -8056,6 +8182,7 @@ const appOptions = {
       Object.keys(form).forEach((k) => delete form[k]);
       Object.assign(form, next);
       ensureFormWorkflows(form);
+      updateSceneReadyState();
       savedSnapshot.value = JSON.stringify(form);
       if (options.focusScene) {
         selectedWorkflowNodeId.value = null;
@@ -8092,13 +8219,17 @@ const appOptions = {
 
     function markScenePendingReview() {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
-      form.scene.publishStatus = 'pending_review';
+      // 修改配置后回到下書き；需重新通过 Step2 测试后才能再次「公開可能」
+      if (form.scene.publishStatus === 'published' || form.scene.publishStatus === 'pending_review' || form.scene.publishStatus === 'ready') {
+        form.scene.publishStatus = 'draft';
+      }
       if (currentNode.value === 'output') {
         form.outputConfigStatus = 'unsaved';
       } else {
         form.workflowTestStatus = 'untested';
         form.outputConfigStatus = 'unsaved';
       }
+      updateSceneReadyState();
     }
 
     function handleSave(options = {}) {
@@ -8232,29 +8363,48 @@ const appOptions = {
       workflowTestDraft.summary = null;
       let index = 0;
 
+      const finishWorkflowTestRun = (stopAtStepId = '') => {
+        workflowTestRunning.value = false;
+        workflowTestDraft.runningStepId = '';
+        workflowTestDraft.summary = buildWorkflowTestSummary(
+          workflowTestDraft.steps,
+          workflowTestDraft.testCase,
+          getActiveWf(),
+          sceneContext,
+        );
+        applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
+        if (options.updateSceneStatus !== false) {
+          const testOk = workflowTestDraft.summary?.overallStatus === 'success';
+          form.workflowTestStatus = testOk ? 'success' : 'failed';
+          updateSceneReadyState();
+          savedSnapshot.value = JSON.stringify(form);
+          saveStorage(currentSceneId.value, form);
+        }
+        const failedStep = workflowTestDraft.steps.find((step) => step.status === 'error');
+        workflowTestDraft.selectedStepId = stopAtStepId
+          || failedStep?.id
+          || workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
+          || workflowTestDraft.selectedStepId;
+        if (failedStep?.id) scrollWorkflowTestStepIntoView(failedStep.id);
+        workflowTestRunTimer = null;
+        const testOk = workflowTestDraft.summary?.overallStatus === 'success';
+        if (testOk && form.scene.publishStatus === 'ready') {
+          ElementPlus.ElMessage.success('テスト成功。画布状態を公開可能に更新しました');
+        } else if (testOk) {
+          const endErr = validateWorkflowEndRequirements(getActiveWf());
+          ElementPlus.ElMessage.warning(endErr || 'テストは成功しましたが、終了ノード要件を満たしていません');
+        } else {
+          ElementPlus.ElMessage.warning(
+            failedStep?.errorReason
+              ? `テスト失敗で停止：${failedStep.errorReason}`
+              : 'Workflow テストが失敗しました',
+          );
+        }
+      };
+
       const advance = () => {
         if (index >= steps.length) {
-          workflowTestRunning.value = false;
-          workflowTestDraft.runningStepId = '';
-          workflowTestDraft.summary = buildWorkflowTestSummary(
-            workflowTestDraft.steps,
-            workflowTestDraft.testCase,
-            getActiveWf(),
-            sceneContext,
-          );
-          applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
-          if (options.updateSceneStatus !== false) {
-            form.workflowTestStatus = workflowTestDraft.summary?.overallStatus === 'success'
-              ? 'success'
-              : 'failed';
-            updateSceneReadyState();
-            savedSnapshot.value = JSON.stringify(form);
-            saveStorage(currentSceneId.value, form);
-          }
-          workflowTestDraft.selectedStepId = workflowTestDraft.steps[workflowTestDraft.steps.length - 1]?.id
-            || workflowTestDraft.selectedStepId;
-          workflowTestRunTimer = null;
-          ElementPlus.ElMessage.success('Workflow テストを実行しました');
+          finishWorkflowTestRun();
           return;
         }
         const target = steps[index];
@@ -8267,6 +8417,11 @@ const appOptions = {
           const rowIndex = workflowTestDraft.steps.findIndex((step) => step.id === finalized.id);
           if (rowIndex >= 0) workflowTestDraft.steps[rowIndex] = { ...finalized };
           workflowTestDraft.runningStepId = '';
+          // 失败即停：后续节点保持「未実行」，不再继续测试
+          if (finalized.status === 'error') {
+            finishWorkflowTestRun(finalized.id);
+            return;
+          }
           advance();
         }, 420);
       };
@@ -8277,9 +8432,6 @@ const appOptions = {
     function validateOutputStepSave() {
       const err = validateWorkflowReadyForTest();
       if (err) return err;
-      if (form.workflowTestStatus !== 'success') {
-        return 'Step2 の Workflow テストを先に完了してください';
-      }
       return validateOutputConfig();
     }
 
@@ -8589,6 +8741,8 @@ const appOptions = {
       applyWorkflowTestContinue,
       sceneStats,
       canPublishWorkflowScene,
+      canEnterWorkflowStep3,
+      getStep2GateError,
       outputFieldCount,
       selectedStandardOutputFieldCount,
       outputTableStats,
@@ -8620,8 +8774,12 @@ const appOptions = {
       onNotifyRecipientsBlur,
       CODE_PARAM_DATA_TYPES,
       CODE_OUTPUT_TYPES,
+      CODE_UPSTREAM_FILES_JSON,
       DEFAULT_CODE_PYTHON,
+      codeVariableOptions,
       codeVariableCascaderOptions,
+      codeScriptInputOptions,
+      codeScriptInsertPick,
       codeParamDialogVisible,
       codeParamDialogMode,
       codeParamDialogDraft,
@@ -8635,10 +8793,14 @@ const appOptions = {
       formatCodeInputVariableDisplay,
       formatCodeInputVariableType,
       onCodeParamVariableChange,
+      onCodeParamDataTypeChange,
+      insertCodeScriptVariable,
+      onCodeScriptInsertPick,
       addCodeInputRow,
       removeCodeInputRow,
       onCodeFieldChange,
       formatCodeInputVariableToken,
+      formatCodeScriptVarSnippet,
       normalizeCodeNode,
       getHitlGateBranchCanvasLabel,
       judgmentAllowsElif,
@@ -8759,6 +8921,7 @@ const appOptions = {
       sceneSetupSceneIdDisplay,
       sceneSetupConfirmLabel,
       scenePublishBadge,
+      scenePublishStatusKey,
       sceneSetupDocTypeOptions,
       sceneSetupLinkStats,
       sceneSetupUnlinkedDocLabels,
@@ -8851,6 +9014,7 @@ const appOptions = {
       setExportFieldMode,
       exportDataMappingConfigured,
       exportOcrConfigured,
+      step3ExportCandidatesEmpty,
       isOutputFieldChecked,
       toggleOutputField,
       getOutputFieldDisplayName,
@@ -9018,6 +9182,7 @@ const appOptions = {
       workflowNodeOutputVars,
       workflowOutputVariableRows,
       workflowOutputVariableGroups,
+      formatWorkflowOutputInfo,
       getRuleConfigVersion,
       getRuleCheckStatusLabel,
       getRuleCheckStatusClass,
@@ -9324,7 +9489,7 @@ const InspectorFieldLabel = {
               h(
                 'button',
                 { type: 'button', class: 'inspector-field-tip', 'aria-label': '説明' },
-                '?',
+                'i',
               ),
           },
         ),
@@ -9356,7 +9521,7 @@ const InspectorTitle = {
                 h(
                   'button',
                   { type: 'button', class: 'inspector-field-tip', 'aria-label': '説明' },
-                  '?',
+                  'i',
                 ),
             },
           ),

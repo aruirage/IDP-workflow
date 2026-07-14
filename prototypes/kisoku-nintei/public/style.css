@@ -2816,6 +2816,33 @@ code.export-config-meta-value {
   padding: 16px;
   text-align: left;
 }
+.export-config-empty-panel {
+  flex: 1;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+}
+.export-config-empty-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #101828;
+}
+.export-config-empty-desc {
+  margin: 0 0 8px;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #667085;
+}
 
 /* Step 3: エクスポート task layout */
 .export-task-header {
@@ -5523,18 +5550,6 @@ code.export-config-meta-value {
   background: #fff;
   border-top: 1px solid #f2f4f7;
 }
-.workflow-node-output-section .workflow-output-dropdown {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  overflow: visible;
-  box-shadow: none;
-}
-.workflow-output-dropdown {
-  display: block;
-  max-width: 100%;
-}
-
 .mcp-admin-page {
   display: flex;
   flex-direction: column;
@@ -6469,10 +6484,6 @@ code.export-config-meta-value {
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
-}
-.wf-publish-badge.is-pending_review {
-  background: #fff7e6;
-  color: #b54708;
 }
 .wf-publish-badge.is-ready {
   background: #e8f2ff;
@@ -7822,6 +7833,16 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 14px;
   line-height: 1.55;
+}
+.code-param-hint,
+.code-param-empty {
+  margin: 0 0 10px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.code-script-insert-field {
+  margin-bottom: 10px;
 }
 .code-param-list {
   list-style: none;
@@ -9403,7 +9424,9 @@ body.idp-inspector-resizing * {
   background: #fff;
   color: #667085;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -11856,39 +11879,21 @@ body.idp-inspector-resizing * {
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-.workflow-output-trigger {
+.workflow-output-heading {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 28px;
   padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
   color: #344054;
   font-size: inherit;
   font-weight: inherit;
   letter-spacing: 0;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
 }
-.workflow-output-trigger::-webkit-details-marker {
-  display: none;
-}
-.workflow-output-trigger:hover,
-.workflow-output-trigger:focus {
-  background: transparent;
-  color: #344054;
-  outline: none;
-}
-.workflow-output-trigger-count {
+.workflow-output-count {
   color: #667085;
   font-size: 13px;
   font-weight: 500;
-}
-.workflow-output-dropdown[open] .workflow-output-trigger-caret {
-  transform: rotate(180deg);
 }
 .workflow-output-panel {
   margin-top: 4px;
@@ -11978,6 +11983,14 @@ body.idp-inspector-resizing * {
   border-color: #84adff;
   color: #175cd3;
   background: #eff4ff;
+}
+.workflow-output-var-tooltip.el-popper,
+.workflow-output-var-tooltip {
+  max-width: 380px;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .workflow-output-var-consumption {
   flex-shrink: 0;

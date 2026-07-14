@@ -1012,6 +1012,23 @@ function normalizeLoadedForm(form) {
   form.workflowTestStatus = ['untested', 'success', 'failed'].includes(form.workflowTestStatus)
     ? form.workflowTestStatus
     : 'untested';
+  // 取消场景「要確認」状态；旧数据 pending_review 回退为 draft
+  if (form.scene) {
+    if (form.scene.publishStatus === 'pending_review') form.scene.publishStatus = 'draft';
+    if (!['draft', 'ready', 'published'].includes(form.scene.publishStatus)) {
+      form.scene.publishStatus = 'draft';
+    }
+    // 公開可能 仅当 Step2 测试成功且终了节点校验通过；清掉旧版「Step3 保存即 ready」残留
+    if (form.scene.publishStatus !== 'published') {
+      const wf = form.workflows?.case
+        || (form.workflows && Object.values(form.workflows).find((item) => item?.nodes));
+      const endErr = typeof validateWorkflowEndRequirements === 'function'
+        ? validateWorkflowEndRequirements(wf)
+        : '';
+      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
+      form.scene.publishStatus = step2Ok ? 'ready' : 'draft';
+    }
+  }
   if (!['unsaved', 'valid', 'invalid'].includes(form.outputConfigStatus)) {
     form.outputConfigStatus = form.outputTestStatus === 'success'
       ? 'valid'
