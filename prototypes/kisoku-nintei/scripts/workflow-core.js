@@ -2892,7 +2892,7 @@ function getDecisionOperatorsForType(dataType = '', variableOption = null) {
   } else if (type === 'boolean') {
     options = options.filter((op) => ['is_true', 'is_false'].includes(op.value));
   } else if (type === 'string') {
-    options = options.filter((op) => ['is', 'is_not', 'contains', 'is_empty', 'is_not_empty'].includes(op.value));
+    options = options.filter((op) => ['is', 'is_not', 'contains', 'not_contains', 'is_empty', 'is_not_empty'].includes(op.value));
   } else if (type === 'array') {
     options = [];
   } else if (type === 'object') {
