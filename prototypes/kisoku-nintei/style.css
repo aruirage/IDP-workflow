@@ -11919,6 +11919,9 @@ body.idp-inspector-resizing * {
 }
 .workflow-output-var-item {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .workflow-output-var-main {
   display: flex;
@@ -11954,6 +11957,27 @@ body.idp-inspector-resizing * {
   flex-shrink: 0;
   color: #667085;
   font-size: 14px;
+}
+.workflow-output-var-info {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+.workflow-output-var-info:hover {
+  border-color: #84adff;
+  color: #175cd3;
+  background: #eff4ff;
 }
 .workflow-output-var-consumption {
   flex-shrink: 0;

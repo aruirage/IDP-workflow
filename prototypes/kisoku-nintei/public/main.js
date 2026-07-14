@@ -116,9 +116,6 @@ const appOptions = {
       ['通知方式', '通知方式'],
       ['通知先', '通知对象'],
       ['システム通知', '系统通知'],
-      ['メールアドレス', '邮箱地址'],
-      ['メール', '邮件'],
-      ['複数指定する場合は ; で区切ります。', '可用 ; 分隔多个地址。'],
       ['件名', '标题'],
       ['内容', '内容'],
       ['メッセージ内容', '消息内容'],
@@ -242,11 +239,11 @@ const appOptions = {
       ['固定入力変数', '固定输入变量'],
       ['Python スクリプト', 'Python 脚本'],
       ['出力変数', '输出变量'],
-      ['スクリプトへ渡す引数を定義します。参照パラメータまたはカスタム値を選択できます。', '定义传给脚本的参数。可选择参照参数或自定义值。'],
+      ['スクリプトへ渡す引数を定義します。上流ノードの出力変数を選択できます。', '定义传给脚本的参数。可选择上游节点输出变量。'],
       ['上流ノードの出力変数を JSON として Python 関数へ渡します。', '将上游节点输出变量作为 JSON 传给 Python 函数。'],
-      ['必要な固定値だけ追加します。上流変数は上の JSON から参照します。', '只添加必要的固定值。上游变量从上方 JSON 参照。'],
+      ['追加した入力変数は Python スクリプト内でパラメータ名として参照します。', '添加的输入变量可在 Python 脚本内用参数名参照。'],
       ['main(inputs) 関数を実装します。', '实现 main(inputs) 函数。'],
-      ['戻り値の項目名とデータ型を定義します。', '定义返回值的字段名和数据类型。'],
+      ['戻り値は実行ログで確認できます。変数プールには入りません。', '返回值可在执行日志查看，不进入变量池。'],
       ['入力変数がありません', '没有输入变量'],
       ['出力変数がありません', '没有输出变量'],
       ['パラメータ名', '参数名'],
@@ -254,9 +251,7 @@ const appOptions = {
       ['ソース', '来源'],
       ['参照パラメータ', '参照参数'],
       ['カスタム', '自定义'],
-      ['カスタム値', '自定义值'],
       ['上流ノードの出力変数を選択', '选择上游节点输出变量'],
-      ['固定値を入力', '输入固定值'],
       ['（参照パラメータ未設定）', '（未设置参照参数）'],
       ['必須', '必填'],
       ['文字列', '字符串'],
@@ -547,7 +542,7 @@ const appOptions = {
       ['終了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状態提案须与分支条件变量一致。', '终了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状态提案须与分支条件变量一致。'],
       ['通知方式・宛先を指定します。', '指定通知方式和对象。'],
       ['件名・本文に変数を挿入できます。', '可在标题・正文中插入变量。'],
-      ['通知メールの件名', '通知邮件标题'],
+      ['通知件名', '通知标题'],
       ['通知本文', '通知正文'],
       ['ノード変数名', '节点变量名'],
       ['形式で変数を挿入', '形式插入变量'],
@@ -724,10 +719,8 @@ const appOptions = {
       ['審査ロールを選択してください', '请选择审查角色'],
       ['送信先を設定してください', '请配置通知收件人'],
       ['通知先を選択してください', '请选择通知对象'],
-      ['メールアドレスの形式を確認してください', '请检查邮件地址格式'],
       ['Python スクリプトを入力してください', '请输入 Python 脚本'],
       ['入力変数が未設定です', '存在未配置的输入变量'],
-      ['出力変数が不正です', '输出变量配置不正确'],
       ['エラー箇所へ移動', '定位错误位置'],
       ['構造エラー：', '结构错误：'],
       ['変数参照・分岐型不一致', '变量引用・分支类型不一致'],
@@ -2197,6 +2190,31 @@ const appOptions = {
     const notifyVariableCascaderOptions = computed(() =>
       buildDecisionVariableCascaderTree(notifyVariableOptions.value));
 
+    const codeVariableOptions = computed(() => {
+      const wf = getActiveWf();
+      const node = selectedWorkflowNode.value;
+      if (!wf || !node || node.type !== 'code') return [];
+      return getDecisionVariableOptions(wf, node.id, form.verify, decisionSceneContext.value);
+    });
+
+    const codeVariableCascaderOptions = computed(() =>
+      buildDecisionVariableCascaderTree(codeVariableOptions.value));
+
+    function getCodeVariableOption(value) {
+      if (!value) return null;
+      return codeVariableOptions.value.find((opt) => opt.value === value) || null;
+    }
+
+    function formatCodeInputVariableDisplay(row) {
+      if (!row?.variable) return '変数未選択';
+      return formatDecisionVariableDisplay(row.variable, codeVariableOptions.value) || row.variable;
+    }
+
+    function formatCodeInputVariableType(row) {
+      const opt = getCodeVariableOption(row?.variable);
+      return opt?.dataType || row?.dataType || 'String';
+    }
+
     function insertNotifyVariable(field, varPath) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'notify') return;
@@ -2267,7 +2285,7 @@ const appOptions = {
 
     const codeParamDialogTitle = computed(() => {
       const editing = !!codeParamDialogDraft.value?.id;
-      const kind = codeParamDialogMode.value === 'output' ? '出力変数' : '入力変数';
+      const kind = '入力変数';
       return editing ? `${kind}を編集` : `${kind}を追加`;
     });
 
@@ -2277,49 +2295,28 @@ const appOptions = {
     const codeParamDialogSavable = computed(() => {
       const draft = codeParamDialogDraft.value;
       if (!draft?.name?.trim()) return false;
-      if (codeParamDialogMode.value === 'output') return true;
-      if (draft.source === 'reference') return true;
-      return !!(draft.customValue || '').trim();
+      return !!draft.variable;
     });
 
-    function onCodeParamSourceChange(source) {
+    function onCodeParamVariableChange(variable) {
       const draft = codeParamDialogDraft.value;
       if (!draft) return;
-      if (source === 'reference') {
-        draft.customValue = '';
-        draft.variable = '';
-      } else {
-        draft.variable = '';
-      }
+      const opt = getCodeVariableOption(variable);
+      draft.dataType = opt?.dataType || 'String';
     }
 
     function openCodeParamDialog(mode = 'input', row = null) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code') return;
-      codeParamDialogMode.value = mode === 'output' ? 'output' : 'input';
-      if (codeParamDialogMode.value === 'output') {
-        if (row) {
-          codeParamDialogDraft.value = {
-            id: row.id,
-            name: row.name,
-            dataType: row.dataType || 'dict',
-          };
-        } else {
-          const draft = createCodeParamDialogDraft('output');
-          const count = (node.outputParams || []).length;
-          draft.name = count === 0 ? 'result' : `output_${count + 1}`;
-          draft.dataType = count === 0 ? 'dict' : 'string';
-          codeParamDialogDraft.value = draft;
-        }
-      } else if (row) {
+      codeParamDialogMode.value = 'input';
+      if (row) {
         codeParamDialogDraft.value = {
           id: row.id,
           name: row.name,
-          dataType: row.dataType || 'string',
-          source: row.source === 'custom' ? 'custom' : 'reference',
+          dataType: row.dataType || formatCodeInputVariableType(row) || 'String',
+          source: 'reference',
           required: row.required !== false,
           variable: row.variable || '',
-          customValue: row.customValue || '',
         };
       } else {
         const draft = createCodeParamDialogDraft('input');
@@ -2338,29 +2335,14 @@ const appOptions = {
       const node = selectedWorkflowNode.value;
       const draft = codeParamDialogDraft.value;
       if (!node || node.type !== 'code' || !codeParamDialogSavable.value) return;
-      if (codeParamDialogMode.value === 'output') {
-        if (!Array.isArray(node.outputParams)) node.outputParams = [];
-        const payload = normalizeCodeOutputRow({
-          id: draft.id || newRuleId('cout'),
-          name: draft.name.trim(),
-          dataType: draft.dataType,
-        }, node.outputParams.length);
-        const idx = node.outputParams.findIndex((r) => r.id === draft.id);
-        if (idx >= 0) node.outputParams[idx] = payload;
-        else node.outputParams.push(payload);
-        pushWorkflowHistory(draft.id ? '出参を更新' : '出参を追加');
-        codeParamDialogVisible.value = false;
-        return;
-      }
       if (!Array.isArray(node.inputs)) node.inputs = [];
       const payload = normalizeCodeInputRow({
         id: draft.id || newRuleId('cin'),
         name: draft.name.trim(),
         dataType: draft.dataType,
-        source: draft.source === 'custom' ? 'custom' : 'reference',
+        source: 'reference',
         required: draft.required,
         variable: draft.variable || '',
-        customValue: draft.customValue || '',
       }, node.inputs.length);
       const idx = node.inputs.findIndex((r) => r.id === draft.id);
       if (idx >= 0) node.inputs[idx] = payload;
@@ -2373,26 +2355,11 @@ const appOptions = {
       openCodeParamDialog('input');
     }
 
-    function addCodeOutputRow() {
-      openCodeParamDialog('output');
-    }
-
     function removeCodeInputRow(rowId) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code' || !node.inputs?.length) return;
       node.inputs = node.inputs.filter((r) => r.id !== rowId);
       pushWorkflowHistory('入参を削除');
-    }
-
-    function removeCodeOutputRow(rowId) {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code' || !node.outputParams?.length) return;
-      if (node.outputParams.length <= 1) {
-        ElementPlus.ElMessage.warning('出力変数は最低1つ必要です');
-        return;
-      }
-      node.outputParams = node.outputParams.filter((r) => r.id !== rowId);
-      pushWorkflowHistory('出参を削除');
     }
 
     function onCodeFieldChange() {
@@ -2599,8 +2566,7 @@ const appOptions = {
       const id = String(item?.id || '').toLowerCase();
       if (id.includes('files') || id.includes('list')) return id.includes('missingdocs') || id.includes('missingfields') ? 'Array[String]' : 'Array[File]';
       if (id.includes('count') || id.includes('latency')) return 'Number';
-      if (id.includes('result') || id.includes('fields') || id.includes('payload')) return 'Object';
-      if (id.includes('status') || id.includes('type') || id.includes('event') || id.includes('role') || id.includes('message')) return 'String';
+      if (id.includes('result') || id.includes('status') || id.includes('type') || id.includes('event') || id.includes('role') || id.includes('message') || id.includes('fields') || id.includes('payload')) return 'String';
       if (id.includes('at')) return 'DateTime';
       return 'String';
     }
@@ -2614,6 +2580,15 @@ const appOptions = {
         description: t(item.description || item.label),
       }));
     });
+
+    function formatWorkflowOutputInfo(item) {
+      const parts = [
+        item?.label,
+        item?.valueSpec ? `取值: ${item.valueSpec}` : '',
+        item?.description,
+      ].filter(Boolean);
+      return [...new Set(parts)].join(' / ') || '説明なし';
+    }
 
     const WORKFLOW_OUTPUT_SCOPE_ORDER = ['案件変数', 'ファイル変数', '帳票タイプ変数'];
     const workflowOutputVariableGroups = computed(() => {
@@ -8644,9 +8619,9 @@ const appOptions = {
       validateNotifyRecipients,
       onNotifyRecipientsBlur,
       CODE_PARAM_DATA_TYPES,
-      CODE_PARAM_SOURCES,
       CODE_OUTPUT_TYPES,
       DEFAULT_CODE_PYTHON,
+      codeVariableCascaderOptions,
       codeParamDialogVisible,
       codeParamDialogMode,
       codeParamDialogDraft,
@@ -8657,13 +8632,11 @@ const appOptions = {
       closeCodeParamDialog,
       confirmCodeParamDialog,
       getCodeParamDataTypeLabel,
-      getCodeParamSourceLabel,
-      formatCodeInputRowDisplay,
-      onCodeParamSourceChange,
+      formatCodeInputVariableDisplay,
+      formatCodeInputVariableType,
+      onCodeParamVariableChange,
       addCodeInputRow,
-      addCodeOutputRow,
       removeCodeInputRow,
-      removeCodeOutputRow,
       onCodeFieldChange,
       formatCodeInputVariableToken,
       normalizeCodeNode,

@@ -10,11 +10,9 @@ const NODES = [
 ];
 
 const SCENES = [
-  { id: '2064639102406844416', name: '医療保険（通院給付）請求' },
-  { id: '2064639102406844417', name: '医療保険（入院給付）請求' },
-  { id: '2064639102406844418', name: '保険金請求（標準）' },
-  { id: '2064639102406844419', name: '新規契約・告知受領' },
-  { id: '2064639102406844420', name: '保険金・給付金請求' },
+  { id: '2064639102406844416', name: '保険金請求（理赔）' },
+  { id: '2064639102406844417', name: '新契約申込（新保申请）' },
+  { id: '2064639102406844418', name: '保全変更（保全变更）' },
 ];
 
 const MAX_DOCS = 20;
@@ -63,13 +61,13 @@ const WORKFLOW_DEFAULTS = {
     io: cloneJson(NODE_IO_DEFAULTS.preprocess),
   },
   hitl: {
-    role: '一般審査',
+    role: 'operator',
     useSpecificRoles: false,
-    imageRole: '一般審査',
-    ocrRole: '医療審査',
-    masterRole: '医療審査',
-    verifyRole: '給付審査',
-    exportRole: '一般審査',
+    imageRole: 'operator',
+    ocrRole: 'operator',
+    masterRole: 'operator',
+    verifyRole: 'operation_admin',
+    exportRole: 'operator',
   },
   ocrExtract: {
     enabledTypes: [],
@@ -199,7 +197,7 @@ const OUTPUT_DEFAULTS = {
   sharedFolderPath: '\\\\fileserver\\idp\\export',
   includeVerifyReport: true,
   exportReviewRequired: false,
-  exportReviewRole: '案件担当者',
+  exportReviewRole: 'case_owner',
   templateLocked: true,
   exportStandardFieldIds: [],
   exportStandardFieldIdsInitialized: false,
@@ -236,10 +234,9 @@ function normalizeSheetExportMode(mode) {
   return OUTPUT_SHEET_EXPORT_MODE_LEGACY[mode] || mode;
 }
 const HITL_ROLE_OPTIONS = [
-  { value: '案件担当者', label: '案件担当者', hint: '日常案件処理・一次確認を担当' },
-  { value: '給付審査', label: '給付審査', hint: '給付要件・支払可否の審査を担当' },
-  { value: '管理者', label: '管理者', hint: '管理者ロールへタスクを割り当て' },
-  { value: 'その他ロール', label: 'その他ロール', hint: 'カスタムロールへ割り当て' },
+  { value: 'case_owner', label: '担当者', hint: '案件に割り当てられた担当者へタスクを割り当て' },
+  { value: 'operator', label: '操作員', hint: '通常の確認・修正作業を担当' },
+  { value: 'operation_admin', label: '操作管理者', hint: '運用管理・例外確認を担当' },
 ];
 
 const DOC_TYPE_REGISTRY = [
@@ -748,10 +745,8 @@ function ocrModeTagType(mode) {
 
 const SCENE_ROUTE = {
   '2064639102406844416': 'invoice_multi',
-  '2064639102406844417': 'application',
-  '2064639102406844418': 'invoice_simple',
-  '2064639102406844419': 'notice',
-  '2064639102406844420': 'insurance_general',
+  '2064639102406844417': 'notice',
+  '2064639102406844418': 'insurance_general',
 };
 
 function buildDataRule(id, description, tolerance, action, expression = '') {
@@ -2112,10 +2107,6 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
         && row.source === 'reference'
         && !String(row.variable || '').trim());
       if (missingInput) return '入力変数が未設定です';
-      const outputs = normalized.outputParams || [];
-      if (!outputs.length) return '出力変数が不正です';
-      const names = outputs.map((row) => row.name);
-      if (new Set(names).size !== names.length) return '出力変数が不正です';
       return '';
     }
     default:

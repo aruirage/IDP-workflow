@@ -87,16 +87,16 @@ const INSPECTOR_HINTS = {
   endTriggers: '分支到达終了时，引擎按路径上下文提案案件状態与最終処理結果（読み取り専用）。公開校验见 Workflow 概要。',
   endTriggerCaseEvent: '終了节点不接收事件。到达时写入 caseStatus / finalResult / hasOpenItems 等；案件状態提案须与分支条件变量一致。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
-  notifyRecipients: 'システム通知の場合は通知先ロールを選択します。メールの場合は宛先アドレスを指定します。',
+  notifyRecipients: 'システム通知の通知先ロールを選択します。',
   notifyMessage: '件名・本文に {ノード変数名.case.xxx} 形式で変数を挿入できます。挿入候補は上流ノードの出力変数から選択します。実行時に案件データへ置換されます。',
   code: 'Python スクリプトで上流変数を加工します。スクリプト戻り値はスクリプト内で完結し、変数プールには入りません。',
-  codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数またはカスタム値の対応を定義します。「+ 追加」から変数を登録できます。',
+  codeInput: 'スクリプト内で参照する引数名と、上流ノードの出力変数の対応を定義します。「+ 追加」から変数を登録できます。',
   codePython: 'def main(inputs: dict) -> dict 形式で記述します。戻り値は変数プールへ公開されません。',
-  codeReturn: 'OFF の場合、ユーザー定義の戻り値は後続ノードへ公開されません。ステータスとエラーメッセージは常に出力されます。',
-  codeOutput: '変数プールへ公開されるのは status と errorMessage のみです。ユーザー定義の戻り値は条件ノードや通知ノードでは選択できません。',
+  codeReturn: 'ON の場合、スクリプト戻り値を本ノードの実行ログで確認できます。戻り値は変数プールへ公開されません。',
+  codeOutput: 'カスタム関数ノードは出力変数を公開しません。戻り値は本ノードの実行ログとデバッグ表示でのみ確認できます。',
   codeParamName: 'スクリプト内で参照する引数の名前です。64 文字以内で指定します。',
-  codeParamDataType: '引数または出力値のデータ型を選択します。',
-  codeParamSource: '参照パラメータは上流変数プール JSON を実行時に自動注入します。カスタムは固定値を直接入力します。',
+  codeParamDataType: '選択した参照変数のデータ型です。',
+  codeParamSource: '上流変数プールから参照変数を選択します。選択した値は設定したパラメータ名で Python スクリプトに渡されます。',
   codeParamReference: '上流変数プール JSON を実行時に自動注入します。',
   codeParamCustom: '固定値としてスクリプトへ渡す値を入力します。',
   codeParamRequired: '必須にすると、値が未設定の場合は実行時にエラーとして扱われます。',
@@ -612,7 +612,7 @@ const WORKFLOW_NODE_META = {
   notify: {
     icon: 'NT',
     title: '通知',
-    desc: 'システム通知・メール送信',
+    desc: 'システム通知送信',
     tasks: [],
     input: 'Case Event',
     output: 'Notified',
@@ -1046,7 +1046,7 @@ function formatWorkflowOutputVarToken(node, workflow, varId) {
 function getWorkflowNodeOutputVarItems(node, workflow = null) {
   if (!node?.type) return [];
   const defs = node.type === 'code'
-    ? getCodeNodeOutputVarDefs(node)
+    ? []
     : WORKFLOW_NODE_OUTPUT_VAR_DEFS[node.type];
   if (!defs?.length) return [];
   const visibleDefs = defs.filter((item) => !item.optional);
@@ -1685,10 +1685,8 @@ function buildWorkflowNodeCanvasSummary(node, ctx = {}) {
     case 'code': {
       const normalized = normalizeCodeNode(node, workflow);
       const inCount = normalized.inputs?.length || 0;
-      const outCount = normalized.returnContent ? (normalized.outputParams?.length || 0) : 0;
       const parts = [];
       if (inCount) parts.push(`入力 ${inCount}件`);
-      if (outCount) parts.push(`出力 ${outCount}件`);
       const summary = joinWorkflowCanvasSummary(reusePrefix, ...parts);
       return summary || (reusePrefix
         ? joinWorkflowCanvasSummary(reusePrefix, WORKFLOW_CANVAS_SUMMARY_EMPTY)
@@ -1863,10 +1861,25 @@ const HITL_LEGACY_ACTION_MAP = {
 };
 
 const HITL_CONTEXT_DEFAULT_ROLE = {
-  preprocess: '案件担当者',
-  ocr: '案件担当者',
-  verification: '給付審査',
+  preprocess: 'case_owner',
+  ocr: 'operator',
+  verification: 'operation_admin',
 };
+
+const HITL_ROLE_LEGACY_MAP = {
+  '案件担当者': 'case_owner',
+  '担当者': 'case_owner',
+  '入力オペレータ': 'operator',
+  '医療審査': 'operator',
+  '給付審査': 'operation_admin',
+  '管理者': 'operation_admin',
+  'その他ロール': 'operation_admin',
+};
+
+function normalizeHitlRole(role, fallback = 'case_owner') {
+  const raw = String(role || '').trim();
+  return HITL_ROLE_LEGACY_MAP[raw] || raw || fallback;
+}
 
 const HITL_LEGACY_CONTEXT_MAP = {
   preprocess_hitl: 'preprocess',
@@ -1878,12 +1891,12 @@ const HITL_LEGACY_CONTEXT_MAP = {
 
 const NOTIFY_CHANNELS = [
   { value: 'system', label: 'システム通知' },
-  { value: 'email', label: 'メール' },
 ];
 
 const NOTIFY_RECIPIENT_OPTIONS = [
-  { value: 'case_owner', label: '案件担当者' },
-  { value: 'other_role', label: 'その他ロール' },
+  { value: 'case_owner', label: '担当者' },
+  { value: 'operator', label: '操作員' },
+  { value: 'operation_admin', label: '操作管理者' },
 ];
 
 const NOTIFY_TEMPLATE_VAR_REFS = {
@@ -2060,13 +2073,11 @@ function getNotifyVariableOptions(workflow, nodeId, verifyConfig = null, sceneCo
 }
 
 function getNotifyRecipientsLabel(channel) {
-  if (channel === 'system') return '通知先';
-  return 'メールアドレス';
+  return '通知先';
 }
 
 function getNotifyRecipientsPlaceholder(channel) {
-  if (channel === 'system') return '通知先を選択';
-  return 'example@company.co.jp;team@example.co.jp';
+  return '通知先を選択';
 }
 
 function parseNotifySystemRecipients(value) {
@@ -2077,6 +2088,9 @@ function parseNotifySystemRecipients(value) {
     const byLabel = NOTIFY_RECIPIENT_OPTIONS.find((opt) => opt.label === part);
     if (byLabel) return byLabel.value;
     if (part.includes('案件担当')) return 'case_owner';
+    if (part.includes('担当者')) return 'case_owner';
+    if (part.includes('操作管理')) return 'operation_admin';
+    if (part.includes('操作員')) return 'operator';
     if (part.includes('その他')) return 'other_role';
     return null;
   }).filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i);
@@ -2092,14 +2106,12 @@ function serializeNotifySystemRecipients(values) {
 }
 
 function normalizeNotifyRecipients(recipients, channel) {
-  if (channel !== 'system') return String(recipients || '').trim();
   return serializeNotifySystemRecipients(parseNotifySystemRecipients(recipients));
 }
 
 function formatNotifyRecipientsDisplay(recipients, channel) {
   const raw = String(recipients || '').trim();
   if (!raw) return '';
-  if (channel !== 'system') return raw;
   const labels = parseNotifySystemRecipients(raw)
     .map((value) => NOTIFY_RECIPIENT_OPTIONS.find((opt) => opt.value === value)?.label)
     .filter(Boolean);
@@ -2109,19 +2121,9 @@ function formatNotifyRecipientsDisplay(recipients, channel) {
 function validateNotifyRecipients(channel, value) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
-  if (channel === 'system') {
-    const parsed = parseNotifySystemRecipients(v);
-    if (!parsed.length) {
-      return { ok: false, message: '通知先を選択してください' };
-    }
-    return { ok: true, message: '' };
-  }
-  if (channel === 'email') {
-    const emails = v.split(/[;；]/).map((part) => part.trim()).filter(Boolean);
-    const emailPattern = /^[^\s@;；]+@[^\s@;；]+\.[^\s@;；]+$/;
-    if (!emails.length || emails.some((email) => !emailPattern.test(email))) {
-      return { ok: false, message: 'メールアドレスの形式を確認してください' };
-    }
+  const parsed = parseNotifySystemRecipients(v);
+  if (!parsed.length) {
+    return { ok: false, message: '通知先を選択してください' };
   }
   return { ok: true, message: '' };
 }
@@ -2334,7 +2336,7 @@ function inferHitlGateConditionType(node) {
 }
 
 function getHitlGateDefaultRole(hitlContext) {
-  return HITL_CONTEXT_DEFAULT_ROLE[hitlContext] || '一般審査';
+  return HITL_CONTEXT_DEFAULT_ROLE[hitlContext] || 'case_owner';
 }
 
 function isHitlGateNode(node) {
@@ -2477,7 +2479,7 @@ function normalizeHitlGateNode(node, workflow = null) {
     type: 'hitl_gate',
     hitlContext,
     label: node.label || '人工確認',
-    role: node.role || getHitlGateDefaultRole(hitlContext),
+    role: normalizeHitlRole(node.role, getHitlGateDefaultRole(hitlContext)),
     actions: normalizeHitlGateActions(node.actions),
     description: node.description || '',
   });
@@ -2487,7 +2489,7 @@ function normalizeNotifyNode(node, workflow = null) {
   if (node?.type !== 'notify') return node;
   const template = migrateNotifyTemplate(node.template);
   const defaults = getNotifyTemplateDefaults(template, workflow, node.id);
-  const channel = node.channel || 'email';
+  const channel = 'system';
   const { supplementEventEnabled, ...rest } = node;
   const subjectRaw = node.subject != null && String(node.subject).trim() !== ''
     ? node.subject
@@ -2517,7 +2519,6 @@ const CODE_PARAM_DATA_TYPES = [
 
 const CODE_PARAM_SOURCES = [
   { value: 'reference', label: '参照パラメータ' },
-  { value: 'custom', label: 'カスタム' },
 ];
 
 /** @deprecated use CODE_PARAM_DATA_TYPES */
@@ -2539,8 +2540,8 @@ function getCodeParamSourceLabel(value) {
 
 const DEFAULT_CODE_PYTHON = `def main(inputs: dict) -> dict:
     """
-    inputs: 参照パラメータとカスタム値をまとめた dict
-    戻り値は {result} に格納されます
+    inputs: 追加した入力変数をまとめた dict
+    入力変数は設定したパラメータ名で参照できます
     """
     return inputs
 `;
@@ -2553,7 +2554,6 @@ function createCodeInputRow(index = 0) {
     source: 'reference',
     required: true,
     variable: '',
-    customValue: '',
   };
 }
 
@@ -2572,20 +2572,17 @@ function createCodeParamDialogDraft(mode = 'input') {
     source: 'reference',
     required: true,
     variable: '',
-    customValue: '',
   };
 }
 
 function normalizeCodeInputRow(row, index = 0) {
-  const source = row?.source === 'custom' ? 'custom' : 'reference';
   return {
     id: row?.id || newRuleId('cin'),
     name: (row?.name || '').trim() || `input_${index + 1}`,
     dataType: migrateCodeDataType(row?.dataType || row?.type || 'string'),
-    source,
+    source: 'reference',
     required: row?.required !== false,
-    variable: source === 'reference' ? (row?.variable || '') : '',
-    customValue: source === 'custom' && row?.customValue != null ? String(row.customValue) : '',
+    variable: row?.variable || '',
   };
 }
 
@@ -2605,7 +2602,7 @@ function normalizeCodeNode(node, workflow = null) {
     : [];
   const outputParams = Array.isArray(node.outputParams) && node.outputParams.length
     ? node.outputParams.map((r, i) => normalizeCodeOutputRow(r, i))
-    : [createCodeOutputRow()];
+    : [];
   const withVar = ensureWorkflowNodeVarName({
     ...node,
     type: 'code',
@@ -2631,11 +2628,7 @@ function formatCodeInputVariableToken(variable) {
 
 function formatCodeInputRowDisplay(row) {
   if (!row) return '—';
-  if (row.source === 'custom') {
-    const val = (row.customValue || '').trim();
-    return val || '（カスタム値未設定）';
-  }
-  return '';
+  return formatCodeInputVariableToken(row.variable);
 }
 
 function migrateHitlDecisionsInWorkflow(workflow) {
@@ -3862,7 +3855,7 @@ function buildDefaultCaseWorkflow() {
     type: 'hitl_gate',
     label: '人工確認',
     hitlContext: 'preprocess',
-    role: '入力オペレータ',
+    role: 'operator',
   });
   place({ id: 'wf-oc', type: 'ocr', label: 'OCR抽出' });
   place({ id: 'wf-d-ocr', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
@@ -3871,7 +3864,7 @@ function buildDefaultCaseWorkflow() {
     type: 'hitl_gate',
     label: '人工確認',
     hitlContext: 'ocr',
-    role: '医療審査',
+    role: 'operator',
   });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
@@ -3881,7 +3874,7 @@ function buildDefaultCaseWorkflow() {
     type: 'hitl_gate',
     label: '人工確認',
     hitlContext: 'verification',
-    role: '給付審査',
+    role: 'operation_admin',
   });
   place({ id: 'wf-n-supp', type: 'notify', label: '補件通知', template: 'deficiency' });
   place({ id: 'wf-n-error', type: 'notify', label: '異常通知', template: 'exception' });

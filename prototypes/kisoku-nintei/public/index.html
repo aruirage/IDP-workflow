@@ -711,11 +711,6 @@
                         <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(wfNodePlacementPreview) }}</span>
                       </div>
                     </div>
-                    <p
-                      v-if="getWorkflowNodeCanvasSummary(wfNodePlacementPreview)"
-                      class="wf-node-summary"
-                      :title="getWorkflowNodeCanvasSummary(wfNodePlacementPreview)"
-                    >{{ getWorkflowNodeCanvasSummary(wfNodePlacementPreview) }}</p>
                   </div>
                 </div>
                 <div
@@ -826,11 +821,6 @@
                           @click.stop="confirmRemoveSelectedWorkflowNode"
                         >×</button>
                       </div>
-                      <p
-                        v-if="wfCanvasNodesCollapsed && getWorkflowNodeCanvasSummary(node)"
-                        class="wf-node-summary wf-node-summary--decision"
-                        :title="getWorkflowNodeCanvasSummary(node)"
-                      >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                       <div v-show="!wfCanvasNodesCollapsed" class="wf-ifelse-body">
                         <div
                           v-for="(decisionCase, caseIdx) in node.cases"
@@ -916,12 +906,6 @@
                           @click.stop="confirmRemoveSelectedWorkflowNode"
                         >×</button>
                       </div>
-                      <p
-                        v-if="getWorkflowNodeCanvasSummary(node)"
-                        class="wf-node-summary wf-node-summary--hitl"
-                        :class="{ 'wf-node-summary--compact': wfCanvasNodesCollapsed }"
-                        :title="getWorkflowNodeCanvasSummary(node)"
-                      >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                       <div
                         v-show="!wfCanvasNodesCollapsed"
                         class="wf-hitl-branches"
@@ -986,12 +970,6 @@
                           @click.stop="confirmRemoveSelectedWorkflowNode"
                         >×</button>
                       </div>
-                      <p
-                        v-if="getWorkflowNodeCanvasSummary(node)"
-                        class="wf-node-summary"
-                        :class="{ 'wf-node-summary--compact': wfCanvasNodesCollapsed }"
-                        :title="getWorkflowNodeCanvasSummary(node)"
-                      >{{ getWorkflowNodeCanvasSummary(node) }}</p>
                     </div>
                     <span
                       v-if="node.type !== 'end' && !showWfNodeAddBtn(node)"
@@ -1579,7 +1557,7 @@
                               size="small"
                               class="ocr-extract-template-link"
                               @click="openFixedDocSettings(item.type)"
-                            >template編集→</el-button>
+                            >編集</el-button>
                           </template>
                         </div>
                         <div class="ocr-extract-row__toggle">
@@ -1623,9 +1601,9 @@
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}</span>
                             <span class="code-param-list-tag">{{ getCodeParamDataTypeLabel(row.dataType) }}</span>
-                            <span class="code-param-list-tag">{{ getCodeParamSourceLabel(row.source) }}</span>
+                            <span class="code-param-list-tag">{{ formatCodeInputVariableType(row) }}</span>
                             <span v-if="row.required" class="code-param-list-tag code-param-list-tag--req">必須</span>
-                            <code v-if="row.source === 'custom'" class="code-param-list-value">{{ formatCodeInputRowDisplay(row) }}</code>
+                            <code class="code-param-list-value">{{ formatCodeInputVariableDisplay(row) }}</code>
                           </div>
                           <div class="code-param-list-actions">
                             <el-button type="primary" link @click="openCodeParamDialog('input', row)">編集</el-button>
@@ -1648,26 +1626,7 @@
                         />
                       </div>
                     </inspector-module-card>
-                    <inspector-module-card title="出力変数">
-                      <template #action>
-                        <el-button type="primary" link @click="addCodeOutputRow">+ 追加</el-button>
-                      </template>
-                      <ul v-if="(selectedWorkflowNode.outputParams || []).length" class="code-param-list">
-                        <li v-for="row in selectedWorkflowNode.outputParams" :key="row.id" class="code-param-list-item">
-                          <div class="code-param-list-main">
-                            <span class="code-param-list-name">{{ row.name }}</span>
-                            <span class="code-param-list-tag">{{ getCodeParamDataTypeLabel(row.dataType) }}</span>
-                            <code class="code-param-list-value">{{ '{' + getWorkflowNodeVarName(selectedWorkflowNode) + '.case.' + row.name + '}' }}</code>
-                          </div>
-                          <div class="code-param-list-actions">
-                            <el-button type="primary" link @click="openCodeParamDialog('output', row)">編集</el-button>
-                            <el-button type="danger" link @click="removeCodeOutputRow(row.id)">削除</el-button>
-                          </div>
-                        </li>
-                      </ul>
-                      <p v-else class="verify-empty">出力変数がありません</p>
-                    </inspector-module-card>
-                    <inspector-module-card title="出力設定">
+                    <inspector-module-card title="処理設定">
                       <div class="inspector-switch-row">
                         <inspector-field-label label="ユーザーへ出力" :hint="localizedInspectorHints.codeReturn"></inspector-field-label>
                         <el-switch v-model="selectedWorkflowNode.returnContent" @change="onCodeFieldChange" />
@@ -1781,6 +1740,7 @@
                           v-model="selectedWorkflowNode.channel"
                           class="inspector-field-control"
                           @change="onNotifyChannelChange"
+                          disabled
                         >
                           <el-option v-for="opt in NOTIFY_CHANNELS" :key="opt.value" :label="opt.label" :value="opt.value" />
                         </el-select>
@@ -1804,20 +1764,12 @@
                             :value="opt.value"
                           />
                         </el-select>
-                        <el-input
-                          v-else
-                          v-model="selectedWorkflowNode.recipients"
-                          class="inspector-field-control"
-                          :placeholder="getNotifyRecipientsPlaceholder(selectedWorkflowNode.channel)"
-                          @blur="onNotifyRecipientsBlur"
-                        />
-                        <span v-if="selectedWorkflowNode.channel === 'email'" class="inspector-field-help">複数指定する場合は ; で区切ります。</span>
                       </div>
                     </inspector-module-card>
                     <inspector-module-card title="メッセージ内容">
                       <div class="inspector-field">
                         <label class="inspector-field-label">件名</label>
-                        <el-input v-model="selectedWorkflowNode.subject" class="inspector-field-control" placeholder="通知メールの件名" />
+                        <el-input v-model="selectedWorkflowNode.subject" class="inspector-field-control" placeholder="通知件名" />
                       </div>
                       <div class="inspector-field">
                         <label class="inspector-field-label">内容</label>
@@ -1874,7 +1826,7 @@
                   v-if="showWorkflowNodeOutputSection && !inspectorExpanded"
                   class="workflow-node-output-section"
                 >
-                  <details class="workflow-output-dropdown">
+                  <details class="workflow-output-dropdown" open>
                     <summary class="workflow-output-trigger">
                       <span class="inspector-module-title">出力変数</span>
                       <span class="workflow-output-trigger-count">{{ workflowOutputVariableRows.length }}</span>
@@ -1894,7 +1846,13 @@
                                 <code class="workflow-output-var-name">{{ item.name }}</code>
                                 <span class="workflow-output-var-type">{{ item.dataType }}</span>
                               </div>
-                              <div class="workflow-output-var-label">{{ item.label }}</div>
+                              <el-tooltip
+                                effect="dark"
+                                placement="top"
+                                :content="formatWorkflowOutputInfo(item)"
+                              >
+                                <button type="button" class="workflow-output-var-info" aria-label="変数説明">i</button>
+                              </el-tooltip>
                             </li>
                           </ul>
                         </section>
@@ -1977,7 +1935,10 @@
                 </aside>
 
                 <main class="export-config-detail">
-                  <template v-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
+                  <div v-if="!exportDataMappingConfigured && !exportOcrConfigured" class="export-config-empty">
+                    出力可能な項目がありません。Workflow に OCR 抽出またはデータマッピングノードを設定してください。
+                  </div>
+                  <template v-else-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
                     <div v-if="activeOutputDocFields" class="export-config-detail-head export-config-detail-head--compact">
                       <div class="export-config-detail-title">
                         <strong>{{ activeExportFileLabel }}</strong>
@@ -1997,11 +1958,7 @@
                       </div>
                     </div>
 
-                    <div v-if="!exportDataMappingConfigured && !exportOcrConfigured" class="export-config-empty">
-                      Workflow にデータマッピングまたは OCR 抽出ノードを設定してください
-                    </div>
-
-                    <div v-else-if="activeOutputFieldRows.length" class="export-field-table-wrap">
+                    <div v-if="activeOutputFieldRows.length" class="export-field-table-wrap">
                       <table class="export-field-table export-field-table--step">
                         <thead>
                           <tr>
@@ -2475,45 +2432,36 @@
           />
         </div>
         <div class="inspector-field">
-          <inspector-field-label label="データ型" :hint="localizedInspectorHints.codeParamDataType"></inspector-field-label>
-          <el-select v-model="codeParamDialogDraft.dataType" class="inspector-field-control">
-            <el-option
-              v-for="opt in CODE_PARAM_DATA_TYPES"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
+          <inspector-field-label label="参照変数" :hint="localizedInspectorHints.codeParamSource"></inspector-field-label>
+          <el-cascader
+            v-model="codeParamDialogDraft.variable"
+            class="inspector-field-control"
+            placeholder="変数を選択"
+            :options="codeVariableCascaderOptions"
+            :props="{ value: 'id', label: 'text', children: 'items', emitPath: false }"
+            :show-all-levels="false"
+            separator=" › "
+            filterable
+            clearable
+            popper-class="inspector-ifelse-select-popper inspector-ifelse-cascader-popper idp-inspector-select-popper"
+            @change="onCodeParamVariableChange"
+          >
+            <template #default="{ node, data }">
+              <div class="inspector-ifelse-cascader-option" :title="data.title || data.text">
+                <span class="inspector-ifelse-cascader-main">{{ data.text }}</span>
+                <span v-if="data.dataType" class="inspector-ifelse-cascader-type">{{ data.dataType }}</span>
+              </div>
+            </template>
+          </el-cascader>
         </div>
-        <template v-if="codeParamDialogMode === 'input'">
-          <div class="inspector-field">
-            <inspector-field-label label="ソース" :hint="localizedInspectorHints.codeParamSource"></inspector-field-label>
-            <el-select
-              v-model="codeParamDialogDraft.source"
-              class="inspector-field-control"
-              @change="onCodeParamSourceChange"
-            >
-              <el-option
-                v-for="opt in CODE_PARAM_SOURCES"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
-          </div>
-          <div v-if="codeParamDialogDraft.source === 'custom'" class="inspector-field">
-            <inspector-field-label label="カスタム値" :hint="localizedInspectorHints.codeParamCustom"></inspector-field-label>
-            <el-input
-              v-model="codeParamDialogDraft.customValue"
-              class="inspector-field-control"
-              placeholder="固定値を入力"
-            />
-          </div>
+        <div class="inspector-field">
+          <inspector-field-label label="データ型" :hint="localizedInspectorHints.codeParamDataType"></inspector-field-label>
+          <div class="readonly-id-box">{{ codeParamDialogDraft.dataType || 'String' }}</div>
+        </div>
           <div class="inspector-switch-row code-param-required-row">
             <inspector-field-label label="必須" :hint="localizedInspectorHints.codeParamRequired"></inspector-field-label>
             <el-switch v-model="codeParamDialogDraft.required" />
           </div>
-        </template>
       </div>
       <template #footer>
         <el-button @click="closeCodeParamDialog">キャンセル</el-button>

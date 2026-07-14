@@ -632,7 +632,7 @@ function normalizeOutputConfig(output, documents, masterMappings, knowledgeSourc
   base.fileFormat = OUTPUT_FORMATS.includes(base.fileFormat) ? base.fileFormat : (OUTPUT_FORMATS.includes(base.format) ? base.format : OUTPUT_DEFAULTS.fileFormat);
   base.outputTarget = base.outputTarget || OUTPUT_TARGET_DEFAULT;
   base.exportReviewRequired = base.exportReviewRequired === true;
-  base.exportReviewRole = base.exportReviewRole || OUTPUT_DEFAULTS.exportReviewRole || '案件担当者';
+  base.exportReviewRole = base.exportReviewRole || OUTPUT_DEFAULTS.exportReviewRole || 'case_owner';
   base.exportStandardFieldIds = Array.isArray(base.exportStandardFieldIds) ? base.exportStandardFieldIds : [];
   base.exportStandardFieldOrderByDoc = (base.exportStandardFieldOrderByDoc && typeof base.exportStandardFieldOrderByDoc === 'object')
     ? base.exportStandardFieldOrderByDoc
@@ -659,8 +659,8 @@ function normalizeDeficiencyAction() {
 const SCENE_TEMPLATES = {
   invoice_multi: {
     scene: {
-      name: '医療保険（通院給付）請求',
-      businessType: '医療保険（通院給付）',
+      name: '保険金請求（理赔）',
+      businessType: '保険金請求',
       description: '',
       deficiencyAction: DEFICIENCY_ACTION,
       replenishmentDays: 7,
@@ -785,9 +785,9 @@ const SCENE_TEMPLATES = {
   },
   notice: {
     scene: {
-      name: '新規契約・告知受領',
-      businessType: '保険金請求',
-      description: '告知書の受領・完全性チェック用シーン。',
+      name: '新契約申込（新保申请）',
+      businessType: '新契約申込',
+      description: '新契約申込書と告知書の受領・完全性チェック用シーン。',
       deficiencyAction: DEFICIENCY_ACTION,
       replenishmentDays: 14,
       escalationDays: 21,
@@ -814,9 +814,9 @@ const SCENE_TEMPLATES = {
   },
   insurance_general: {
     scene: {
-      name: '保険金・給付金請求',
-      businessType: '保険金請求',
-      description: '汎用保険金申請。給付金請求書と診断書を中心に処理する。',
+      name: '保全変更（保全变更）',
+      businessType: '保全（契約変更）',
+      description: '契約内容変更・受取人変更などの保全書類を処理する。',
       deficiencyAction: DEFICIENCY_ACTION,
       replenishmentDays: 7,
       escalationDays: 14,
