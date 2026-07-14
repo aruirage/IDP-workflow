@@ -940,6 +940,8 @@ function sceneForm(sceneOrId) {
   data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
     ? cloneWorkflowTestCaseDefault()
     : null;
+  data.workflowTestStatus = 'untested';
+  data.outputTestStatus = 'untested';
   return data;
 }
 
@@ -969,6 +971,8 @@ function sceneFormByScene(scene) {
   data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
     ? cloneWorkflowTestCaseDefault()
     : null;
+  data.workflowTestStatus = 'untested';
+  data.outputTestStatus = 'untested';
   return data;
 }
 
@@ -1005,6 +1009,12 @@ function normalizeLoadedForm(form) {
   if (typeof normalizeWorkflowTestCase === 'function') {
     form.workflowTestCase = normalizeWorkflowTestCase(form.workflowTestCase);
   }
+  form.workflowTestStatus = ['untested', 'success', 'failed'].includes(form.workflowTestStatus)
+    ? form.workflowTestStatus
+    : 'untested';
+  form.outputTestStatus = ['untested', 'success', 'failed'].includes(form.outputTestStatus)
+    ? form.outputTestStatus
+    : 'untested';
   return form;
 }
 

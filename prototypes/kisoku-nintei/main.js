@@ -1638,6 +1638,12 @@ const appOptions = {
     });
     const canPublishWorkflowScene = computed(() => form.scene.publishStatus === 'ready');
 
+    function updateSceneReadyState() {
+      form.scene.publishStatus = form.workflowTestStatus === 'success' && form.outputTestStatus === 'success'
+        ? 'ready'
+        : 'pending_review';
+    }
+
     const sceneStats = computed(() => {
       const docs = form.scene.documents;
       return {
@@ -4919,6 +4925,8 @@ const appOptions = {
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
           form.scene.publishStatus = 'pending_review';
+          form.workflowTestStatus = 'untested';
+          form.outputTestStatus = 'untested';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -4928,6 +4936,8 @@ const appOptions = {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
           stored.scene.publishStatus = 'pending_review';
+          stored.workflowTestStatus = 'untested';
+          stored.outputTestStatus = 'untested';
           scene.name = name;
           saveStorage(scene.id, stored);
           if (scene.id === currentSceneId.value) {
@@ -4987,6 +4997,8 @@ const appOptions = {
         if (scene.id === currentSceneId.value) {
           const name = applySceneSetupDraftToData(form);
           form.scene.publishStatus = 'pending_review';
+          form.workflowTestStatus = 'untested';
+          form.outputTestStatus = 'untested';
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -4994,6 +5006,8 @@ const appOptions = {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
           const name = applySceneSetupDraftToData(stored);
           stored.scene.publishStatus = 'pending_review';
+          stored.workflowTestStatus = 'untested';
+          stored.outputTestStatus = 'untested';
           scene.name = name;
           saveStorage(scene.id, stored);
           selectScene(scene.id, { skipFinishRename: true, focusScene: true });
@@ -5030,6 +5044,12 @@ const appOptions = {
     function validateWorkflowPublish() {
       const err = validateWorkflowReadyForTest();
       if (err) return err;
+      if (form.workflowTestStatus !== 'success') {
+        return 'Step2 の Workflow テストを完了してください';
+      }
+      if (form.outputTestStatus !== 'success') {
+        return 'Step3 の出力設定テストを完了してください';
+      }
       if (form.scene.publishStatus !== 'ready') {
         return 'ワークフローテストを完了してください';
       }
@@ -8065,9 +8085,15 @@ const appOptions = {
     function markScenePendingReview() {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
       form.scene.publishStatus = 'pending_review';
+      if (currentNode.value === 'output') {
+        form.outputTestStatus = 'untested';
+      } else {
+        form.workflowTestStatus = 'untested';
+        form.outputTestStatus = 'untested';
+      }
     }
 
-    function handleSave() {
+    function handleSave(options = {}) {
       if (currentNode.value === 'scene') {
         const err = validateSceneAggregate();
         if (err) {
@@ -8078,7 +8104,7 @@ const appOptions = {
       markScenePendingReview();
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
-      ElementPlus.ElMessage.success('下書きを保存しました');
+      if (!options.silent) ElementPlus.ElMessage.success('下書きを保存しました');
       return true;
     }
 
@@ -8209,10 +8235,11 @@ const appOptions = {
             sceneContext,
           );
           applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
-          if (options.updateSceneStatus) {
-            form.scene.publishStatus = workflowTestDraft.summary?.overallStatus === 'success'
-              ? 'ready'
-              : 'pending_review';
+          if (options.updateSceneStatus !== false) {
+            form.workflowTestStatus = workflowTestDraft.summary?.overallStatus === 'success'
+              ? 'success'
+              : 'failed';
+            updateSceneReadyState();
             savedSnapshot.value = JSON.stringify(form);
             saveStorage(currentSceneId.value, form);
           }
@@ -8239,16 +8266,37 @@ const appOptions = {
       advance();
     }
 
-    function saveAndRunWorkflowTestFromStep3() {
+    function validateOutputStepTest() {
       syncOutputDocFieldsBySceneDocs();
       const err = validateWorkflowReadyForTest();
+      if (err) return err;
+      if (form.workflowTestStatus !== 'success') {
+        return 'Step2 の Workflow テストを先に完了してください';
+      }
+      if (form.output.deliveryMethod === 'api' && !String(form.output.apiExportEndpoint || '').trim()) {
+        return 'API Endpoint を入力してください';
+      }
+      if (form.output.deliveryMethod === 'shared_folder' && !String(form.output.sharedFolderPath || '').trim()) {
+        return '共有フォルダパスを入力してください';
+      }
+      if (!String(form.output.fileNamePattern || '').trim()) {
+        return 'ファイル名ルールを入力してください';
+      }
+      return '';
+    }
+
+    function saveAndRunOutputTestFromStep3() {
+      if (!handleSave({ silent: true })) return;
+      const err = validateOutputStepTest();
+      form.outputTestStatus = err ? 'failed' : 'success';
+      updateSceneReadyState();
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
       if (err) {
         ElementPlus.ElMessage.warning(err);
         return;
       }
-      if (!handleSave()) return;
-      openWorkflowTestDialog();
-      window.setTimeout(() => runWorkflowTest({ updateSceneStatus: true }), 0);
+      ElementPlus.ElMessage.success('出力設定テストを完了しました');
     }
 
     const workflowTestStepRows = computed(() => workflowTestDraft.steps || []);
@@ -8538,7 +8586,7 @@ const appOptions = {
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
       runWorkflowTest,
-      saveAndRunWorkflowTestFromStep3,
+      saveAndRunOutputTestFromStep3,
       workflowTestStatusLabel,
       applyWorkflowTestContinue,
       sceneStats,
