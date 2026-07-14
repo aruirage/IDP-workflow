@@ -8279,9 +8279,6 @@ const appOptions = {
       if (form.output.deliveryMethod === 'shared_folder' && !String(form.output.sharedFolderPath || '').trim()) {
         return '共有フォルダパスを入力してください';
       }
-      if (!String(form.output.fileNamePattern || '').trim()) {
-        return 'ファイル名ルールを入力してください';
-      }
       return '';
     }
 
