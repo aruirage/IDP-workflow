@@ -857,6 +857,12 @@ const DECISION_CATALOG_SKIP_IDS = new Set([
   'case.notifiedAt',
 ]);
 
+/** 只作为级联分组或系统传递的容器对象；条件/通知 picker 均不直接展示 */
+const WORKFLOW_CATALOG_CONTAINER_SKIP_IDS = new Set([
+  'case.standardFields',
+  'docTypes[]',
+]);
+
 function getWorkflowVarConsumptionPaths(item) {
   if (!item) return [];
   if (item.consumptionPaths?.length) return item.consumptionPaths;
@@ -1064,6 +1070,7 @@ function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'cond
   const meta = getWorkflowNodeMeta(node.type);
   const title = meta.title;
   items.forEach((item) => {
+    if (WORKFLOW_CATALOG_CONTAINER_SKIP_IDS.has(item.id)) return;
     if (catalogMode === 'condition' && DECISION_CATALOG_SKIP_IDS.has(item.id)) return;
     if (!isWorkflowVarForCatalog(item, catalogMode)) return;
     if (isDecisionCatalogTemporalDataType(item.type)) return;
