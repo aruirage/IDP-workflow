@@ -386,6 +386,39 @@ Step3 输出测试规则：
 
 画布摘要通则：节点标题下方单行展示；段间以 `·` 分隔；无有效配置时显示 `未設定`（数据映射无已配规则时显示 `設定参照`）；开始节点和结束节点不显示摘要。结构上首段为计数或状态摘要（如 `{n}/{total} 有効`、`{n}件有効`、`ルール {n}件`），后续段为明细项，明细最多再展示 2 项。
 
+#### 变量粒度分类
+
+变量先按数据粒度分三类，再按消费场景分条件、通知、系统、待办。粒度回答“变量代表什么数据”，消费分类回答“哪个节点或页面能用它”。
+
+
+| 粒度       | 定义                                      | 典型变量                                                                 | 是否可进条件变量池                         | 说明                                      |
+| -------- | --------------------------------------- | -------------------------------------------------------------------- | ---------------------------------- | --------------------------------------- |
+| 案件级变量    | 一个案件实例只有一个值，或由多个文件/字段汇聚成一个案件级结论       | `preprocessStatus`、`ocrStatus`、`verifyStatus`、`requiredDocumentStatus`、`confirmAction` | 只有消费分类含条件、且来自上游可达节点时可选             | 条件节点主要消费这一类状态变量；案件状态本身不属于可配置变量       |
+| 文件级变量    | 一个案件下有多个逻辑文件，变量以 `files[]` 数组承载每个文件的信息 | `files[]`、`files[].ocrFields`、`files[].verificationResults`、`files[].manualEdits`     | 不可直接选 `files[]` 或数组；只能通过状态变量或字段叶子判断 | 用于系统传递、待办展示、节点处理输入；不作为条件左值           |
+| 账票字段级变量  | 从 Step1 账票模板字段、OCR 字段或标准字段中选到具体叶子字段后生成 | `docTypes.{账票类型}.{OCR字段名}`、`standardFields.{字段名}`                       | 当前版本按 String 类型可选                  | 字段容器不可选；必须选到叶子字段，才生成可比较变量            |
+
+
+`files[]` 是文件级变量的统一数组。节点面板的出力変数折叠区只展示 `files[]`，不展开每个文件字段；人工确认页、日志和系统执行可以读取元素内的基础信息。
+
+
+| 元素键                    | 类型       | 定义                                          |
+| ---------------------- | -------- | ------------------------------------------- |
+| `id`                   | String   | 逻辑文件唯一标识                                    |
+| `name`                 | String   | 原始文件名                                       |
+| `type`                 | String   | 文件 MIME 或扩展名种类                              |
+| `extension`            | String   | 带点扩展名                                       |
+| `url`                  | String   | 本节点执行完成时点可访问的存储 URL                         |
+| `size`                 | Number   | 字节大小                                        |
+| `caseId`               | String   | 所属案件 ID                                     |
+| `classificationResult` | String   | 账票类型分类标签                                    |
+| `status`               | Enum     | `pending / processing / processed / failed` |
+| `uploadedAt`           | DateTime | 文件首次上传时间                                    |
+| `updatedAt`            | DateTime | 本节点处理完成后的更新时间                               |
+| `ocrFields`            | 字段容器     | OCR 抽出字段键值；不进入条件或通知变量池，条件只能选择 OCR 字段叶子      |
+| `verificationResults`  | Array    | 文件关联的 AI 检证结果摘要                             |
+| `manualEdits`          | Array    | 人工修正摘要                                      |
+
+
 #### 变量消费分类
 
 案件状态是平台固定聚合状态，不是业务场景配置项，也不是 Step2 节点变量。当前工作流配置不可新增、删除、重命名或调整案件状态取值；条件节点、通知节点和 Step3 输出字段都不能直接选择案件状态。Step2 需要分岔时使用上游底层变量，例如 `verifyStatus`、`requiredDocumentStatus`、`confirmAction`、`notifySendStatus` 等。
@@ -548,27 +581,6 @@ Step3 输出测试规则：
 | AI 检证节点 | `missingFields`       | Array | 字段名数组     | 显示缺失字段                   |
 | AI 检证节点 | `aiVerifyResultJson`  | Array | 已执行规则结果数组 | AI 检证确认页逐条展示规则结果         |
 | 人工确认节点  | `files[].manualEdits` | Array | 人工修正摘要数组  | 后续审计展示人工修改了什么            |
-
-
-`files[]` 元素结构：
-
-
-| 元素键                    | 类型       | 定义                                          |
-| ---------------------- | -------- | ------------------------------------------- |
-| `id`                   | String   | 逻辑文件唯一标识                                    |
-| `name`                 | String   | 原始文件名                                       |
-| `type`                 | String   | 文件 MIME 或扩展名种类                              |
-| `extension`            | String   | 带点扩展名                                       |
-| `url`                  | String   | 本节点执行完成时点可访问的存储 URL                         |
-| `size`                 | Number   | 字节大小                                        |
-| `caseId`               | String   | 所属案件 ID                                     |
-| `classificationResult` | String   | 账票类型分类标签                                    |
-| `status`               | Enum     | `pending / processing / processed / failed` |
-| `uploadedAt`           | DateTime | 文件首次上传时间                                    |
-| `updatedAt`            | DateTime | 本节点处理完成后的更新时间                               |
-| `ocrFields`            | 字段容器     | OCR 抽出字段键值；不进入条件或通知变量池，条件只能选择 OCR 字段叶子      |
-| `verificationResults`  | Array    | 文件关联的 AI 检证结果摘要                             |
-| `manualEdits`          | Array    | 人工修正摘要                                      |
 
 
 `aiVerifyResultJson` 元素结构：
