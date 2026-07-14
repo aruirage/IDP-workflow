@@ -1666,10 +1666,6 @@ const appOptions = {
       };
       return labels[scenePublishStatusKey.value] || labels.draft;
     });
-    // 公开：画布已可发布（Step2 测试+终了校验通过）且 Step3 输出配置有效
-    const canPublishWorkflowScene = computed(() =>
-      scenePublishStatusKey.value === 'ready' && form.outputConfigStatus === 'valid');
-
     function getStep2GateError() {
       const baseErr = validateWorkflowReadyForTest();
       if (baseErr) return baseErr;
@@ -1765,6 +1761,11 @@ const appOptions = {
       const enabled = form.processing?.ocrExtract?.enabledTypes || [];
       return !(ocrNode && enabled.length > 0);
     });
+
+    // 公开：画布可发布，且输出配置有效；无 OCR/标准字段候选时可直接公开
+    const canPublishWorkflowScene = computed(() =>
+      scenePublishStatusKey.value === 'ready'
+      && (form.outputConfigStatus === 'valid' || step3ExportCandidatesEmpty.value));
 
     const outputExportFieldMode = computed({
       get() {
@@ -5150,9 +5151,8 @@ const appOptions = {
 
     function validateOutputConfig() {
       syncOutputDocFieldsBySceneDocs();
-      if (step3ExportCandidatesEmpty.value) {
-        return '出力可能な項目がありません';
-      }
+      // 无 OCR/标准字段候选时允许 0 字段配置（仍可保存并公开）
+      if (step3ExportCandidatesEmpty.value) return '';
       if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
       const hasStandardSelection = (form.output.exportStandardFieldIds || []).length > 0
         || form.output.exportFieldModeByDoc?.__standardRoot === 'standard'
@@ -5177,7 +5177,7 @@ const appOptions = {
       if (step2Err) return step2Err;
       const outputErr = validateOutputConfig();
       if (outputErr) return outputErr;
-      if (form.outputConfigStatus !== 'valid') {
+      if (form.outputConfigStatus !== 'valid' && !step3ExportCandidatesEmpty.value) {
         return 'Step3 の出力設定を保存してください';
       }
       if (form.scene.publishStatus !== 'ready') {
