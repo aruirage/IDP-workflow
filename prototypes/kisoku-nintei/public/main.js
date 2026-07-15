@@ -1754,9 +1754,8 @@ const appOptions = {
       return enabled.includes(docType);
     });
 
-    /** Step3：场景级无 OCR 抽出候选且无标准字段时，整页展示缺省空态 */
+    /** Step3：无 OCR 抽出候选时整页空态（只选 OCR 账票/字段） */
     const step3ExportCandidatesEmpty = computed(() => {
-      if (exportDataMappingConfigured.value) return false;
       const ocrNode = primaryOcrNode.value;
       const enabled = form.processing?.ocrExtract?.enabledTypes || [];
       return !(ocrNode && enabled.length > 0);
@@ -5150,25 +5149,8 @@ const appOptions = {
     }
 
     function validateOutputConfig() {
+      // Step3 仅勾选 OCR 账票类型下的抽出字段；允许 0 字段，不校验导出格式/输出目标
       syncOutputDocFieldsBySceneDocs();
-      // 无 OCR/标准字段候选时允许 0 字段配置（仍可保存并公开）
-      if (step3ExportCandidatesEmpty.value) return '';
-      if (!form.output?.docFields?.length) return 'エクスポート対象を設定してください';
-      const hasStandardSelection = (form.output.exportStandardFieldIds || []).length > 0
-        || form.output.exportFieldModeByDoc?.__standardRoot === 'standard'
-        || Object.values(form.output.exportFieldModeByDoc || {}).includes('standard');
-      if (hasStandardSelection && !exportDataMappingConfigured.value) {
-        return 'Workflow にデータマッピングノードを設定してください';
-      }
-      if ((outputFieldCount.value + outputTableStats.value.columns + selectedStandardOutputFieldCount.value) <= 0) {
-        return 'エクスポート字段を1件以上選択してください';
-      }
-      if (form.output.deliveryMethod === 'api' && !String(form.output.apiExportEndpoint || '').trim()) {
-        return 'API Endpoint を入力してください';
-      }
-      if (form.output.deliveryMethod === 'shared_folder' && !String(form.output.sharedFolderPath || '').trim()) {
-        return '共有フォルダパスを入力してください';
-      }
       return '';
     }
 
