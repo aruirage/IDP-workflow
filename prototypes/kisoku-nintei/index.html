@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=648" />
+  <link rel="stylesheet" href="style.css?v=658" />
 </head>
 <body>
   <div id="app">
@@ -1175,20 +1175,9 @@
               >
                 <div :class="inspectorExpanded ? 'idp-editor-surface-scroll' : ''">
                   <div :class="inspectorExpanded ? 'idp-editor-surface-inner' : ''">
-                <!-- ワークフロー概要 -->
-                <div v-show="inspectorMode === 'overview'" class="inspector-panel-section wf-overview-panel">
-                  <inspector-module>
-                    <inspector-module-card title="ワークフロー概要">
-                      <p class="wf-overview-meta">ノード {{ workflowOverviewSummary.nodeCount }} 件 · 接続 {{ workflowOverviewSummary.edgeCount }} 件</p>
-                      <div v-if="workflowOverviewSummary.chainLabels.length" class="wf-overview-chain">
-                        <span
-                          v-for="item in workflowOverviewSummary.chainLabels"
-                          :key="'chain-' + item.id"
-                          class="wf-node-tag"
-                        >{{ item.label }}</span>
-                      </div>
-                    </inspector-module-card>
-                  </inspector-module>
+                <!-- 未選択 -->
+                <div v-show="inspectorMode === 'overview'" class="inspector-panel-section inspector-empty-panel">
+                  <p class="inspector-empty-hint">{{ t('画布上のノードを選択してください') }}</p>
                 </div>
 
 
@@ -1780,16 +1769,23 @@
 
 
 
-                <!-- 出力変数（処理ノード共通） -->
+                <!-- 出力変数（処理ノード共通；可折叠・默认展开） -->
                 <div
                   v-if="showWorkflowNodeOutputSection && !inspectorExpanded"
                   class="workflow-node-output-section"
                 >
-                  <div class="workflow-output-heading">
-                    <span class="inspector-module-title">出力変数</span>
+                  <button
+                    type="button"
+                    class="workflow-output-heading"
+                    :class="{ 'is-open': workflowOutputVarsExpanded }"
+                    :aria-expanded="workflowOutputVarsExpanded ? 'true' : 'false'"
+                    @click="workflowOutputVarsExpanded = !workflowOutputVarsExpanded"
+                  >
+                    <span class="inspector-module-title">{{ t('出力変数') }}</span>
                     <span class="workflow-output-count">{{ workflowOutputVariableRows.length }}</span>
-                  </div>
-                  <div class="workflow-output-panel">
+                    <span class="workflow-output-chevron" aria-hidden="true"></span>
+                  </button>
+                  <div v-show="workflowOutputVarsExpanded" class="workflow-output-panel">
                     <div class="workflow-output-group-list">
                       <section
                         v-for="group in workflowOutputVariableGroups"
@@ -1801,7 +1797,7 @@
                           <li v-for="item in group.items" :key="item.id" class="workflow-output-var-item">
                             <div class="workflow-output-var-main">
                               <code class="workflow-output-var-name">{{ item.name }}</code>
-                              <span class="workflow-output-var-type">{{ item.dataType }}</span>
+                              <span class="workflow-output-var-type">{{ t(item.dataType) }}</span>
                             </div>
                             <el-tooltip
                               effect="dark"
@@ -2450,9 +2446,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=648"></script>
-  <script src="scripts/mock-data.js?v=648"></script>
-  <script src="scripts/scene-config.js?v=648"></script>
-  <script src="main.js?v=648"></script>
+  <script src="scripts/workflow-core.js?v=658"></script>
+  <script src="scripts/mock-data.js?v=658"></script>
+  <script src="scripts/scene-config.js?v=658"></script>
+  <script src="main.js?v=658"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 const MAIN_BUILD = '592-ensure-end-node';
-const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v16';
+const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v18';
 
 const appOptions = {
   setup() {
@@ -395,6 +395,9 @@ const appOptions = {
       ['条件を削除', '删除条件'],
       ['ノード設定', '节点设定'],
       ['ワークフロー概要', '工作流概要'],
+      ['ノード未選択', '未选择节点'],
+      ['画布上のノードを選択してください', '请在画布上选择节点'],
+      ['ノードをクリックすると設定パネルが表示されます。', '点击节点后显示设置面板。'],
       ['開始ノードを挿入', '插入开始节点'],
       ['ロジックノードを挿入', '插入逻辑节点'],
       ['ノードを挿入', '插入节点'],
@@ -687,7 +690,7 @@ const appOptions = {
       ['OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。', 'OCR 结果、按文件 OCR 结果、低置信字段件数、模型不一致件数、状态。'],
       ['OCR 総状態・成功/失敗件数・低信頼件数・人工確認要否・抽出済み/未処理ファイル・ファイル別 OCR 結果。', 'OCR 总状态、成功/失败件数、低置信件数、是否需人工确认、已抽取/未处理文件、按文件 OCR 结果。'],
       ['必須フィールド・必要書類・テキスト・データ・署名押印検証の集約出力。通知ノードの固定変数にも利用されます。', '必填字段、必要资料、文本、数据、签名盖章校验的集约输出。也可用于通知节点固定变量。'],
-      ['AI検証総状態・6 類検証結果・検証済み/未処理ファイル・人工確認/異常判定・不足書類/項目明細。', 'AI 检证总状态、6 类检证结果、已检证/未处理文件、人工确认/异常判定、不足资料/项目明细。'],
+      ['AI検証総状態（verifyStatus）・不足書類/項目明細・aiVerifyResultJson・files[]。', 'AI 检证总状态（verifyStatus）、不足资料/项目明细、aiVerifyResultJson、files[]。'],
       ['Workflow 入口の案件基礎情報（caseId / caseNo / businessScene / caseStatus）・待処理ファイル对象配列（files[]）。', 'Workflow 入口的案件基础信息（caseId / caseNo / businessScene / caseStatus）、待处理文件对象数组（files[]）。'],
       ['この分岐の完了状態。案件ライフサイクルの終了は表しません。', '该分支的完成状态，不代表案件生命周期结束。'],
       ['分岐終了結果・案件状態提案・未完了事項・成果ファイル状態・実行サマリー。', '分支结束结果、案件状态建议、未完成事项、成果文件状态、执行摘要。'],
@@ -973,7 +976,6 @@ const appOptions = {
       ['Workflow テストが失敗しました', 'Workflow 测试失败'],
       ['テスト失敗で停止：', '测试失败并停止：'],
       ['失敗（停止）', '失败（已停止）'],
-      ['テストは成功しましたが、終了ノード要件を満たしていません', '测试成功，但终了节点未满足校验要求'],
       ['Step2 の Workflow テストを完了してください', '请先完成 Step2 的 Workflow 测试'],
       ['終了ノードを1件以上配置してください', '请至少配置 1 个终了节点'],
       ['終了ノードから出る接続は設定できません', '终了节点不能再连出'],
@@ -1533,6 +1535,8 @@ const appOptions = {
       if (trimmed.length > 50) trimmed.shift();
       wfHistoryTimeline.value = trimmed;
       wfHistoryIndex.value = trimmed.length - 1;
+      // 画布有实质修改时：可发布/已发布回草稿，测试结论作废
+      markSceneConfigChanged('workflow');
     }
 
     function undoWorkflow() {
@@ -1653,11 +1657,8 @@ const appOptions = {
       const raw = normalizeScenePublishStatus(form.scene.publishStatus);
       if (raw === 'published') return 'published';
       // 显示态与门禁对齐：未测通不得显示公開可能（避免旧缓存误导）
-      const endErr = typeof validateWorkflowEndRequirements === 'function'
-        ? validateWorkflowEndRequirements(getActiveWf())
-        : '';
-      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
-      return step2Ok ? 'ready' : 'draft';
+      // 终了结构/到达已并入 Step2 测试；成功即可发布，不再另做一层终了校验
+      return form.workflowTestStatus === 'success' ? 'ready' : 'draft';
     });
     const scenePublishBadge = computed(() => {
       const labels = {
@@ -1673,8 +1674,6 @@ const appOptions = {
       if (form.workflowTestStatus !== 'success') {
         return 'Step2 の Workflow テストを完了してください';
       }
-      const endErr = validateWorkflowEndRequirements(getActiveWf());
-      if (endErr) return endErr;
       return '';
     }
 
@@ -1682,10 +1681,8 @@ const appOptions = {
 
     function updateSceneReadyState() {
       if (form.scene.publishStatus === 'published') return;
-      // Step2 测试成功且终了节点符合要求 → 画布状态「公開可能」；否则下書き
-      const endErr = validateWorkflowEndRequirements(getActiveWf());
-      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
-      form.scene.publishStatus = step2Ok ? 'ready' : 'draft';
+      // Step2 测试成功 → 画布状态「公開可能」（终了要件在测试内已检）
+      form.scene.publishStatus = form.workflowTestStatus === 'success' ? 'ready' : 'draft';
     }
 
     const sceneStats = computed(() => {
@@ -2634,7 +2631,7 @@ const appOptions = {
 
     const inspectorTitle = computed(() => {
       if (inspectorMode.value === 'edge') return '接続設定';
-      if (inspectorPanel.value === 'overview') return 'ワークフロー概要';
+      if (inspectorPanel.value === 'overview') return 'ノード未選択';
       if (inspectorPanel.value === 'scene') return 'シーン設定';
       if (inspectorPanel.value === 'case_link') return '業務シーン';
       if (inspectorPanel.value === 'scene_aggregate') return '案件集約';
@@ -2672,6 +2669,12 @@ const appOptions = {
     const workflowNodeOutputVars = computed(() =>
       getWorkflowNodeOutputVarItems(selectedWorkflowNode.value, getActiveWf()),
     );
+
+    const workflowOutputVarsExpanded = ref(true);
+
+    watch(selectedWorkflowNodeId, () => {
+      workflowOutputVarsExpanded.value = true;
+    });
 
     const showWorkflowNodeOutputSection = computed(() => {
       if (inspectorMode.value !== 'node' || !selectedWorkflowNode.value) return false;
@@ -2774,28 +2777,6 @@ const appOptions = {
       node.ruleCheckStatus = 'checked';
       pushWorkflowHistory('ルール適用性を再チェック');
     }
-
-    const workflowOverviewSummary = computed(() => {
-      const wf = getActiveWf();
-      const nodes = wf?.nodes || [];
-      const chainIds = getWorkflowMainChainIds(wf);
-      const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
-      const chainLabels = chainIds.map((id) => {
-        const n = nodeMap[id];
-        if (!n) return null;
-        return {
-          id,
-          type: n.type,
-          label: getWorkflowNodeDisplayLabel(n),
-        };
-      }).filter(Boolean);
-      return {
-        nodeCount: nodes.length,
-        edgeCount: (wf?.edges || []).length,
-        chainLabels,
-        startNode: getWorkflowStartNode(wf),
-      };
-    });
 
     const workflowEndFlowPreview = computed(() => {
       const wf = getActiveWf();
@@ -4722,6 +4703,50 @@ const appOptions = {
       clearSceneSetupLinkCheckDisplay();
     }
 
+    function buildSceneSetupContentKey(payload = {}) {
+      const documents = normalizeSceneDocuments(payload.documents || []);
+      const links = normalizeDocFieldLinks(payload.docFieldLinks, documents);
+      return JSON.stringify({
+        name: String(payload.name || '').trim(),
+        description: String(payload.description || '').trim(),
+        documents: documents.map((doc) => doc.type),
+        mainDocType: payload.mainDocType || '',
+        mainKey: payload.mainKey || '',
+        docFieldLinks: links,
+        aggregateCompareStrategy: SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === payload.aggregateCompareStrategy)
+          ? payload.aggregateCompareStrategy
+          : 'exact',
+      });
+    }
+
+    function getDraftSceneSetupContentKey() {
+      return buildSceneSetupContentKey({
+        name: sceneSetupDraft.name,
+        description: sceneSetupDraft.description,
+        documents: sceneSetupDraft.documents,
+        mainDocType: sceneSetupDraft.mainDocType,
+        mainKey: sceneSetupDraft.mainKey,
+        docFieldLinks: sceneSetupDraft.docFieldLinks,
+        aggregateCompareStrategy: sceneSetupDraft.aggregateCompareStrategy,
+      });
+    }
+
+    function getFormSceneSetupContentKey(data = form) {
+      return buildSceneSetupContentKey({
+        name: data.scene?.name,
+        description: data.scene?.description,
+        documents: data.scene?.documents,
+        mainDocType: getSceneMainDocType(data.scene),
+        mainKey: data.scene?.primaryKey,
+        docFieldLinks: data.scene?.docFieldLinks,
+        aggregateCompareStrategy: data.scene?.aggregateCompareStrategy,
+      });
+    }
+
+    function isSceneSetupDraftChanged(data = form) {
+      return getDraftSceneSetupContentKey() !== getFormSceneSetupContentKey(data);
+    }
+
     function applySceneSetupDraftToData(data) {
       const name = (sceneSetupDraft.name || '').trim() || '新規シーン';
       data.scene.name = name;
@@ -4800,6 +4825,8 @@ const appOptions = {
           proceedToWorkflowStep();
           return;
         }
+        // Step3 → Step2：纯回退不改状态；有画布修改时由 pushWorkflowHistory 回草稿
+        if (currentNode.value === 'output') currentNode.value = 'scene';
         workflowSetupStep.value = 2;
         sceneSetupVisible.value = false;
         enterWorkflowCanvasView();
@@ -5033,10 +5060,9 @@ const appOptions = {
         const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
         if (!scene) return;
         if (scene.id === currentSceneId.value) {
+          const changed = isSceneSetupDraftChanged(form);
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'draft';
-          form.workflowTestStatus = 'untested';
-          form.outputConfigStatus = 'unsaved';
+          if (changed) markSceneConfigChanged('workflow');
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
@@ -5044,10 +5070,13 @@ const appOptions = {
           savedSnapshot.value = JSON.stringify(form);
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
+          const changed = isSceneSetupDraftChanged(stored);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'draft';
-          stored.workflowTestStatus = 'untested';
-          stored.outputConfigStatus = 'unsaved';
+          if (changed) {
+            stored.scene.publishStatus = 'draft';
+            stored.workflowTestStatus = 'untested';
+            stored.outputConfigStatus = 'unsaved';
+          }
           scene.name = name;
           saveStorage(scene.id, stored);
           if (scene.id === currentSceneId.value) {
@@ -5105,19 +5134,21 @@ const appOptions = {
         const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
         if (!scene) return false;
         if (scene.id === currentSceneId.value) {
+          const changed = isSceneSetupDraftChanged(form);
           const name = applySceneSetupDraftToData(form);
-          form.scene.publishStatus = 'draft';
-          form.workflowTestStatus = 'untested';
-          form.outputConfigStatus = 'unsaved';
+          if (changed) markSceneConfigChanged('workflow');
           scene.name = name;
           syncOcrExtractTypes();
           syncOutputDocFieldsBySceneDocs();
         } else {
           const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
+          const changed = isSceneSetupDraftChanged(stored);
           const name = applySceneSetupDraftToData(stored);
-          stored.scene.publishStatus = 'draft';
-          stored.workflowTestStatus = 'untested';
-          stored.outputConfigStatus = 'unsaved';
+          if (changed) {
+            stored.scene.publishStatus = 'draft';
+            stored.workflowTestStatus = 'untested';
+            stored.outputConfigStatus = 'unsaved';
+          }
           scene.name = name;
           saveStorage(scene.id, stored);
           selectScene(scene.id, { skipFinishRename: true, focusScene: true });
@@ -6315,15 +6346,12 @@ const appOptions = {
         if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
         return 'approve';
       }
-      if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
-      if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
-      if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$/.test(variable)) {
-        return branchText.includes('異常') ? 'failed' : 'success';
+      if (/verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|mappingConflictStatus$/.test(variable)) {
+        if (branchText.includes('異常')) return 'failed';
+        if (branchText.includes('補件') || branchText.includes('不足') || branchText.includes('確認')) return 'reviewRequired';
+        return 'passed';
       }
       if (/lowConfidenceFieldCount$/.test(variable)) return '0';
-      if (/mappingConflictStatus$|textValidationStatus$|dataValidationStatus$|signatureSealStatus$|required(Document|Field)Status$/.test(variable)) {
-        return branchText.includes('補件') || branchText.includes('不足') ? 'missing' : 'success';
-      }
       const dataType = getDecisionConditionDataType(condition);
       if (dataType === 'Boolean') return branchText.includes('補件') ? 'true' : 'false';
       return '';
@@ -8200,19 +8228,24 @@ const appOptions = {
       return '';
     }
 
-    function markScenePendingReview() {
+    function markSceneConfigChanged(scope = 'workflow') {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
-      // 修改配置后回到下書き；需重新通过 Step2 测试后才能再次「公開可能」
-      if (form.scene.publishStatus === 'published' || form.scene.publishStatus === 'pending_review' || form.scene.publishStatus === 'ready') {
+      if (['published', 'pending_review', 'ready'].includes(form.scene.publishStatus)) {
         form.scene.publishStatus = 'draft';
       }
-      if (currentNode.value === 'output') {
+      if (scope === 'output') {
+        // Step3 勾选变更：只回退输出配置有效，不打断 Step2 已测通结论
         form.outputConfigStatus = 'unsaved';
-      } else {
-        form.workflowTestStatus = 'untested';
-        form.outputConfigStatus = 'unsaved';
+        return;
       }
+      form.workflowTestStatus = 'untested';
+      form.outputConfigStatus = 'unsaved';
       updateSceneReadyState();
+    }
+
+    function markScenePendingReview() {
+      // 兼容旧调用：按当前页判断作用域
+      markSceneConfigChanged(currentNode.value === 'output' ? 'output' : 'workflow');
     }
 
     function handleSave(options = {}) {
@@ -8371,16 +8404,14 @@ const appOptions = {
         if (failedStep?.id) scrollWorkflowTestStepIntoView(failedStep.id);
         workflowTestRunTimer = null;
         const testOk = workflowTestDraft.summary?.overallStatus === 'success';
-        if (testOk && form.scene.publishStatus === 'ready') {
+        if (testOk) {
           ElementPlus.ElMessage.success('テスト成功。画布状態を公開可能に更新しました');
-        } else if (testOk) {
-          const endErr = validateWorkflowEndRequirements(getActiveWf());
-          ElementPlus.ElMessage.warning(endErr || 'テストは成功しましたが、終了ノード要件を満たしていません');
         } else {
+          const structureNote = workflowTestDraft.summary?.structureNote || '';
           ElementPlus.ElMessage.warning(
             failedStep?.errorReason
               ? `テスト失敗で停止：${failedStep.errorReason}`
-              : 'Workflow テストが失敗しました',
+              : (structureNote || 'Workflow テストが失敗しました'),
           );
         }
       };
@@ -9163,6 +9194,7 @@ const appOptions = {
       inspectorHeadHint,
       inspectorModuleAccentStyle,
       workflowNodeOutputVars,
+      workflowOutputVarsExpanded,
       workflowOutputVariableRows,
       workflowOutputVariableGroups,
       formatWorkflowOutputInfo,
@@ -9216,7 +9248,6 @@ const appOptions = {
       getWorkflowNodeCanvasSummary,
       getWorkflowNodeInfoTip,
       getWorkflowNodeIoFooter,
-      workflowOverviewSummary,
       WORKFLOW_WORKSHOP_CHECKLIST,
       MASTER_SYSTEM_SOURCES,
       masterSourceRequiresSheet,

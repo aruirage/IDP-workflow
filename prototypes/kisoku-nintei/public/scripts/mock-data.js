@@ -2194,7 +2194,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   });
 }
 
-/** Step2→Step3 门禁：终了节点结构与到达要件 */
+/** 终了节点结构与到达要件（并入工作流测试；勿在测试外再挂一层门禁） */
 function validateWorkflowEndRequirements(workflow) {
   const wf = workflow || { nodes: [], edges: [] };
   const edges = (wf.edges || []).filter((edge) => !edge.visualHidden);
@@ -2230,9 +2230,10 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   const endStep = [...list].reverse().find((step) => step.type === 'end');
   const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
   const hasCanvasIssue = canvasAnalysis.canvasHighlights.length > 0;
+  const endRequirementError = validateWorkflowEndRequirements(wf);
   let overallStatus = 'success';
   let overallLabel = '成功';
-  if (hasError || hasCanvasIssue) {
+  if (hasError || hasCanvasIssue || endRequirementError) {
     overallStatus = 'error';
     overallLabel = stoppedEarly ? '失敗（停止）' : '失敗';
   } else if (!reachedEnd) {
@@ -2241,6 +2242,9 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   }
   const input = buildWorkflowTestInputContext(testCase);
   const structureMessages = [...new Set(canvasAnalysis.canvasHighlights.map((item) => item.message))];
+  if (endRequirementError && !structureMessages.includes(endRequirementError)) {
+    structureMessages.push(endRequirementError);
+  }
   return {
     overallStatus,
     overallLabel,
@@ -2254,6 +2258,7 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
     structureNote: structureMessages.length
       ? `構造エラー：${structureMessages.join('、')}`
       : '',
+    endRequirementError: endRequirementError || '',
   };
 }
 

@@ -1018,15 +1018,9 @@ function normalizeLoadedForm(form) {
     if (!['draft', 'ready', 'published'].includes(form.scene.publishStatus)) {
       form.scene.publishStatus = 'draft';
     }
-    // 公開可能 仅当 Step2 测试成功且终了节点校验通过；清掉旧版「Step3 保存即 ready」残留
+    // 公開可能 仅当 Step2 测试成功（终了结构/到达已并入测试）；清掉旧版「Step3 保存即 ready」残留
     if (form.scene.publishStatus !== 'published') {
-      const wf = form.workflows?.case
-        || (form.workflows && Object.values(form.workflows).find((item) => item?.nodes));
-      const endErr = typeof validateWorkflowEndRequirements === 'function'
-        ? validateWorkflowEndRequirements(wf)
-        : '';
-      const step2Ok = form.workflowTestStatus === 'success' && !endErr;
-      form.scene.publishStatus = step2Ok ? 'ready' : 'draft';
+      form.scene.publishStatus = form.workflowTestStatus === 'success' ? 'ready' : 'draft';
     }
   }
   if (!['unsaved', 'valid', 'invalid'].includes(form.outputConfigStatus)) {

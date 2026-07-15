@@ -53,7 +53,7 @@ const INSPECTOR_HINTS = {
   nodeOutput: '後続ノード・IF/ELSE 条件・通知テンプレートで使える出力変数です。{ノード変数名.項目} 形式で指定します。',
   nodeOutputPreprocess: '前処理総状態・全ファイル对象配列（files[]）。各文件含 status/url。人工分岐は条件ノードで preprocessStatus 等を参照。',
   nodeOutputOcr: 'OCR 総状態・低信頼件数・files[]（含 files[].ocrFields）。人工分岐は条件ノードで lowConfidenceFieldCount 等を参照。',
-  nodeOutputVerify: 'AI検証総状態・6 類検証結果・全ファイル对象配列（files[]）・不足書類/項目明細。',
+  nodeOutputVerify: 'AI検証総状態（verifyStatus）・不足書類/項目明細・aiVerifyResultJson・files[]。モジュール別 *Status は出力しない。',
   nodeOutputStart: 'Step1 system context: caseId / caseNo / businessScene + docTypes[] + files[]. These are not condition variables. OCR fields are loaded from the Step1 template only in the condition picker.',
   nodeOutputEnd: '終了パターン（案件状態提案 × 最終処理結果）と公開時判定ルール（読み取り専用）。',
   nodeOutputHitl: '確認状態・確認アクション（完成/補件/案件終止）+ files[]（含 manualEdits）。分岐は画布三出口で直接接続。',
@@ -349,13 +349,13 @@ const CASE_WORKFLOW_END_OUTCOMES = [
     id: 'o2',
     caseStatus: '補件',
     finalResult: '補件待ち',
-    detail: 'requiredDocumentStatus=missing または requiredFieldStatus=missing',
+    detail: 'verifyStatus=reviewRequired（欠件等は missingDocuments / missingFields で待办明细）',
   },
   {
     id: 'o3',
     caseStatus: '異常対応 / 処理中止',
     finalResult: '異常 / 中止',
-    detail: 'isException=true・検証 failed、またはユーザー中止',
+    detail: 'verifyStatus=failed・他ノード failed、またはユーザー中止',
   },
 ];
 
@@ -712,30 +712,10 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
-/** AI 检证六模块 → 案件级 status 输出（关模块运行时写 skipped） */
-const AI_VERIFY_MODULE_STATUS_FIELDS = [
-  { moduleKey: 'required_fields', id: 'case.requiredFieldStatus', label: '必須フィールド状態' },
-  { moduleKey: 'required_documents', id: 'case.requiredDocumentStatus', label: '必要書類状態' },
-  { moduleKey: 'text', id: 'case.textValidationStatus', label: 'テキスト検証状態' },
-  { moduleKey: 'data', id: 'case.dataValidationStatus', label: 'データ検証状態' },
-  { moduleKey: 'mapping_conflict', id: 'case.mappingConflictStatus', label: 'マッピング競合検証状態' },
-  { moduleKey: 'signature_seal', id: 'case.signatureSealStatus', label: '署名・印鑑検証状態' },
-];
-
-function aiVerifyModuleStatusOutputFields() {
-  return AI_VERIFY_MODULE_STATUS_FIELDS.map((item) => ({
-    id: item.id,
-    label: item.label,
-    scope: '案件',
-    type: 'Enum',
-    valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.verifyModuleStatus,
-    description: '画布で当該モジュール OFF の場合 skipped；ON 時のみ success / failed / missing',
-    moduleKey: item.moduleKey,
-  }));
-}
+const WORKFLOW_FOUR_STATE_STATUS = 'passed / reviewRequired / failed / skipped';
 
 const WORKFLOW_OUTPUT_VALUE_SPECS = {
-  nodeStatus: 'success / failed / skipped',
+  nodeStatus: WORKFLOW_FOUR_STATE_STATUS,
   caseStatus: '待機中 / 処理中 / 人工確認 / 補件 / 異常対応 / 処理中止 / 処理完了 / 出力済',
   finalResult: '正常完了 / 補件待ち / 異常 / 中止',
   boolean: 'true / false',
@@ -743,11 +723,10 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   runtimeString: '运行时写入，无固定取值',
   runtimeDateTime: '运行时写入，ISO 8601 日期时间',
   resultFileStatus: '対象外 / 待機 / 生成中 / 完了 / 失敗',
-  verifyModuleStatus: 'success / failed / skipped / missing',
-  confirmStatus: 'created / completed / failed',
+  confirmStatus: 'open / completed / failed',
   confirmAction: 'approve（完成）/ request_supplement（補件）/ reject（案件終止）',
-  notifySendStatus: 'success / failed / skipped',
-  codeStatus: 'success / failed',
+  notifySendStatus: 'sent / failed / skipped',
+  codeStatus: WORKFLOW_FOUR_STATE_STATUS,
   dynamicObjectKeys: '键集合运行时生成，无固定枚举',
   dynamicArrayItems: '元素结构由运行时结果决定',
   fileEntryStatus: 'Processed / Processing / Pending / Failed',
@@ -815,13 +794,7 @@ const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
   'case.mappingConflicts': [WORKFLOW_VAR_CONSUMPTION.TODO, WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
   'case.mappingErrors': [WORKFLOW_VAR_CONSUMPTION.TODO, WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
   'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
-  'case.isException': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.NOTIFY],
-  'case.requiredFieldStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.requiredDocumentStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.textValidationStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.dataValidationStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.mappingConflictStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.signatureSealStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.missingDocuments': [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
   'case.missingFields': [WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY],
   'case.aiVerifyResultJson': [WORKFLOW_VAR_CONSUMPTION.TODO],
@@ -886,9 +859,8 @@ function isWorkflowVarForCatalog(item, catalogMode) {
   const paths = getWorkflowVarConsumptionPaths(item);
   if (catalogMode === 'condition') return paths.includes(WORKFLOW_VAR_CONSUMPTION.CONDITION);
   if (catalogMode === 'notify') {
-    // 通知变量池 ⊇ 条件变量池；另含仅通知 / 待办·通知字段
-    return paths.includes(WORKFLOW_VAR_CONSUMPTION.CONDITION)
-      || paths.includes(WORKFLOW_VAR_CONSUMPTION.NOTIFY)
+    // 通知挿入は通知向けのみ。条件専用ステータスは入れない（自由度を抑える）
+    return paths.includes(WORKFLOW_VAR_CONSUMPTION.NOTIFY)
       || paths.includes(WORKFLOW_VAR_CONSUMPTION.TODO_NOTIFY);
   }
   return true;
@@ -1008,6 +980,12 @@ function getWorkflowOutputVarExample(item) {
   if (/missingDocuments|missingFields/i.test(bare)) {
     return JSON.stringify(['受診券', '診療明細書'], null, 2);
   }
+  if (/aiVerifyResultJson/i.test(bare)) {
+    return JSON.stringify([
+      { ruleId: 'rule_required_field_1', verificationType: 'requiredField', result: 'passed' },
+      { ruleId: 'rule_text_1', verificationType: 'textValidation', result: 'reviewRequired' },
+    ], null, 2);
+  }
   if (/Conflicts|Errors|failedRules|manualEdits/i.test(bare)) {
     return JSON.stringify([{ code: 'E001', message: 'example issue' }], null, 2);
   }
@@ -1042,7 +1020,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   data_mapping: [
     { id: 'case.mappingStatus', label: 'マッピングステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: 'マッピング全体の集約状態' },
-    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '案件级标准字段容器（条件选择：映射节点 → 標準フィールド → 字段名）' },
+    { id: 'case.standardFields', label: '標準フィールド', scope: '案件', type: 'Object', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicObjectKeys, description: '標準フィールド鍵値オブジェクト；条件では叶子のみ選択可（容器自体は選べない）' },
     { id: 'case.mappingConflicts', label: '競合一覧', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: '案件級に集約したフィールド競合' },
     { id: 'case.mappingErrors', label: 'マッピングエラー', scope: '案件', type: 'Array', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.dynamicArrayItems, description: 'ルール不適用、字段缺失、変換失敗の明細' },
     ...workflowNodeFileOutputFields('data_mapping'),
@@ -1053,12 +1031,13 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.matchedFileCount', label: '命中ファイル件数', scope: '案件', type: 'Number', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeCount, description: 'ファイル級条件で命中した件数' },
   ],
   ai_verify: [
-    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '已开启模块的聚合状态；全关→skipped' },
-    { id: 'case.isException', label: '異常', scope: '案件', type: 'Boolean', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.boolean, description: '異常処理分岐に使う案件級判定' },
-    ...aiVerifyModuleStatusOutputFields(),
+    { id: 'case.verifyStatus', label: 'AI検証ステータス', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '已开启模块的聚合状态；全关→skipped；模块级不另输出 *Status' },
     { id: 'case.missingDocuments', label: '不足書類一覧', scope: '案件', type: 'Array', valueSpec: '账票类型名称字符串数组；无不足时为空数组', description: '必要書類モジュールの不足明細' },
     { id: 'case.missingFields', label: '不足項目一覧', scope: '案件', type: 'Array', valueSpec: '标准字段或 OCR 字段名数组；无不足时为空数组', description: '必須フィールドモジュールの不足明細' },
-    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Object', valueSpec: '各模块 enabled/status/violations；仅已开启模块写键', description: 'AI検証の詳細結果（模块级明细）' },
+    { id: 'case.aiVerifyResultJson', label: '検証結果JSON', scope: '案件', type: 'Array', valueSpec: '元素含 ruleId / verificationType / result；仅已执行规则写元素', description: '已执行ルールの結果一覧（待办明细用）', example: [
+      { ruleId: 'rule_required_field_1', verificationType: 'requiredField', result: 'passed' },
+      { ruleId: 'rule_text_1', verificationType: 'textValidation', result: 'reviewRequired' },
+    ] },
     ...workflowNodeFileOutputFields('ai_verify'),
   ],
   hitl_gate: [
@@ -1228,11 +1207,15 @@ function buildDecisionVariableCascaderTree(options) {
     }
 
     const nodeKey = opt.nodeId || opt.group || 'unknown';
+    const nodeTitle = opt.group || '上流ノード';
+    const varName = String(opt.varName || '').trim();
+    // 一級：日文タイプ名 + ノード識別子（重複ノード区別用）；二級：変数キー（不翻訳）
+    const nodeText = varName ? `${nodeTitle} · ${varName}` : nodeTitle;
     if (!nodeMap.has(nodeKey)) {
       nodeMap.set(nodeKey, {
         id: `node:${nodeKey}`,
-        text: opt.group || '上流ノード',
-        title: opt.group || '上流ノード',
+        text: nodeText,
+        title: nodeText,
         items: [],
       });
     }
@@ -1252,7 +1235,7 @@ function buildDecisionVariableCascaderTree(options) {
       }
       bucket.items.push({
         id: opt.value,
-        text: opt.pickerStandardFieldLabel || opt.displayName,
+        text: opt.pickerStandardFieldId || opt.pickerStandardFieldLabel || opt.displayName,
         title: opt.pickerStandardFieldLabel || opt.displayName,
         scope: opt.scope,
         dataType: opt.dataType,
@@ -1260,10 +1243,13 @@ function buildDecisionVariableCascaderTree(options) {
       return;
     }
 
+    const varKey = String(opt.displayName || opt.localId || '').trim()
+      || String(opt.value || '').split('.').pop()
+      || opt.value;
     nodeEntry.items.push({
       id: opt.value,
-      text: opt.label || opt.displayName,
-      title: opt.description || opt.label || opt.displayName,
+      text: varKey,
+      title: opt.description ? `${varKey}\n${opt.description}` : varKey,
       scope: opt.scope,
       dataType: opt.dataType,
     });
@@ -2286,13 +2272,13 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
   if (judgmentContext === 'case_readiness') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'preprocess').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.preprocessStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.preprocessStatus`, 'passed'));
     });
-    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.case.preprocessStatus', 'success'));
+    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.case.preprocessStatus', 'passed'));
     resolveUpstreamNodesByType(workflow, nodeId, 'ocr').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.ocrStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.ocrStatus`, 'passed'));
     });
-    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.case.ocrStatus', 'success'));
+    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.case.ocrStatus', 'passed'));
     resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
       ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.confirmStatus`, 'completed'));
     });
@@ -2311,25 +2297,16 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
       ? getWorkflowNodeVarName(verifyNodes[verifyNodes.length - 1], workflow)
       : 'verify';
     const ifConditions = [];
-    ifConditions.push(judgmentCond(`${vn}.case.verifyStatus`, 'success'));
-    if (vCfg.textEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.case.textValidationStatus`, 'success'));
-    }
-    if (vCfg.dataEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.case.dataValidationStatus`, 'success'));
-    }
-    if (vCfg.sealEnabled !== false) {
-      ifConditions.push(judgmentCond(`${vn}.case.signatureSealStatus`, 'success'));
-    }
+    ifConditions.push(judgmentCond(`${vn}.case.verifyStatus`, 'passed'));
     return [createDecisionCase('if', { id: 'if', label: '自動パス', conditions: ifConditions })];
   }
   if (judgmentContext === 'processing_completion') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyStatus`, 'passed'));
     });
     if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) {
-      ifConditions.push(judgmentCond('verify.case.verifyStatus', 'success'));
+      ifConditions.push(judgmentCond('verify.case.verifyStatus', 'passed'));
     }
     resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
       ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.confirmStatus`, 'completed'));
@@ -2433,8 +2410,9 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 
 const HITL_GATE_LAYOUT = {
   minW: 224,
-  headerH: 50,
-  summaryH: 34,
+  headerH: 46,
+  // 画布已去掉节点摘要行，出口「+」须按 header + branches 对齐，不再预留 summary 高度
+  summaryH: 0,
   bodyPadTop: 4,
   bodyPadBottom: 8,
   rowGap: 4,
@@ -2451,14 +2429,16 @@ function getHitlGateNodeLayoutMetrics(node, canvasSummary = '') {
     maxLabelLen = Math.max(maxLabelLen, getHitlGateActionLabel(action).length);
   });
   const summaryLen = String(canvasSummary || '').length;
+  // 摘要不在卡片内展示；高度计算始终不计入 summaryH，仅宽度可参考文案长度
+  const effectiveSummaryH = 0;
   const cardW = Math.max(
     minW,
     56 + maxLabelLen * labelCharW,
     summaryLen ? 76 + summaryLen * summaryCharW : 0,
   );
   const branchesH = actions.length * rowH + Math.max(0, actions.length - 1) * rowGap;
-  const shellH = headerH + summaryH + bodyPadTop + branchesH + bodyPadBottom;
-  const branchStartY = headerH + summaryH + bodyPadTop;
+  const shellH = headerH + effectiveSummaryH + bodyPadTop + branchesH + bodyPadBottom;
+  const branchStartY = headerH + effectiveSummaryH + bodyPadTop;
   const rows = actions.map((action, index) => {
     const yCenter = Math.round(
       branchStartY + index * (rowH + rowGap) + rowH / 2,
@@ -3153,14 +3133,9 @@ function buildNotifyVariableCatalog(workflow, nodeId, verifyConfig = null, scene
     const n = nodeMap[id];
     if (!n || n.type === 'decision') return;
     appendNodeOutputVarCatalog(n, workflow, options, 'notify');
-    if (n.type === 'data_mapping') appendDataMappingStandardFieldCatalog(n, workflow, options);
+    // 通知は標準フィールドツリーを出さない（テンプレ差し込み用途に絞る）
   });
-  const docTypes = sceneContext?.docTypes || [];
-  const getDocSchemaFn = sceneContext?.getDocSchema;
-  const getDocLabelFn = sceneContext?.getDocLabel;
-  if (docTypes.length) {
-    appendDocTypeFieldTemplateCatalog(docTypes, getDocSchemaFn, options, getDocLabelFn);
-  }
+  // 通知は Step1 OCR フィールド cascade も出さない
   return dedupeNotifyVarOptions(options);
 }
 
@@ -3202,8 +3177,9 @@ function formatDecisionVariableDisplay(value, options = []) {
   const opt = (options || []).find((o) => o.value === value);
   if (!opt) return String(value).trim();
   if (opt.pickerGroup === 'standard_field') {
-    const fieldLabel = opt.pickerStandardFieldLabel || opt.displayName || opt.label;
-    return [opt.group, '標準フィールド', fieldLabel].filter(Boolean).join(' › ');
+    const fieldKey = opt.pickerStandardFieldId || opt.displayName || opt.label;
+    const nodePart = opt.varName ? `${opt.group} · ${opt.varName}` : opt.group;
+    return [nodePart, '標準フィールド', fieldKey].filter(Boolean).join(' › ');
   }
   if (opt.pickerGroup === 'step1_doc') {
     return [
@@ -3212,9 +3188,9 @@ function formatDecisionVariableDisplay(value, options = []) {
       opt.pickerField || opt.displayName,
     ].filter(Boolean).join(' › ');
   }
-  const group = opt.group || '';
+  const nodePart = opt.varName ? `${opt.group || ''} · ${opt.varName}` : (opt.group || '');
   const secondary = getDecisionVariableSecondaryLabel(opt);
-  if (group && secondary) return `${group} › ${secondary}`;
+  if (nodePart && secondary) return `${nodePart} › ${secondary}`;
   return secondary || String(value).trim();
 }
 
@@ -3427,15 +3403,12 @@ function inferDecisionConditionValue(condition, decisionCase = null) {
     if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
     return 'approve';
   }
-  if (/required(Document|Field)Status$/.test(variable)) return branchText.includes('補件') ? 'missing' : 'success';
-  if (/dataValidationStatus$/.test(variable)) return branchText.includes('異常') ? 'failed' : 'success';
-  if (/textValidationStatus$|signatureSealStatus$|verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|masterStatus$/.test(variable)) {
-    return branchText.includes('異常') ? 'failed' : 'success';
+  if (/verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|mappingConflictStatus$/.test(variable)) {
+    if (branchText.includes('異常')) return 'failed';
+    if (branchText.includes('補件') || branchText.includes('不足') || branchText.includes('確認')) return 'reviewRequired';
+    return 'passed';
   }
   if (/lowConfidenceFieldCount$|master(NoHit|LowScore|MultiCandidate)Count$|fileCandidateCount$/.test(variable)) return '0';
-  if (/mappingConflictStatus$|textValidationStatus$|dataValidationStatus$|signatureSealStatus$|required(Document|Field)Status$/.test(variable)) {
-    return branchText.includes('補件') || branchText.includes('不足') ? 'missing' : 'success';
-  }
   if (/classificationWarnings$|mappingConflicts$|mappingErrors$|missingDocuments$|missingFields$|failedRules$/.test(variable)) return '0';
   if (/ReviewRequired$/.test(variable)) return branchText.includes('確認') ? 'true' : 'false';
   return '';
@@ -3443,9 +3416,17 @@ function inferDecisionConditionValue(condition, decisionCase = null) {
 
 function migrateDecisionConditionValue(condition) {
   if (!condition) return '';
-  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'edit') return 'approve';
-  if (/confirmAction$/.test(String(condition.variable || '')) && condition.value === 'request_fix') return 'approve';
-  return condition.value ?? '';
+  const variable = String(condition.variable || '');
+  let value = condition.value ?? '';
+  if (/confirmAction$/.test(variable) && value === 'edit') return 'approve';
+  if (/confirmAction$/.test(variable) && value === 'request_fix') return 'approve';
+  if (/notifySendStatus$/.test(variable) && value === 'success') return 'sent';
+  if (/confirmStatus$/.test(variable) && value === 'created') return 'open';
+  if (/(Status|status)$/.test(variable.split('.').pop() || '')) {
+    if (value === 'success') return 'passed';
+    if (value === 'missing') return 'reviewRequired';
+  }
+  return value;
 }
 
 function resolveDecisionPresetVariable(workflow, nodeId, presetValue) {
@@ -4038,7 +4019,7 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${ppVar}.case.preprocessStatus`, 'is', 'success'),
+          cond(`${ppVar}.case.preprocessStatus`, 'is', 'passed'),
         ],
       }),
     ],
@@ -4054,7 +4035,7 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${ocrVar}.case.ocrStatus`, 'is', 'success'),
+          cond(`${ocrVar}.case.ocrStatus`, 'is', 'passed'),
           cond(`${ocrVar}.case.lowConfidenceFieldCount`, 'is', '0'),
         ],
       }),
@@ -4071,25 +4052,15 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${aiVar}.case.verifyStatus`, 'is', 'success'),
-        ],
-      }),
-      createDecisionCase('elif', {
-        id: 'elif-deficiency',
-        label: '補件',
-        logic: 'or',
-        conditions: [
-          cond(`${aiVar}.case.requiredDocumentStatus`, 'is', 'missing'),
-          cond(`${aiVar}.case.requiredFieldStatus`, 'is', 'missing'),
+          cond(`${aiVar}.case.verifyStatus`, 'is', 'passed'),
         ],
       }),
       createDecisionCase('elif', {
         id: 'elif-error',
         label: '異常',
-        logic: 'or',
+        logic: 'and',
         conditions: [
           cond(`${aiVar}.case.verifyStatus`, 'is', 'failed'),
-          cond(`${aiVar}.case.dataValidationStatus`, 'is', 'failed'),
         ],
       }),
     ],
@@ -4113,7 +4084,6 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-n-ok', branch: 'if', label: '通過' },
-    { from: 'wf-d-final', to: 'wf-hu-final', branch: 'elif-deficiency', label: '補件' },
     { from: 'wf-d-final', to: 'wf-n-error', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
     { from: 'wf-hu-final', to: 'wf-n-ok', branch: 'approve', label: '完成' },

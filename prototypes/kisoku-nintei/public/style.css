@@ -7967,12 +7967,6 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   font-size: 12px;
 }
 
-.wf-overview-chain {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
 .wf-workshop-list {
   list-style: none;
   margin: 0;
@@ -8062,11 +8056,6 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
 }
 .wf-node-info-tooltip {
   max-width: 280px;
-}
-.wf-overview-meta {
-  margin: 0;
-  font-size: 13px;
-  color: #475467;
 }
 .wf-node-type {
   display: none;
@@ -8978,6 +8967,20 @@ body.idp-inspector-resizing * {
 .inspector-panel-section {
   padding: 0;
   overflow: visible;
+}
+.inspector-empty-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px 20px;
+}
+.inspector-empty-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #98a2b3;
+  text-align: center;
 }
 .inspector-module {
   display: flex;
@@ -11885,10 +11888,30 @@ body.idp-inspector-resizing * {
   gap: 6px;
   min-height: 28px;
   padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   color: #344054;
   font-size: inherit;
   font-weight: inherit;
   letter-spacing: 0;
+  text-align: left;
+}
+.workflow-output-heading:hover .inspector-module-title {
+  color: #175cd3;
+}
+.workflow-output-chevron {
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-right: 1.5px solid #98a2b3;
+  border-bottom: 1.5px solid #98a2b3;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.workflow-output-heading.is-open .workflow-output-chevron {
+  transform: rotate(45deg);
 }
 .workflow-output-count {
   color: #667085;
