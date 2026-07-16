@@ -1918,29 +1918,29 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     tc.files.forEach((f) => {
       if (f.role === '参考資料' || f.docType === 'その他') return;
       if (f.docType && !step1Types.has(f.docType)) {
-        push('S2-03', '用例', `用例帳票「${f.docType}」が Step1 帳票集合にありません`, '', 'Step1 に帳票を戻すか用例を見直してください');
+        push('S2-03', 'テスト入力', `用例帳票「${f.docType}」が Step1 帳票集合にありません`, '', 'Step1 に帳票を戻すか用例を見直してください');
       }
     });
   }
-  if (errors.some((e) => e.dimension === '用例')) return { errors, blockedDimension: '用例' };
+  if (errors.some((e) => e.dimension === 'テスト入力')) return { errors, blockedDimension: 'テスト入力' };
 
   // —— 结构 S2-04～08 ——
   const starts = nodes.filter((n) => n.type === 'start');
   const ends = nodes.filter((n) => n.type === 'end');
   if (starts.length !== 1) {
-    push('S2-04', '结构', starts.length ? '開始ノードは1件のみにしてください' : '開始ノードがありません', starts[0]?.id || '');
+    push('S2-04', '構造', starts.length ? '開始ノードは1件のみにしてください' : '開始ノードがありません', starts[0]?.id || '');
   }
   if (!ends.length) {
-    push('S2-05', '结构', '終了ノードを1件以上配置してください');
+    push('S2-05', '構造', '終了ノードを1件以上配置してください');
   }
   ends.forEach((end) => {
     if (edges.some((e) => e.from === end.id)) {
-      push('S2-05', '结构', '終了ノードから出る接続は設定できません', end.id);
+      push('S2-05', '構造', '終了ノードから出る接続は設定できません', end.id);
     }
   });
   const reachable = new Set(getWorkflowTestReachableNodeIds(wf));
   if (starts.length === 1 && ends.length && !ends.some((e) => reachable.has(e.id))) {
-    push('S2-06', '结构', '開始ノードから終了ノードへ到達できません', starts[0].id);
+    push('S2-06', '構造', '開始ノードから終了ノードへ到達できません', starts[0].id);
   }
   // 每条从分支出口出发须能到结束
   nodes.filter((n) => n.type === 'decision' || n.type === 'hitl_gate').forEach((node) => {
@@ -1962,7 +1962,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
           edges.filter((ed) => ed.from === id).forEach((ed) => q.push(ed.to));
         }
         if (!ok) {
-          push('S2-06', '结构', `分岐「${edge.branch || edge.label || edge.to}」が終了ノードに到達できません`, node.id);
+          push('S2-06', '構造', `分岐「${edge.branch || edge.label || edge.to}」が終了ノードに到達できません`, node.id);
         }
       }
     });
@@ -1972,9 +1972,9 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     const hasIn = edges.some((e) => e.to === node.id);
     const hasOut = edges.some((e) => e.from === node.id);
     if (!hasIn && !hasOut) {
-      push('S2-07', '结构', '接続のない孤立ノードがあります', node.id);
+      push('S2-07', '構造', '接続のない孤立ノードがあります', node.id);
     } else if (!reachable.has(node.id)) {
-      push('S2-07', '结构', '開始から到達できないノードがあります', node.id);
+      push('S2-07', '構造', '開始から到達できないノードがあります', node.id);
     }
   });
   if (typeof getWorkflowCycleNodeIds === 'function') {
@@ -1982,11 +1982,11 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     if (cycles?.size) {
       let canTerminate = ends.some((e) => reachable.has(e.id));
       if (!canTerminate) {
-        push('S2-08', '结构', '回流により終了ノードへ到達できない経路があります', [...cycles][0] || '');
+        push('S2-08', '構造', '回流により終了ノードへ到達できない経路があります', [...cycles][0] || '');
       }
     }
   }
-  if (errors.some((e) => e.dimension === '结构')) return { errors, blockedDimension: '结构' };
+  if (errors.some((e) => e.dimension === '構造')) return { errors, blockedDimension: '構造' };
 
   // —— 连线 S2-09～12 ——
   const inboundMain = {};
@@ -1998,7 +1998,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.type === 'start') return;
     if (count > 1) {
-      push('S2-09', '连线', '主入力は1本までです', nodeId);
+      push('S2-09', '接続', '主入力は1本までです', nodeId);
     }
   });
   nodes.filter((n) => n.type === 'decision').forEach((node) => {
@@ -2009,31 +2009,31 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
       const key = e.branch || '';
       if (key === 'else') elseCount += 1;
       if (key && seen.has(key)) {
-        push('S2-10', '连线', `条件出口「${key}」が重複しています`, node.id);
+        push('S2-10', '接続', `条件出口「${key}」が重複しています`, node.id);
       }
       seen.add(key);
     });
-    if (elseCount > 1) push('S2-10', '连线', 'ELSE 出口は1本までです', node.id);
+    if (elseCount > 1) push('S2-10', '接続', 'ELSE 出口は1本までです', node.id);
   });
   nodes.filter((n) => n.type === 'hitl_gate').forEach((node) => {
     const outs = edges.filter((e) => e.from === node.id && e.branch);
     if (!outs.length) {
-      push('S2-11', '连线', '人工確認出口を1本以上接続してください', node.id);
+      push('S2-11', '接続', '人工確認出口を1本以上接続してください', node.id);
     }
     const seen = new Set();
     outs.forEach((e) => {
       if (seen.has(e.branch)) {
-        push('S2-11', '连线', `人工確認出口「${e.branch}」が重複しています`, node.id);
+        push('S2-11', '接続', `人工確認出口「${e.branch}」が重複しています`, node.id);
       }
       seen.add(e.branch);
     });
   });
   edges.forEach((edge) => {
     if (!nodes.some((n) => n.id === edge.from) || !nodes.some((n) => n.id === edge.to)) {
-      push('S2-12', '连线', '悬空な接続があります（端点ノードが存在しません）');
+      push('S2-12', '接続', '宙に浮いた接続があります（端点ノードが存在しません）');
     }
   });
-  if (errors.some((e) => e.dimension === '连线')) return { errors, blockedDimension: '连线' };
+  if (errors.some((e) => e.dimension === '接続')) return { errors, blockedDimension: '接続' };
 
   // —— 节点配置（对可达节点）——
   const { processing, documents } = getWorkflowTestSceneContext(sceneContext);
@@ -2052,7 +2052,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
         code: 'S2-19',
         decision: 'S2-10',
       })[node.type] || 'S2-13';
-      push(rule, '节点配置', cfg, node.id);
+      push(rule, 'ノード設定', cfg, node.id);
     }
     // S2-13 目标账票
     if (node.type === 'preprocess') {
@@ -2060,7 +2060,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
       if (Array.isArray(targets) && targets.length && step1Types.size) {
         targets.forEach((t) => {
           if (t && !step1Types.has(t)) {
-            push('S2-13', '节点配置', `前処理対象帳票「${t}」が Step1 にありません`, node.id);
+            push('S2-13', 'ノード設定', `前処理対象帳票「${t}」が Step1 にありません`, node.id);
           }
         });
       }
@@ -2069,16 +2069,16 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
       const enabled = processing?.ocrExtract?.enabledTypes || [];
       enabled.forEach((t) => {
         if (t && step1Types.size && !step1Types.has(t)) {
-          push('S2-14', '节点配置', `OCR 対象帳票「${t}」が Step1 にありません`, node.id);
+          push('S2-14', 'ノード設定', `OCR 対象帳票「${t}」が Step1 にありません`, node.id);
         }
       });
     }
     if (node.type === 'data_mapping') {
       const ref = node.configRef || node.mappingConfigId || 'current_scene';
-      if (!ref) push('S2-15', '节点配置', 'データマッピング設定が未選択です', node.id);
+      if (!ref) push('S2-15', 'ノード設定', 'データマッピング設定が未選択です', node.id);
     }
   });
-  if (errors.some((e) => e.dimension === '节点配置')) return { errors, blockedDimension: '节点配置' };
+  if (errors.some((e) => e.dimension === 'ノード設定')) return { errors, blockedDimension: 'ノード設定' };
 
   // —— 变量引用 / 字段选择 S2-20～25 ——
   const varSceneCtx = {
@@ -2114,18 +2114,18 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
         const raw = String(cond?.variable || '').trim();
         if (!raw) return;
         if (isContainerVarPath(raw)) {
-          push('S2-24', '字段选择', `条件左値「${raw}」は容器です。叶子フィールドを選んでください`, node.id);
+          push('S2-24', 'フィールド選択', `条件左値「${raw}」は容器です。葉項目を選んでください`, node.id);
           return;
         }
         const opt = options.find((o) => o.value === raw
           || o.value === raw.replace(/^\{|\}$/g, '')
           || String(o.localId || '') === raw);
         if (isDisabledConditionType(opt, raw)) {
-          push('S2-25', '字段选择', `条件左値「${raw}」は条件に使えない型です`, node.id);
+          push('S2-25', 'フィールド選択', `条件左値「${raw}」は条件に使えない型です`, node.id);
           return;
         }
         if (options.length && !opt) {
-          push('S2-20', '变量引用', `条件変数「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id, '削除・改線後に参照が残っていないか確認してください');
+          push('S2-20', '変数参照', `条件変数「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id, '削除・改線後に参照が残っていないか確認してください');
         }
       });
     });
@@ -2141,16 +2141,16 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
       if (!raw) return;
       const ok = !options.length || options.some((o) => o.value === raw || o.value?.endsWith(`.${raw}`));
       if (!ok) {
-        push('S2-22', '变量引用', `関数入参「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id);
+        push('S2-22', '変数参照', `関数入力「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id);
       }
     });
   });
-  if (errors.some((e) => e.dimension === '变量引用')) return { errors, blockedDimension: '变量引用' };
-  if (errors.some((e) => e.dimension === '字段选择')) return { errors, blockedDimension: '字段选择' };
+  if (errors.some((e) => e.dimension === '変数参照')) return { errors, blockedDimension: '変数参照' };
+  if (errors.some((e) => e.dimension === 'フィールド選択')) return { errors, blockedDimension: 'フィールド選択' };
 
   // —— 依赖：HITL 上游 / 映射前有 OCR ——
   validateWorkflowTestHitlContext(wf).forEach((issue) => {
-    push('S2-28', '依赖', issue.message, issue.nodeId);
+    push('S2-28', '依存', issue.message, issue.nodeId);
   });
   const hasOcrUpstream = (nodeId) => {
     const seen = new Set();
@@ -2167,15 +2167,15 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
   };
   nodes.filter((n) => n.type === 'data_mapping' && reachable.has(n.id)).forEach((node) => {
     if (!hasOcrUpstream(node.id)) {
-      push('S2-26', '依赖', 'データマッピングの上流に前処理/OCR がありません', node.id);
+      push('S2-26', '依存', 'データマッピングの上流に前処理/OCR がありません', node.id);
     }
   });
   nodes.filter((n) => n.type === 'ai_verify' && reachable.has(n.id)).forEach((node) => {
     if (!hasOcrUpstream(node.id)) {
-      push('S2-27', '依赖', 'AI検証の上流に OCR/前処理結果がありません', node.id);
+      push('S2-27', '依存', 'AI検証の上流に OCR/前処理結果がありません', node.id);
     }
   });
-  if (errors.some((e) => e.dimension === '依赖')) return { errors, blockedDimension: '依赖' };
+  if (errors.some((e) => e.dimension === '依存')) return { errors, blockedDimension: '依存' };
 
   return { errors, blockedDimension: '' };
 }
@@ -2829,7 +2829,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       summary: sim.error?.message || '実行順序を決定できません（S2-29）',
       errorReason: sim.error?.message || '実行順序を決定できません（S2-29）',
       ruleId: sim.error?.ruleId || 'S2-29',
-      dimension: '模拟执行',
+      dimension: '模擬実行',
     })];
   }
 
@@ -2848,7 +2848,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       status = 'error';
       errorReason = `${sim.error.ruleId || 'S2-29'} ${sim.error.message}`;
       ruleId = sim.error.ruleId || 'S2-29';
-      dimension = '模拟执行';
+      dimension = '模擬実行';
     }
 
     if (!errorReason && node.type === 'hitl_gate') {
@@ -2868,7 +2868,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       status = 'error';
       errorReason = `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`;
       ruleId = sim.error.ruleId || 'S2-32';
-      dimension = '模拟执行';
+      dimension = '模擬実行';
     }
 
     let summary = status === 'pending'
@@ -2908,7 +2908,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
     last.status = 'error';
     last.errorReason = msg;
     last.ruleId = sim.error?.ruleId || 'S2-32';
-    last.dimension = '模拟执行';
+    last.dimension = '模擬実行';
     last.summary = msg;
   }
 

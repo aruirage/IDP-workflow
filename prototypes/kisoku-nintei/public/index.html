@@ -1685,10 +1685,10 @@
                       </div>
                       <div v-if="notifyVariableCascaderOptions.length" class="notify-var-insert">
                         <div class="notify-var-insert-head">
-                          <span class="notify-var-insert-label">変数を挿入</span>
+                          <span class="notify-var-insert-label" data-no-translate>{{ t('変数を挿入') }}</span>
                           <el-radio-group v-model="notifyVarInsertTarget" size="small" class="notify-var-insert-target">
-                            <el-radio-button value="subject">件名</el-radio-button>
-                            <el-radio-button value="body">内容</el-radio-button>
+                            <el-radio-button value="subject" :label="t('件名')" />
+                            <el-radio-button value="body" :label="t('内容')" />
                           </el-radio-group>
                         </div>
                         <el-cascader
@@ -1776,121 +1776,162 @@
           </div>
 
           <div class="wf-notification-step-page">
-            <div v-if="!workflowNotificationRows.length" class="export-config-empty-panel">
-              <p class="export-config-empty-title">通知を設定できるノードがありません</p>
-              <p class="export-config-empty-desc">Workflow に処理ノードまたは人工確認を追加すると通知設定を追加できます。</p>
-              <el-button type="primary" plain @click="goToWorkflowSetupStep(2)">ワークフローへ戻る</el-button>
-            </div>
-            <div v-else class="workflow-notification-list">
-              <div
-                v-for="row in workflowNotificationExpandableRows"
-                :key="row.node.id"
-                class="workflow-notification-row"
-                :class="{ 'is-open': workflowNotificationOpenRows[row.node.id] }"
-              >
-                <button
-                  type="button"
-                  class="workflow-notification-row-head"
-                  @click="toggleWorkflowNotificationRow(row.node.id)"
-                >
-                  <div class="workflow-notification-row-main">
-                    <span class="workflow-notification-title">{{ row.sequenceLabel }}</span>
-                    <span class="workflow-notification-subtitle">{{ row.varName }}</span>
-                  </div>
-                  <div class="workflow-notification-row-meta">
-                    <span class="workflow-notification-count">{{ row.configuredCount }}/{{ row.policyCount }}</span>
-                    <span class="workflow-notification-chevron">›</span>
-                  </div>
-                </button>
-                <div v-if="workflowNotificationOpenRows[row.node.id]" class="workflow-notification-row-body">
-                  <div class="workflow-notification-policy-grid">
-                    <div
-                      v-for="policy in row.policies"
-                      :key="row.node.id + '-' + policy.key"
-                      class="workflow-notification-policy"
+            <section class="workflow-notification-builder">
+              <h3 class="workflow-notification-section-title">通知ルール追加</h3>
+              <div class="workflow-notification-builder-grid">
+                <div class="workflow-notification-builder-controls">
+                  <label class="workflow-notification-field">
+                    <span>対象ノード <em>必須</em></span>
+                    <el-select
+                      v-model="notificationRuleDraft.nodeType"
+                      teleported
+                      popper-class="idp-workflow-notification-select-popper"
+                      placeholder="対象ノードを選択"
+                      size="small"
                     >
-                      <div class="workflow-notification-policy-head">
-                        <div>
-                          <div class="workflow-notification-policy-title">{{ policy.label }}</div>
-                          <div class="workflow-notification-policy-desc">{{ policy.desc }}</div>
-                        </div>
-                        <el-button
-                          v-if="isWorkflowNotificationPolicyConfigured(row.node.id, policy.key)"
-                          link
-                          type="danger"
-                          @click="clearWorkflowNotificationPolicy(row.node.id, policy.key)"
-                        >削除</el-button>
-                      </div>
-                      <label class="workflow-notification-field">
-                        <span>通知対象</span>
-                        <el-select
-                          :model-value="getWorkflowNotificationPolicy(row.node.id, policy.key).recipients || []"
-                          multiple
-                          collapse-tags
-                          collapse-tags-tooltip
-                          teleported
-                          popper-class="idp-workflow-notification-select-popper"
-                          placeholder="通知対象を選択"
-                          size="small"
-                          @change="(values) => updateWorkflowNotificationPolicy(row.node.id, policy.key, 'recipients', values)"
-                        >
-                          <el-option
-                            v-for="option in NOTIFY_RECIPIENT_OPTIONS"
-                            :key="option.value"
-                            :label="option.label"
-                            :value="option.value"
-                          />
-                        </el-select>
-                      </label>
-                      <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
-                        <span>変数を挿入</span>
-                        <div class="workflow-notification-insert-actions">
-                          <el-radio-group v-model="workflowNotificationInsertTarget[row.node.id + '-' + policy.key]" size="small" class="notify-var-insert-target">
-                            <el-radio-button value="subject">件名</el-radio-button>
-                            <el-radio-button value="body">内容</el-radio-button>
-                          </el-radio-group>
-                          <el-select
-                            class="workflow-notification-var-select"
-                            teleported
-                            popper-class="idp-workflow-notification-select-popper"
-                            placeholder="変数"
-                            size="small"
-                            @change="(value) => insertWorkflowNotificationText(row.node.id, policy.key, value)"
-                          >
-                            <el-option
-                              v-for="option in workflowNotificationVariableOptions"
-                              :key="option.value"
-                              :label="option.label"
-                              :value="option.value"
-                            />
-                          </el-select>
-                        </div>
-                      </div>
-                      <label class="workflow-notification-field">
-                        <span>件名</span>
-                        <el-input
-                          :model-value="getWorkflowNotificationPolicy(row.node.id, policy.key).subject"
-                          size="small"
-                          placeholder="件名を入力"
-                          @input="(value) => updateWorkflowNotificationPolicy(row.node.id, policy.key, 'subject', value)"
+                      <el-option
+                        v-for="option in WORKFLOW_NOTIFICATION_NODE_OPTIONS"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </label>
+                  <label class="workflow-notification-field">
+                    <span>トリガーイベント <em>必須</em></span>
+                    <el-select
+                      v-model="notificationRuleDraft.event"
+                      teleported
+                      popper-class="idp-workflow-notification-select-popper"
+                      placeholder="イベントを選択"
+                      size="small"
+                    >
+                      <el-option
+                        v-for="option in workflowNotificationEventOptions"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </label>
+                  <label class="workflow-notification-field">
+                    <span>通知対象 <em>必須</em></span>
+                    <el-select
+                      v-model="notificationRuleDraft.recipients"
+                      multiple
+                      collapse-tags
+                      collapse-tags-tooltip
+                      teleported
+                      popper-class="idp-workflow-notification-select-popper"
+                      placeholder="通知対象を選択"
+                      size="small"
+                    >
+                      <el-option
+                        v-for="option in NOTIFY_RECIPIENT_OPTIONS"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </label>
+                  <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
+                    <span data-no-translate>{{ t('変数を挿入') }}</span>
+                    <div class="workflow-notification-insert-actions">
+                      <el-radio-group v-model="workflowNotificationInsertTarget" size="small" class="notify-var-insert-target">
+                        <el-radio-button value="subject" :label="t('件名')" />
+                        <el-radio-button value="body" :label="t('内容')" />
+                      </el-radio-group>
+                      <el-select
+                        class="workflow-notification-var-select"
+                        teleported
+                        popper-class="idp-workflow-notification-select-popper"
+                        placeholder="変数"
+                        size="small"
+                        @change="insertWorkflowNotificationText"
+                      >
+                        <el-option
+                          v-for="option in workflowNotificationVariableOptions"
+                          :key="option.value"
+                          :label="option.label"
+                          :value="option.value"
                         />
-                      </label>
-                      <label class="workflow-notification-field">
-                        <span>内容</span>
-                        <el-input
-                          :model-value="getWorkflowNotificationPolicy(row.node.id, policy.key).body"
-                          type="textarea"
-                          :rows="3"
-                          resize="none"
-                          placeholder="内容を入力"
-                          @input="(value) => updateWorkflowNotificationPolicy(row.node.id, policy.key, 'body', value)"
-                        />
-                      </label>
+                      </el-select>
                     </div>
                   </div>
                 </div>
+                <div class="workflow-notification-builder-content">
+                  <label class="workflow-notification-field">
+                    <span>件名 <em>必須</em></span>
+                    <el-input v-model="notificationRuleDraft.subject" size="small" placeholder="件名を入力" />
+                  </label>
+                  <label class="workflow-notification-field">
+                    <span>内容 <em>必須</em></span>
+                    <el-input
+                      v-model="notificationRuleDraft.body"
+                      type="textarea"
+                      :rows="5"
+                      resize="vertical"
+                      placeholder="内容を入力"
+                    />
+                  </label>
+                  <div class="workflow-notification-builder-actions">
+                    <el-button @click="resetNotificationRuleDraft">クリア</el-button>
+                    <el-button type="primary" @click="saveWorkflowNotificationRuleDraft">
+                      {{ notificationRuleDraft.id ? '更新' : '追加' }}
+                    </el-button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </section>
+
+            <section class="workflow-notification-rule-list">
+              <div class="workflow-notification-rule-list-head">
+                <h3 class="workflow-notification-section-title">通知ルール一覧</h3>
+                <span>{{ workflowNotificationRuleRows.length }}件</span>
+              </div>
+              <div v-if="!workflowNotificationRuleRows.length" class="workflow-notification-empty">
+                通知ルールはまだありません
+              </div>
+              <div v-else class="workflow-notification-table-wrap">
+                <table class="workflow-notification-table">
+                  <thead>
+                    <tr>
+                      <th>No.</th>
+                      <th>対象ノード</th>
+                      <th>トリガーイベント</th>
+                      <th>通知対象</th>
+                      <th>件名</th>
+                      <th>内容</th>
+                      <th>状態</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="rule in workflowNotificationRuleRows" :key="rule.id">
+                      <td>{{ rule.index }}</td>
+                      <td>{{ rule.nodeLabel }}</td>
+                      <td>{{ rule.eventLabel }}</td>
+                      <td>{{ rule.recipientLabels.join('、') || '未設定' }}</td>
+                      <td>{{ rule.subject || '未設定' }}</td>
+                      <td>{{ rule.bodySummary || '未設定' }}</td>
+                      <td>
+                        <el-switch
+                          :model-value="rule.enabled !== false"
+                          size="small"
+                          @change="(value) => updateWorkflowNotificationRuleEnabled(rule.id, value)"
+                        />
+                      </td>
+                      <td>
+                        <div class="workflow-notification-row-actions">
+                          <el-button link type="primary" @click="editWorkflowNotificationRule(rule)">編集</el-button>
+                          <el-button link type="danger" @click="deleteWorkflowNotificationRule(rule.id)">削除</el-button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
           </template>
 
@@ -1998,8 +2039,8 @@
                             <th class="col-no">No.</th>
                             <th class="col-check"></th>
                             <th class="col-name">フィールド</th>
-                            <th class="col-value">OCR抽出値</th>
-                            <th class="col-match">照合結果</th>
+                            <th class="col-value">OCR抽出（サンプル）</th>
+                            <th class="col-match">照合結果（サンプル）</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2259,6 +2300,117 @@
           </div>
         </section>
       </div>
+    </el-dialog>
+
+    <el-dialog
+      v-model="notificationRuleEditDialogVisible"
+      title="通知ルール編集"
+      width="900px"
+      align-center
+      class="workflow-notification-edit-dialog"
+    >
+      <div class="workflow-notification-dialog-grid">
+        <div class="workflow-notification-builder-controls">
+          <label class="workflow-notification-field">
+            <span>対象ノード <em>必須</em></span>
+            <el-select
+              v-model="notificationRuleEditDraft.nodeType"
+              teleported
+              popper-class="idp-workflow-notification-select-popper"
+              placeholder="対象ノードを選択"
+              size="small"
+            >
+              <el-option
+                v-for="option in WORKFLOW_NOTIFICATION_NODE_OPTIONS"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </label>
+          <label class="workflow-notification-field">
+            <span>トリガーイベント <em>必須</em></span>
+            <el-select
+              v-model="notificationRuleEditDraft.event"
+              teleported
+              popper-class="idp-workflow-notification-select-popper"
+              placeholder="イベントを選択"
+              size="small"
+            >
+              <el-option
+                v-for="option in workflowNotificationEditEventOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </label>
+          <label class="workflow-notification-field">
+            <span>通知対象 <em>必須</em></span>
+            <el-select
+              v-model="notificationRuleEditDraft.recipients"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              teleported
+              popper-class="idp-workflow-notification-select-popper"
+              placeholder="通知対象を選択"
+              size="small"
+            >
+              <el-option
+                v-for="option in NOTIFY_RECIPIENT_OPTIONS"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </label>
+          <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
+            <span data-no-translate>{{ t('変数を挿入') }}</span>
+            <div class="workflow-notification-insert-actions">
+              <el-radio-group v-model="workflowNotificationEditInsertTarget" size="small" class="notify-var-insert-target">
+                <el-radio-button value="subject" :label="t('件名')" />
+                <el-radio-button value="body" :label="t('内容')" />
+              </el-radio-group>
+              <el-select
+                class="workflow-notification-var-select"
+                teleported
+                popper-class="idp-workflow-notification-select-popper"
+                placeholder="変数"
+                size="small"
+                @change="insertWorkflowNotificationEditText"
+              >
+                <el-option
+                  v-for="option in workflowNotificationVariableOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </div>
+          </div>
+        </div>
+        <div class="workflow-notification-builder-content">
+          <label class="workflow-notification-field">
+            <span>件名 <em>必須</em></span>
+            <el-input v-model="notificationRuleEditDraft.subject" size="small" placeholder="件名を入力" />
+          </label>
+          <label class="workflow-notification-field">
+            <span>内容 <em>必須</em></span>
+            <el-input
+              v-model="notificationRuleEditDraft.body"
+              type="textarea"
+              :rows="6"
+              resize="vertical"
+              placeholder="内容を入力"
+            />
+          </label>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="notificationRuleEditDialogVisible = false">キャンセル</el-button>
+        <el-button type="primary" @click="saveWorkflowNotificationRuleEdit">保存</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog

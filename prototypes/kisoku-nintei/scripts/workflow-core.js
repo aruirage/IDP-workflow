@@ -31,8 +31,8 @@ const MODULE_PAGE_META = {
     title: '案件シーン設定',
     subtitleConfigure: '設定モード：Workflow 固定・ノード内パラメータのみ変更',
     subtitleEdit: '編集モード：ノード追加・削除・接続を自由に変更',
-    templateNote: '起始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。',
-    connectHint: '出力ポートをドラッグして任意ノードへ接続します。上流への回流も可能です。ノード前後または連線上の + でノードを追加・挿入できます。',
+    templateNote: '開始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。',
+    connectHint: '出力ポートをドラッグして任意ノードへ接続します。上流への回流も可能です。ノード前後または接続線上の + でノードを追加・挿入できます。',
     flowKey: 'case',
   },
 };
@@ -40,14 +40,14 @@ const MODULE_PAGE_META = {
 /** Inspector セクションタイトル横 ? ツールチップ用（本文は編集欄に表示しない） */
 const INSPECTOR_HINTS = {
   edgeEdit: '接続線をクリックで選択（ハイライト）。Backspace / Delete で削除できます。出力ポートをドラッグして再接続できます。',
-  connect: '出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。',
+  connect: '出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。接続線上の + で途中にノードを挿入できます。',
   scene: '業務シーン作成時、またはステップ1で関連帳票・案件集約・帳票間関連を設定します。',
   inputSetting: '画面上アップロードまたは APIアップロードでファイルを受け付けます。APIアップロードを有効にした場合はエンドポイント URL を指定します。',
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
   preprocess: 'OCR 前に画像補正、画像回転、画像分割を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像並び替え：同一帳票タイプ内の画像を整列。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
   ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
-  dataMapping: 'データマッピング設定で定義した全局ルールをこの Workflow で呼び出します。ノード内ではルール摘要、適用性チェック、設定ページへの導線のみ扱います。',
+  dataMapping: 'データマッピング設定で定義した共通ルールをこの Workflow で呼び出します。ノード内ではルール概要、適用性チェック、設定ページへの導線のみ扱います。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
   nodeOutput: '後続ノード・IF/ELSE 条件で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
@@ -57,13 +57,13 @@ const INSPECTOR_HINTS = {
   nodeOutputStart: '案件 ID（caseId）とファイル一覧（files[]）のみ。帳票タイプは条件ノードで Step1 から直接選択。',
   nodeOutputEnd: '終了ノードは出力変数なし。設定項目なし。',
   nodeOutputHitl: '人工確認の処理状態（hitlStatus）のみ。分岐は画布三出口で直接接続。',
-  dataMappingOutput: '処理状態・処理結果・standardFields（オブジェクト配列）。条件では標準フィールドの叶子のみ選択可。',
+  dataMappingOutput: '処理状態・処理結果・standardFields（オブジェクト配列）。条件では標準フィールドの葉項目のみ選択可。',
   externalApiIo: '前工程から自動連携される入力です。',
-  knowledgeSelect: 'ナレッジ数据源を選択します。+ ボタンから新規作成（文档上传 / Web Site API）ができます。',
+  knowledgeSelect: 'ナレッジデータソースを選択します。+ ボタンから新規作成（文書アップロード / Web Site API）ができます。',
   knowledgeRetrieval: 'Vector Search の類似度・Top N・参照文字数上限を設定します（Dify Knowledge Retrieval 相当）。',
-  knowledgeOutput: '检索結果として後続ノードへ渡される出力変数です。',
-  externalApiConfig: '检索パラメータを設定します。',
-  externalApiOutput: '检索結果として後続ノードへ渡される出力変数です。',
+  knowledgeOutput: '検索結果として後続ノードへ渡される出力変数です。',
+  externalApiConfig: '検索パラメータを設定します。',
+  externalApiOutput: '検索結果として後続ノードへ渡される出力変数です。',
   masterKnowledge: '照合に使用する内部マスタ辞書を選択します。辞書の項目定義は辞書設定で管理します。',
   masterApi: 'リトライ回数・キャッシュ TTL・例外時の動作を指定します。',
   masterRules: '登録済み照合ルールの一覧です。下のフォームから追加・編集できます。',
@@ -695,9 +695,9 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
-/** @deprecated 旧四态；业务处理节点已拆成 processRunStatus + processRunResult */
-const WORKFLOW_PROCESS_RUN_STATUS = 'processing（处理中）/ success（成功含跳过）/ failed（失败）';
-const WORKFLOW_PROCESS_RUN_RESULT = 'passed（通过）/ reviewRequired（要确认）';
+/** @deprecated 旧四態。処理ノードは processRunStatus + processRunResult に分離済み。 */
+const WORKFLOW_PROCESS_RUN_STATUS = 'processing（処理中）/ success（成功・スキップ含む）/ failed（失敗）';
+const WORKFLOW_PROCESS_RUN_RESULT = 'passed（通過）/ reviewRequired（要確認）';
 
 const WORKFLOW_OUTPUT_VALUE_SPECS = {
   nodeStatus: WORKFLOW_PROCESS_RUN_STATUS,
@@ -705,19 +705,19 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   caseStatus: '待機中 / 処理中 / 人工確認 / 補件 / 異常対応 / 処理中止 / 処理完了 / 出力済',
   finalResult: '正常完了 / 補件待ち / 異常 / 中止',
   boolean: 'true / false',
-  runtimeCount: '运行时写入，非负整数，无固定上限',
-  runtimeString: '运行时写入，无固定取值',
-  runtimeDateTime: '运行时写入，ISO 8601 日期时间',
+  runtimeCount: '実行時に書き込む非負整数。固定上限なし',
+  runtimeString: '実行時に書き込む文字列。固定値なし',
+  runtimeDateTime: '実行時に書き込む ISO 8601 日時',
   resultFileStatus: '対象外 / 待機 / 生成中 / 完了 / 失敗',
   codeStatus: WORKFLOW_PROCESS_RUN_STATUS,
-  dynamicObjectKeys: '键集合运行时生成，无固定枚举',
-  dynamicArrayItems: '元素结构由运行时结果决定',
-  standardFieldsArray: '标准字段对象数组；元素含字段键与取值，结构运行时决定',
+  dynamicObjectKeys: 'キー集合は実行時に生成。固定列挙なし',
+  dynamicArrayItems: '要素構造は実行時結果で決まる',
+  standardFieldsArray: '標準フィールドのオブジェクト配列。要素はフィールドキーと値を含み、構造は実行時に決まる',
   fileEntryStatus: 'Processed / Processing / Pending / Failed',
 };
 
 const WORKFLOW_STEP1_CASE_FIELDS = [
-  { id: 'case.caseId', label: '案件ID', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 案件唯一标识' },
+  { id: 'case.caseId', label: '案件ID', scope: '案件', type: 'String', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.runtimeString, description: 'Step1 の案件一意識別子' },
 ];
 
 /** 账票类型不再由节点输出；条件节点直接从 Step1 选择 OCR 字段 */
@@ -951,33 +951,33 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   ],
   end: [],
   preprocess: [
-    { id: 'case.preprocessStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本节点执行进度。无适用文件或配置关闭时记为成功，不另写 skip。业务是否通过看「処理結果」。' },
-    { id: 'case.preprocessResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '业务结论。通过→主流程；要确认→人工确认。' },
+    { id: 'case.preprocessStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。対象ファイルなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
+    { id: 'case.preprocessResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認は人工確認へ進む。' },
   ],
   ocr: [
-    { id: 'case.ocrStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本节点执行进度。无适用文件或配置关闭时记为成功，不另写 skip。业务是否通过看「処理結果」。' },
-    { id: 'case.ocrResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '业务结论。通过→主流程；要确认（如低置信）→人工确认。' },
+    { id: 'case.ocrStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。対象ファイルなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
+    { id: 'case.ocrResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認（低信頼など）は人工確認へ進む。' },
   ],
   data_mapping: [
-    { id: 'case.mappingStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本节点执行进度。无适用规则或配置关闭时记为成功，不另写 skip。业务是否通过看「処理結果」。' },
-    { id: 'case.mappingResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '业务结论。通过→主流程；要确认（如冲突）→人工确认。' },
+    { id: 'case.mappingStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。対象ルールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
+    { id: 'case.mappingResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認（競合など）は人工確認へ進む。' },
     {
       id: 'case.standardFields',
       label: '標準フィールド',
       scope: '案件',
       type: 'Array',
       valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.standardFieldsArray,
-      description: '標準フィールドのオブジェクト配列；条件では叶子のみ選択可（容器自体は選べない）',
+      description: '標準フィールドのオブジェクト配列。条件では葉項目のみ選択でき、容器自体は選択できない。',
       example: WORKFLOW_STANDARD_FIELDS_ARRAY_EXAMPLE,
     },
   ],
   decision: [],
   ai_verify: [
-    { id: 'case.verifyStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本节点执行进度。无开启模块或配置关闭时记为成功，不另写 skip。业务是否通过看「処理結果」。' },
-    { id: 'case.verifyResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '业务结论。通过→主流程；要确认（如缺件）→人工确认或补件。' },
+    { id: 'case.verifyStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。ON の検証モジュールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
+    { id: 'case.verifyResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認（不足書類など）は人工確認または補件へ進む。' },
   ],
   hitl_gate: [
-    { id: 'case.hitlStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '人工確認の処理状態。待ち/提交中は processing、提交并写回成功是 success，创建/提交/写回/路由失败是 failed。' },
+    { id: 'case.hitlStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '人工確認の処理状態。待機中または提出中は processing、提出と書き戻し成功は success、作成・提出・書き戻し・ルーティング失敗は failed。' },
   ],
   code: [
     { id: 'case.codeStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'Python スクリプトの処理状態。実行中 processing、正常終了 success、異常/タイムアウト/戻り値不正 failed。' },
@@ -2600,7 +2600,7 @@ function normalizeCodeNode(node, workflow = null) {
   return withVar;
 }
 
-function buildCodeSourceVariableOptions(workflow, nodeId) {
+function buildCodeSourceVariableOptions(workflow, nodeId, sceneContext = null) {
   const options = [{
     group: '開始ノード',
     nodeType: 'start',
@@ -2617,22 +2617,17 @@ function buildCodeSourceVariableOptions(workflow, nodeId) {
     consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
     consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
   }];
-  const nodeMap = Object.fromEntries((workflow?.nodes || []).map((n) => [n.id, n]));
-  getDecisionUpstreamNodeIds(workflow, nodeId).forEach((id) => {
-    const n = nodeMap[id];
-    if (!n) return;
-    const items = getWorkflowNodeOutputVarItems(n, workflow);
-    if (!items.length) return;
-    const varName = getWorkflowNodeVarName(n, workflow);
-    const meta = getWorkflowNodeMeta(n.type);
-    const nodeTitle = meta?.title || n.label || varName;
-    items.forEach((item) => {
-      if (item.id === 'files[]' && n.type !== 'start') return;
+
+  const startNode = getWorkflowStartNode(workflow);
+  if (startNode) {
+    getWorkflowNodeOutputVarItems(startNode, workflow).forEach((item) => {
+      if (item.id === 'files[]') return;
+      const varName = getWorkflowNodeVarName(startNode, workflow);
       const variableKey = `${varName}.${item.id}`;
       appendDecisionVarOption(options, {
-        group: nodeTitle,
-        nodeType: n.type,
-        nodeId: n.id,
+        group: '開始ノード',
+        nodeType: 'start',
+        nodeId: startNode.id,
         varName,
         localId: item.localId || item.id,
         scope: item.scope || '案件',
@@ -2646,12 +2641,26 @@ function buildCodeSourceVariableOptions(workflow, nodeId) {
         consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
       });
     });
+  }
+
+  buildDecisionVariableCatalog(workflow, nodeId, null, sceneContext).forEach((item) => {
+    appendDecisionVarOption(options, {
+      ...item,
+      label: item.pickerGroup === 'node'
+        ? `${item.varName}.${item.localId || item.displayName || item.value}`
+        : item.label,
+      displayName: item.pickerGroup === 'node'
+        ? `${item.varName}.${item.localId || item.displayName || item.value}`
+        : item.displayName,
+      consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
+      consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
+    });
   });
   return options;
 }
 
-function buildCodeVariableOptions(workflow, nodeId) {
-  return buildCodeSourceVariableOptions(workflow, nodeId);
+function buildCodeVariableOptions(workflow, nodeId, sceneContext = null) {
+  return buildCodeSourceVariableOptions(workflow, nodeId, sceneContext);
 }
 
 function formatCodeInputVariableToken(variable) {

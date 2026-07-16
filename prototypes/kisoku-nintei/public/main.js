@@ -999,6 +999,56 @@ const appOptions = {
       ['同一案件の open 待办へ追記し、新規待办は作らない', '追加到同一案件 open 待办，不新建待办'],
       ['以下イベントがすべて発生してから AI 検証を実行します。补件・跨批次の pending 汇总も含まれます。', '满足以下全部事件后再执行 AI 检证；跨批次/补件 pending 汇总亦包含在内。'],
       ['以下イベントで待办を生成・合并します（顧客設定不可）。', '按以下事件生成・合并待办（客户不可配置）。'],
+      ['processing（処理中）/ success（成功・スキップ含む）/ failed（失敗）', 'processing（处理中）/ success（成功含跳过）/ failed（失败）'],
+      ['passed（通過）/ reviewRequired（要確認）', 'passed（通过）/ reviewRequired（要确认）'],
+      ['実行時に書き込む非負整数。固定上限なし', '运行时写入，非负整数，无固定上限'],
+      ['実行時に書き込む文字列。固定値なし', '运行时写入，无固定取值'],
+      ['実行時に書き込む ISO 8601 日時', '运行时写入，ISO 8601 日期时间'],
+      ['キー集合は実行時に生成。固定列挙なし', '键集合运行时生成，无固定枚举'],
+      ['要素構造は実行時結果で決まる', '元素结构由运行时结果决定'],
+      ['標準フィールドのオブジェクト配列。要素はフィールドキーと値を含み、構造は実行時に決まる', '标准字段对象数组；元素含字段键与取值，结构运行时决定'],
+      ['Step1 の案件一意識別子', 'Step1 案件唯一标识'],
+      ['本ノードの実行進捗。対象ファイルなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。', '本节点执行进度。无适用文件或配置关闭时记为成功，不另写 skip。业务是否通过看「处理结果」。'],
+      ['本ノードの実行進捗。対象ルールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。', '本节点执行进度。无适用规则或配置关闭时记为成功，不另写 skip。业务是否通过看「处理结果」。'],
+      ['本ノードの実行進捗。ON の検証モジュールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。', '本节点执行进度。无开启模块或配置关闭时记为成功，不另写 skip。业务是否通过看「处理结果」。'],
+      ['業務結論。通過は主フローへ進み、要確認は人工確認へ進む。', '业务结论。通过→主流程；要确认→人工确认。'],
+      ['業務結論。通過は主フローへ進み、要確認（低信頼など）は人工確認へ進む。', '业务结论。通过→主流程；要确认（如低置信）→人工确认。'],
+      ['業務結論。通過は主フローへ進み、要確認（競合など）は人工確認へ進む。', '业务结论。通过→主流程；要确认（如冲突）→人工确认。'],
+      ['業務結論。通過は主フローへ進み、要確認（不足書類など）は人工確認または補件へ進む。', '业务结论。通过→主流程；要确认（如缺件）→人工确认或补件。'],
+      ['標準フィールドのオブジェクト配列。条件では葉項目のみ選択でき、容器自体は選択できない。', '标准字段对象数组；条件只能选择叶子字段，不能选择容器本身。'],
+      ['人工確認の処理状態。待機中または提出中は processing、提出と書き戻し成功は success、作成・提出・書き戻し・ルーティング失敗は failed。', '人工确认处理状态。等待中或提交中为 processing，提交并写回成功为 success，创建/提交/写回/路由失败为 failed。'],
+      ['案件ID', '案件ID'],
+      ['ファイル一覧', '文件列表'],
+      ['前処理状態', '前处理状态'],
+      ['前処理結果', '前处理结果'],
+      ['OCR抽出状態', 'OCR抽出状态'],
+      ['OCR抽出結果', 'OCR抽出结果'],
+      ['データマッピング状態', '数据映射状态'],
+      ['データマッピング結果', '数据映射结果'],
+      ['標準フィールド', '标准字段'],
+      ['AI検証状態', 'AI检证状态'],
+      ['AI検証結果', 'AI检证结果'],
+      ['人工確認状態', '人工确认状态'],
+      ['カスタム関数状態', '自定义函数状态'],
+      ['構造', '结构'],
+      ['接続', '连线'],
+      ['ノード設定', '节点配置'],
+      ['変数参照', '变量引用'],
+      ['フィールド選択', '字段选择'],
+      ['模擬実行', '模拟执行'],
+      ['依存', '依赖'],
+      ['テスト入力', '用例'],
+      ['宙に浮いた接続があります（端点ノードが存在しません）', '存在悬空连接（端点节点不存在）'],
+      ['葉項目を選んでください', '请选择叶子字段'],
+      ['関数入力', '函数入参'],
+      ['開始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。', '建议从开始节点（输入）按 前处理 → OCR → 外部API → AI检证 → 输出 的顺序配置。编辑模式下可用 N 键或工具栏 + 添加节点。'],
+      ['接続線上の +', '连线上的 +'],
+      ['共通ルール', '全局规则'],
+      ['ルール概要', '规则摘要'],
+      ['ナレッジデータソース', '知识源'],
+      ['文書アップロード', '文档上传'],
+      ['検索結果', '检索结果'],
+      ['検索パラメータ', '检索参数'],
     ];
 
     let uiTranslationOriginals = new WeakMap();
@@ -1774,185 +1824,308 @@ const appOptions = {
 
     function ensureWorkflowNotificationStore() {
       if (!form.stepNotifications || typeof form.stepNotifications !== 'object' || Array.isArray(form.stepNotifications)) {
-        form.stepNotifications = { policies: {} };
+        form.stepNotifications = { rules: [] };
       }
-      if (!form.stepNotifications.policies || typeof form.stepNotifications.policies !== 'object') {
-        form.stepNotifications.policies = {};
+      if (!Array.isArray(form.stepNotifications.rules)) {
+        form.stepNotifications.rules = migrateWorkflowNotificationPolicies(form.stepNotifications.policies);
       }
-      return form.stepNotifications.policies;
+      return form.stepNotifications.rules;
     }
 
-    const WORKFLOW_NOTIFICATION_MODULES = [
-      { key: 'preprocess', type: 'preprocess', label: '前処理', varName: 'preprocess' },
-      { key: 'ocr', type: 'ocr', label: 'OCR抽出', varName: 'ocr' },
-      { key: 'data_mapping', type: 'data_mapping', label: 'データマッピング', varName: 'dataMapping' },
-      { key: 'ai_verify', type: 'ai_verify', label: 'AI検証', varName: 'aiVerify' },
-      { key: 'hitl_gate', type: 'hitl_gate', label: '人工確認', varName: 'hitl' },
+    const WORKFLOW_NOTIFICATION_NODE_OPTIONS = [
+      { value: 'preprocess', label: '前処理' },
+      { value: 'ocr', label: 'OCR抽出' },
+      { value: 'data_mapping', label: 'データマッピング' },
+      { value: 'ai_verify', label: 'AI検証' },
+      { value: 'hitl_gate', label: '人工確認' },
     ];
 
-    function getWorkflowNotificationPoliciesForModule(module) {
-      if (!module) return [];
-      if (module.type === 'hitl_gate') {
-        return [
-          {
-            key: 'approve',
-            label: '完了通知',
-            desc: '人工確認で「完成」出口が選択された場合に通知します',
-          },
-          {
-            key: 'request_supplement',
-            label: '補件通知',
-            desc: '人工確認で「補件」出口が選択された場合に通知します',
-          },
-          {
-            key: 'reject',
-            label: '案件終止通知',
-            desc: '人工確認で「案件終止」出口が選択された場合に通知します',
-          },
-        ];
-      }
-      return [
-        {
-          key: 'failed',
-          label: '失敗通知',
-          desc: '処理状態が failed の場合に通知します',
-        },
-        {
-          key: 'reviewRequired',
-          label: '要確認通知',
-          desc: '処理状態が success かつ処理結果が reviewRequired の場合に通知します',
-        },
-      ];
-    }
+    const WORKFLOW_NOTIFICATION_PROCESSING_EVENTS = [
+      { value: 'failed', label: '処理失敗' },
+      { value: 'reviewRequired', label: '結果要確認' },
+    ];
+    const WORKFLOW_NOTIFICATION_HITL_EVENTS = [
+      { value: 'approve', label: '完成' },
+      { value: 'request_supplement', label: '補件' },
+      { value: 'reject', label: '案件終止' },
+    ];
 
-    function getWorkflowNodeStatusVarKey(type) {
-      const map = {
-        preprocess: 'preprocessStatus',
-        ocr: 'ocrStatus',
-        data_mapping: 'mappingStatus',
-        ai_verify: 'verifyStatus',
-        hitl_gate: 'hitlStatus',
-        code: 'codeStatus',
-      };
-      return map[type] || 'status';
-    }
-
-    const workflowNotificationRows = computed(() => {
-      return WORKFLOW_NOTIFICATION_MODULES.map((module) => ({
-        node: { id: module.key, type: module.type },
-        label: module.label,
-        typeLabel: module.label,
-        sequenceLabel: module.label,
-        varName: module.varName,
-        statusKey: getWorkflowNodeStatusVarKey(module.type),
-        statusPath: `${module.varName}.case.${getWorkflowNodeStatusVarKey(module.type)}`,
-        policies: getWorkflowNotificationPoliciesForModule(module),
-      }));
+    const notificationRuleDraft = reactive({
+      id: '',
+      nodeType: 'preprocess',
+      event: 'failed',
+      recipients: [],
+      subject: '',
+      body: '',
+      enabled: true,
     });
+    const notificationRuleEditDraft = reactive({
+      id: '',
+      nodeType: 'preprocess',
+      event: 'failed',
+      recipients: [],
+      subject: '',
+      body: '',
+      enabled: true,
+    });
+    const notificationRuleEditDialogVisible = ref(false);
+    const workflowNotificationInsertTarget = ref('body');
+    const workflowNotificationEditInsertTarget = ref('body');
 
-    const workflowNotificationExpandableRows = computed(() => workflowNotificationRows.value.map((row) => ({
-      ...row,
-      configuredCount: (row.policies || []).filter((policy) => isWorkflowNotificationPolicyConfigured(row.node.id, policy.key)).length,
-      policyCount: (row.policies || []).length,
-    })));
-    const workflowNotificationOpenRows = reactive({});
-    const workflowNotificationInsertTarget = reactive({});
+    function getWorkflowNotificationEventOptions(nodeType) {
+      return nodeType === 'hitl_gate'
+        ? WORKFLOW_NOTIFICATION_HITL_EVENTS
+        : WORKFLOW_NOTIFICATION_PROCESSING_EVENTS;
+    }
 
-    watch(workflowNotificationRows, (rows) => {
-      (rows || []).forEach((row) => {
-        (row.policies || []).forEach((policy) => {
-          const key = `${row.node.id}-${policy.key}`;
-          if (!workflowNotificationInsertTarget[key]) workflowNotificationInsertTarget[key] = 'body';
+    function getWorkflowNotificationNodeLabel(nodeType) {
+      return WORKFLOW_NOTIFICATION_NODE_OPTIONS.find((item) => item.value === nodeType)?.label || nodeType || '';
+    }
+
+    function getWorkflowNotificationEventLabel(nodeType, event) {
+      return getWorkflowNotificationEventOptions(nodeType)
+        .find((item) => item.value === event)?.label || event || '';
+    }
+
+    function migrateWorkflowNotificationPolicies(policies) {
+      if (!policies || typeof policies !== 'object' || Array.isArray(policies)) return [];
+      const rules = [];
+      WORKFLOW_NOTIFICATION_NODE_OPTIONS.forEach((node) => {
+        const policyGroup = policies[node.value];
+        if (!policyGroup || typeof policyGroup !== 'object') return;
+        getWorkflowNotificationEventOptions(node.value).forEach((event) => {
+          const policy = policyGroup[event.value];
+          const recipients = Array.isArray(policy?.recipients) ? policy.recipients.filter(Boolean) : [];
+          if (!recipients.length && !policy?.subject && !policy?.body) return;
+          rules.push({
+            id: newRuleId('ntf'),
+            nodeType: node.value,
+            event: event.value,
+            recipients,
+            subject: policy?.subject || '',
+            body: policy?.body || '',
+            enabled: true,
+          });
         });
       });
-    }, { immediate: true });
+      return rules;
+    }
 
-    const workflowNotificationVariableOptions = computed(() => {
-      const wf = getActiveWf();
-      const nodes = wf?.nodes || [];
-      return nodes.flatMap((node) =>
-        getWorkflowNodeOutputVarItems(node, wf)
-          .filter((item) => item?.path)
-          .map((item) => ({
-            value: item.path,
-            label: `${getWorkflowNodeVarName(node, wf)}.${item.name || item.id}`,
-          })),
-      );
+    function normalizeWorkflowNotificationRule(rule = {}) {
+      const nodeType = WORKFLOW_NOTIFICATION_NODE_OPTIONS.some((item) => item.value === rule.nodeType)
+        ? rule.nodeType
+        : 'preprocess';
+      const eventOptions = getWorkflowNotificationEventOptions(nodeType);
+      const event = eventOptions.some((item) => item.value === rule.event)
+        ? rule.event
+        : eventOptions[0]?.value || 'failed';
+      const recipients = Array.isArray(rule.recipients)
+        ? rule.recipients.filter((value) => NOTIFY_RECIPIENT_OPTIONS.some((item) => item.value === value))
+        : [];
+      return {
+        id: rule.id || newRuleId('ntf'),
+        nodeType,
+        event,
+        recipients,
+        subject: rule.subject || '',
+        body: rule.body || '',
+        enabled: rule.enabled !== false,
+      };
+    }
+
+    function syncWorkflowNotificationStore() {
+      const rules = ensureWorkflowNotificationStore();
+      form.stepNotifications.rules = rules.map(normalizeWorkflowNotificationRule);
+      delete form.stepNotifications.policies;
+      return form.stepNotifications.rules;
+    }
+
+    const workflowNotificationEventOptions = computed(() =>
+      getWorkflowNotificationEventOptions(notificationRuleDraft.nodeType)
+    );
+
+    const workflowNotificationEditEventOptions = computed(() =>
+      getWorkflowNotificationEventOptions(notificationRuleEditDraft.nodeType)
+    );
+
+    const workflowNotificationRuleRows = computed(() =>
+      syncWorkflowNotificationStore().map((rule, index) => ({
+        ...rule,
+        index: index + 1,
+        nodeLabel: getWorkflowNotificationNodeLabel(rule.nodeType),
+        eventLabel: getWorkflowNotificationEventLabel(rule.nodeType, rule.event),
+        recipientLabels: rule.recipients
+          .map((value) => NOTIFY_RECIPIENT_OPTIONS.find((item) => item.value === value)?.label)
+          .filter(Boolean),
+        bodySummary: String(rule.body || '').replace(/\s+/g, ' ').trim(),
+      }))
+    );
+
+    watch(() => notificationRuleDraft.nodeType, (nodeType) => {
+      const options = getWorkflowNotificationEventOptions(nodeType);
+      if (!options.some((item) => item.value === notificationRuleDraft.event)) {
+        notificationRuleDraft.event = options[0]?.value || '';
+      }
     });
 
-    function getWorkflowNotificationPolicy(nodeId, policyKey) {
-      const policies = ensureWorkflowNotificationStore();
-      return policies?.[nodeId]?.[policyKey] || { recipients: [], subject: '', body: '' };
+    watch(() => notificationRuleEditDraft.nodeType, (nodeType) => {
+      const options = getWorkflowNotificationEventOptions(nodeType);
+      if (!options.some((item) => item.value === notificationRuleEditDraft.event)) {
+        notificationRuleEditDraft.event = options[0]?.value || '';
+      }
+    });
+
+    const workflowNotificationVariableOptions = computed(() => {
+      const event = notificationRuleEditDialogVisible.value
+        ? notificationRuleEditDraft.event
+        : notificationRuleDraft.event;
+      const options = [
+        { value: 'caseId', label: 'caseId' },
+      ];
+      if (event === 'failed') {
+        options.push({ value: 'status', label: 'status' });
+      }
+      if (event === 'reviewRequired') {
+        options.push({ value: 'result', label: 'result' });
+      }
+      if (['approve', 'request_supplement', 'reject'].includes(event)) {
+        options.push({ value: 'branch', label: 'branch' });
+      }
+      return options;
+    });
+
+    function getWorkflowNotificationAllowedVariableNames(event) {
+      const names = ['caseId'];
+      if (event === 'failed') names.push('status');
+      if (event === 'reviewRequired') names.push('result');
+      if (['approve', 'request_supplement', 'reject'].includes(event)) names.push('branch');
+      return names;
     }
 
-    function isWorkflowNotificationPolicyConfigured(nodeId, policyKey) {
-      const policy = getWorkflowNotificationPolicy(nodeId, policyKey);
-      return Boolean((policy.recipients || []).length || policy.subject || policy.body);
+    function extractWorkflowNotificationVariableNames(rule) {
+      const text = `${rule?.subject || ''}\n${rule?.body || ''}`;
+      return [...text.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g)].map((match) => match[1]);
     }
 
-    function updateWorkflowNotificationPolicy(nodeId, policyKey, field, value) {
-      if (!nodeId || !policyKey || !['recipient', 'recipients', 'subject', 'body'].includes(field)) return;
-      const policies = ensureWorkflowNotificationStore();
-      if (!policies[nodeId]) policies[nodeId] = {};
-      const current = policies[nodeId][policyKey] || { recipients: [], subject: '', body: '' };
-      const nextField = field === 'recipient' ? 'recipients' : field;
-      const nextValue = field === 'recipient'
-        ? (Array.isArray(value) ? value : [value]).filter(Boolean)
-        : (value || '');
-      policies[nodeId][policyKey] = { ...current, [nextField]: nextValue };
-      savedSnapshot.value = JSON.stringify(form);
-      saveStorage(currentSceneId.value, form);
+    function validateWorkflowNotificationVariables(rule) {
+      const allowed = new Set(getWorkflowNotificationAllowedVariableNames(rule?.event));
+      const invalid = [...new Set(extractWorkflowNotificationVariableNames(rule)
+        .filter((name) => !allowed.has(name)))];
+      return invalid.length ? `このイベントでは使用できない変数があります：${invalid.join('、')}` : '';
     }
 
-    function clearWorkflowNotificationPolicy(nodeId, policyKey) {
-      const policies = ensureWorkflowNotificationStore();
-      if (!policies[nodeId]) return;
-      delete policies[nodeId][policyKey];
-      if (!Object.keys(policies[nodeId]).length) delete policies[nodeId];
-      savedSnapshot.value = JSON.stringify(form);
-      saveStorage(currentSceneId.value, form);
-    }
-
-    function insertWorkflowNotificationVariable(nodeId, policyKey, field, varPath) {
-      if (!varPath) return;
-      const current = getWorkflowNotificationPolicy(nodeId, policyKey);
-      const key = field === 'subject' ? 'subject' : 'body';
-      const next = insertNotifyVariableText(current[key] || '', varPath);
-      updateWorkflowNotificationPolicy(nodeId, policyKey, key, next);
-    }
-
-    function toggleWorkflowNotificationRow(nodeId) {
-      if (!nodeId) return;
-      const next = !workflowNotificationOpenRows[nodeId];
-      Object.keys(workflowNotificationOpenRows).forEach((key) => {
-        workflowNotificationOpenRows[key] = false;
+    function resetNotificationRuleDraft() {
+      Object.assign(notificationRuleDraft, {
+        id: '',
+        nodeType: 'preprocess',
+        event: 'failed',
+        recipients: [],
+        subject: '',
+        body: '',
+        enabled: true,
       });
-      workflowNotificationOpenRows[nodeId] = next;
+      workflowNotificationInsertTarget.value = 'body';
     }
 
-    function insertWorkflowNotificationText(nodeId, policyKey, varPath) {
-      if (!nodeId || !policyKey || !varPath) return;
-      const field = workflowNotificationInsertTarget[`${nodeId}-${policyKey}`] || 'body';
-      insertWorkflowNotificationVariable(nodeId, policyKey, field, varPath);
+    function validateWorkflowNotificationRule(rule, options = {}) {
+      if (!rule.nodeType) return '対象ノードを選択してください';
+      if (!rule.event) return 'トリガーイベントを選択してください';
+      if (!Array.isArray(rule.recipients) || !rule.recipients.length) return '通知対象を選択してください';
+      if (!rule.subject) return '件名を入力してください';
+      if (!rule.body) return '内容を入力してください';
+      const variableErr = validateWorkflowNotificationVariables(rule);
+      if (variableErr) return variableErr;
+      return '';
+    }
+
+    function saveWorkflowNotificationRuleDraft() {
+      const next = normalizeWorkflowNotificationRule(notificationRuleDraft);
+      const err = validateWorkflowNotificationRule(next, { excludeId: notificationRuleDraft.id });
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return;
+      }
+      const rules = syncWorkflowNotificationStore();
+      const index = rules.findIndex((rule) => rule.id === notificationRuleDraft.id);
+      if (index >= 0) rules.splice(index, 1, next);
+      else rules.push(next);
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+      resetNotificationRuleDraft();
+      ElementPlus.ElMessage.success(index >= 0 ? '更新しました' : '追加しました');
+    }
+
+    function editWorkflowNotificationRule(rule) {
+      if (!rule) return;
+      Object.assign(notificationRuleEditDraft, normalizeWorkflowNotificationRule(rule));
+      workflowNotificationEditInsertTarget.value = 'body';
+      notificationRuleEditDialogVisible.value = true;
+    }
+
+    function saveWorkflowNotificationRuleEdit() {
+      const next = normalizeWorkflowNotificationRule(notificationRuleEditDraft);
+      const err = validateWorkflowNotificationRule(next, { excludeId: notificationRuleEditDraft.id });
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return;
+      }
+      const rules = syncWorkflowNotificationStore();
+      const index = rules.findIndex((rule) => rule.id === notificationRuleEditDraft.id);
+      if (index < 0) {
+        ElementPlus.ElMessage.warning('編集対象の通知ルールが見つかりません');
+        return;
+      }
+      rules.splice(index, 1, next);
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+      notificationRuleEditDialogVisible.value = false;
+      ElementPlus.ElMessage.success('更新しました');
+    }
+
+    function deleteWorkflowNotificationRule(ruleId) {
+      const rules = syncWorkflowNotificationStore();
+      const index = rules.findIndex((rule) => rule.id === ruleId);
+      if (index < 0) return;
+      rules.splice(index, 1);
+      if (notificationRuleDraft.id === ruleId) resetNotificationRuleDraft();
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+    }
+
+    function updateWorkflowNotificationRuleEnabled(ruleId, enabled) {
+      const rules = syncWorkflowNotificationStore();
+      const rule = rules.find((item) => item.id === ruleId);
+      if (!rule) return;
+      rule.enabled = Boolean(enabled);
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+    }
+
+    function insertWorkflowNotificationText(varPath) {
+      if (!varPath) return;
+      const key = workflowNotificationInsertTarget.value === 'subject' ? 'subject' : 'body';
+      notificationRuleDraft[key] = insertNotifyVariableText(notificationRuleDraft[key] || '', varPath);
+    }
+
+    function insertWorkflowNotificationEditText(varPath) {
+      if (!varPath) return;
+      const key = workflowNotificationEditInsertTarget.value === 'subject' ? 'subject' : 'body';
+      notificationRuleEditDraft[key] = insertNotifyVariableText(notificationRuleEditDraft[key] || '', varPath);
     }
 
     function resetWorkflowNotificationConfig() {
-      form.stepNotifications = { policies: {} };
+      form.stepNotifications = { rules: [] };
+      resetNotificationRuleDraft();
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
     }
 
     function validateWorkflowNotificationConfig() {
-      const rows = workflowNotificationRows.value || [];
-      for (const row of rows) {
-        for (const policyMeta of row.policies || []) {
-          const policy = getWorkflowNotificationPolicy(row.node.id, policyMeta.key);
-          const hasAny = Boolean((policy.recipients || []).length || policy.subject || policy.body);
-          if (!hasAny) continue;
-          if (!(policy.recipients || []).length || !policy.subject || !policy.body) {
-            return `${row.label}・${policyMeta.label}：通知対象、件名、内容を入力してください`;
-          }
-        }
+      const rules = syncWorkflowNotificationStore();
+      for (const rule of rules) {
+        if (rule.enabled === false) continue;
+        const err = validateWorkflowNotificationRule(rule, { excludeId: rule.id });
+        if (err) return `${getWorkflowNotificationNodeLabel(rule.nodeType)}・${getWorkflowNotificationEventLabel(rule.nodeType, rule.event)}：${err}`;
       }
       return '';
     }
@@ -2523,7 +2696,7 @@ const appOptions = {
     const codeVariableOptions = computed(() => {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code') return [];
-      return buildCodeVariableOptions(getActiveWf(), node.id);
+      return buildCodeVariableOptions(getActiveWf(), node.id, decisionSceneContext.value);
     });
 
     function resetCodeParamDialogDraft(row = null) {
@@ -2808,33 +2981,33 @@ const appOptions = {
       }));
     });
 
-    function getWorkflowOutputChineseName(item = {}) {
+    function getWorkflowOutputDisplayName(item = {}) {
       const id = String(item.localId || item.id || item.name || '');
       const bare = id.includes('.') ? id.split('.').pop() : id;
       const byBare = {
         caseId: '案件ID',
-        files: '文件列表',
-        'files[]': '文件列表',
-        preprocessStatus: '前处理状态',
-        preprocessResult: '前处理结果',
-        ocrStatus: 'OCR抽出状态',
-        ocrResult: 'OCR抽出结果',
-        mappingStatus: '数据映射状态',
-        mappingResult: '数据映射结果',
-        standardFields: '标准字段',
-        verifyStatus: 'AI检证状态',
-        verifyResult: 'AI检证结果',
-        hitlStatus: '人工确认状态',
-        codeStatus: '自定义函数状态',
+        files: 'ファイル一覧',
+        'files[]': 'ファイル一覧',
+        preprocessStatus: '前処理状態',
+        preprocessResult: '前処理結果',
+        ocrStatus: 'OCR抽出状態',
+        ocrResult: 'OCR抽出結果',
+        mappingStatus: 'データマッピング状態',
+        mappingResult: 'データマッピング結果',
+        standardFields: '標準フィールド',
+        verifyStatus: 'AI検証状態',
+        verifyResult: 'AI検証結果',
+        hitlStatus: '人工確認状態',
+        codeStatus: 'カスタム関数状態',
       };
-      return byBare[bare] || item.label || bare || '变量';
+      return t(byBare[bare] || item.label || bare || '変数');
     }
 
     function formatWorkflowOutputInfo(item) {
-      const name = getWorkflowOutputChineseName(item);
+      const name = getWorkflowOutputDisplayName(item);
       const parts = [
         `変数名：${name}`,
-        item?.valueSpec ? `取値範囲：${item.valueSpec}` : '',
+        item?.valueSpec ? `取値範囲：${t(item.valueSpec)}` : '',
       ].filter(Boolean);
       const base = [...new Set(parts)].join('\n') || '説明なし';
       const example = typeof getWorkflowOutputVarExample === 'function'
@@ -9050,19 +9223,25 @@ const appOptions = {
       proceedToWorkflowStep,
       publishWorkflowScene,
       resetSceneSetup,
-      workflowNotificationRows,
-      workflowNotificationExpandableRows,
-      workflowNotificationOpenRows,
+      WORKFLOW_NOTIFICATION_NODE_OPTIONS,
+      notificationRuleDraft,
+      notificationRuleEditDraft,
+      notificationRuleEditDialogVisible,
+      workflowNotificationEventOptions,
+      workflowNotificationEditEventOptions,
+      workflowNotificationRuleRows,
       workflowNotificationInsertTarget,
+      workflowNotificationEditInsertTarget,
       workflowNotificationVariableOptions,
-      getWorkflowNotificationPolicy,
-      isWorkflowNotificationPolicyConfigured,
-      updateWorkflowNotificationPolicy,
-      clearWorkflowNotificationPolicy,
-      insertWorkflowNotificationVariable,
       insertWorkflowNotificationText,
+      insertWorkflowNotificationEditText,
+      resetNotificationRuleDraft,
+      saveWorkflowNotificationRuleDraft,
+      saveWorkflowNotificationRuleEdit,
+      editWorkflowNotificationRule,
+      deleteWorkflowNotificationRule,
+      updateWorkflowNotificationRuleEnabled,
       resetWorkflowNotificationConfig,
-      toggleWorkflowNotificationRow,
       enterWorkflowCanvasView,
       cancelSceneSetup,
       goToWorkflowSetupStep,
