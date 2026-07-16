@@ -1844,10 +1844,14 @@ const appOptions = {
       { value: 'hitl_gate', label: '人工確認' },
     ];
 
-    const WORKFLOW_NOTIFICATION_PROCESSING_EVENTS = [
-      { value: 'failed', label: '処理失敗' },
-      { value: 'reviewRequired', label: '結果要確認' },
-    ];
+    const WORKFLOW_NOTIFICATION_STATUS_VALUES = ['processing', 'success', 'failed'];
+    const WORKFLOW_NOTIFICATION_RESULT_VALUES = ['passed', 'reviewRequired'];
+    const WORKFLOW_NOTIFICATION_NODE_VARIABLES = {
+      preprocess: { status: 'preprocessStatus', result: 'preprocessResult' },
+      ocr: { status: 'ocrStatus', result: 'ocrResult' },
+      data_mapping: { status: 'mappingStatus', result: 'mappingResult' },
+      ai_verify: { status: 'verifyStatus', result: 'verifyResult' },
+    };
     const WORKFLOW_NOTIFICATION_HITL_EVENTS = [
       { value: 'approve', label: '完成' },
       { value: 'request_supplement', label: '補件' },
@@ -1857,7 +1861,7 @@ const appOptions = {
     const notificationRuleDraft = reactive({
       id: '',
       nodeType: 'preprocess',
-      event: 'failed',
+      event: 'preprocessStatus:failed',
       recipients: [],
       subject: '',
       body: '',
@@ -1866,7 +1870,7 @@ const appOptions = {
     const notificationRuleEditDraft = reactive({
       id: '',
       nodeType: 'preprocess',
-      event: 'failed',
+      event: 'preprocessStatus:failed',
       recipients: [],
       subject: '',
       body: '',
@@ -1877,9 +1881,21 @@ const appOptions = {
     const workflowNotificationEditInsertTarget = ref('body');
 
     function getWorkflowNotificationEventOptions(nodeType) {
-      return nodeType === 'hitl_gate'
-        ? WORKFLOW_NOTIFICATION_HITL_EVENTS
-        : WORKFLOW_NOTIFICATION_PROCESSING_EVENTS;
+      if (nodeType === 'hitl_gate') return WORKFLOW_NOTIFICATION_HITL_EVENTS;
+      const vars = WORKFLOW_NOTIFICATION_NODE_VARIABLES[nodeType] || WORKFLOW_NOTIFICATION_NODE_VARIABLES.preprocess;
+      const statusOptions = vars.status
+        ? WORKFLOW_NOTIFICATION_STATUS_VALUES.map((value) => ({
+            value: `${vars.status}:${value}`,
+            label: `${vars.status} = ${value}`,
+          }))
+        : [];
+      const resultOptions = vars.result
+        ? WORKFLOW_NOTIFICATION_RESULT_VALUES.map((value) => ({
+            value: `${vars.result}:${value}`,
+            label: `${vars.result} = ${value}`,
+          }))
+        : [];
+      return [...statusOptions, ...resultOptions];
     }
 
     function getWorkflowNotificationNodeLabel(nodeType) {
@@ -1889,6 +1905,14 @@ const appOptions = {
     function getWorkflowNotificationEventLabel(nodeType, event) {
       return getWorkflowNotificationEventOptions(nodeType)
         .find((item) => item.value === event)?.label || event || '';
+    }
+
+    function migrateWorkflowNotificationEvent(nodeType, event) {
+      if (nodeType === 'hitl_gate') return event;
+      const vars = WORKFLOW_NOTIFICATION_NODE_VARIABLES[nodeType] || WORKFLOW_NOTIFICATION_NODE_VARIABLES.preprocess;
+      if (event === 'failed' && vars.status) return `${vars.status}:failed`;
+      if (event === 'reviewRequired' && vars.result) return `${vars.result}:reviewRequired`;
+      return event;
     }
 
     function migrateWorkflowNotificationPolicies(policies) {
@@ -1920,8 +1944,9 @@ const appOptions = {
         ? rule.nodeType
         : 'preprocess';
       const eventOptions = getWorkflowNotificationEventOptions(nodeType);
-      const event = eventOptions.some((item) => item.value === rule.event)
-        ? rule.event
+      const migratedEvent = migrateWorkflowNotificationEvent(nodeType, rule.event);
+      const event = eventOptions.some((item) => item.value === migratedEvent)
+        ? migratedEvent
         : eventOptions[0]?.value || 'failed';
       const recipients = Array.isArray(rule.recipients)
         ? rule.recipients.filter((value) => NOTIFY_RECIPIENT_OPTIONS.some((item) => item.value === value))
@@ -2009,7 +2034,7 @@ const appOptions = {
       Object.assign(notificationRuleDraft, {
         id: '',
         nodeType: 'preprocess',
-        event: 'failed',
+        event: 'preprocessStatus:failed',
         recipients: [],
         subject: '',
         body: '',
@@ -2103,7 +2128,7 @@ const appOptions = {
     }
 
     function resetWorkflowCanvas() {
-      ElementPlus.ElMessageBox.confirm('ワークフロー画面上のすべてのノードと接続を削除します。開始ノードも削除されます。続行しますか？', '', {
+      ElementPlus.ElMessageBox.confirm('ワークフロー画面上のすべてのノードと接続を削除します。続行しますか？', '', {
         confirmButtonText: 'OK',
         cancelButtonText: 'キャンセル',
         type: 'warning',
@@ -5741,6 +5766,10 @@ const appOptions = {
       if (!id) return;
       const node = getActiveWf()?.nodes?.find((n) => n.id === id);
       if (!node) return;
+      if (node.type === 'start' || node.isStart) {
+        ElementPlus.ElMessage.warning('開始ノードは個別削除できません。リセットでは画面上のすべてのノードを削除できます。');
+        return;
+      }
       const name = getWorkflowNodeDisplayLabel(node);
       ElementPlus.ElMessageBox.confirm(
         `「${name}」を削除しますか？関連する接続も削除されます。`,

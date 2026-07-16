@@ -749,7 +749,7 @@
                           <span class="wf-node-terminal-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                           <span class="wf-node-terminal-label">{{ getWorkflowNodeMeta(node.type).title }}</span>
                           <button
-                            v-if="['start', 'end'].includes(node.type) && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                            v-if="node.type === 'end' && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
                             type="button"
                             class="wf-node-action wf-node-action--terminal"
                             title="削除"
@@ -1157,7 +1157,7 @@
                   </el-tooltip>
                 </div>
                 <el-button
-                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && !inspectorExpanded"
+                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && selectedWorkflowNode.type !== 'start' && !inspectorExpanded"
                   type="danger"
                   link
                   @click="confirmRemoveSelectedWorkflowNode"

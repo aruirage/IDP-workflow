@@ -4384,7 +4384,15 @@ function migrateDefaultHitlWaitFlags(workflow) {
 function normalizeWorkflow(workflow, flowKey = 'case') {
   const w = cloneJson(workflow || {});
   if (!Array.isArray(w.nodes) || !w.nodes.length) {
-    return buildMinimalCaseWorkflow();
+    return {
+      nodes: [],
+      edges: [],
+      startNodeId: '',
+      layoutVersion: 12,
+      templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+      isTemplate: false,
+      topologyCustomized: true,
+    };
   }
   if (!Array.isArray(w.edges)) w.edges = [];
   migrateRemoveLegacyIoNodes(w);
@@ -4427,13 +4435,10 @@ function normalizeWorkflow(workflow, flowKey = 'case') {
 function getWorkflowStartNode(workflow) {
   const nodes = workflow?.nodes || [];
   if (!nodes.length) return null;
-  const edges = workflow?.edges || [];
-  const mainIn = new Set(edges.filter((e) => !e.branch).map((e) => e.to));
   return nodes.find((n) => n.type === 'start')
     || nodes.find((n) => n.isStart)
-    || nodes.find((n) => n.id === workflow?.startNodeId)
-    || nodes.find((n) => !mainIn.has(n.id))
-    || nodes[0];
+    || nodes.find((n) => n.id === workflow?.startNodeId && n.type === 'start')
+    || null;
 }
 
 function ensureWorkflowStartNode(workflow) {
@@ -4445,6 +4450,8 @@ function ensureWorkflowStartNode(workflow) {
   if (start) {
     start.isStart = true;
     workflow.startNodeId = start.id;
+  } else {
+    workflow.startNodeId = '';
   }
 }
 
