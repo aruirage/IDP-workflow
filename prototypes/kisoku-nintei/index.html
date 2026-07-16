@@ -282,7 +282,6 @@
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
-              <el-button @click="resetSceneSetup">リセット</el-button>
               <el-button
                 type="warning"
                 class="wf-check-links-btn"
@@ -614,7 +613,7 @@
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
-              <el-button @click="resetNode">リセット</el-button>
+              <el-button @click="resetWorkflowCanvas">リセット</el-button>
               <el-button @click="goToWorkflowSetupStep(1)">前へ</el-button>
               <el-button @click="goToWorkflowSetupStep(3)">次へ</el-button>
               <el-button type="warning" class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト</el-button>
@@ -750,7 +749,7 @@
                           <span class="wf-node-terminal-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                           <span class="wf-node-terminal-label">{{ getWorkflowNodeMeta(node.type).title }}</span>
                           <button
-                            v-if="node.type === 'end' && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                            v-if="['start', 'end'].includes(node.type) && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
                             type="button"
                             class="wf-node-action wf-node-action--terminal"
                             title="削除"
@@ -1158,7 +1157,7 @@
                   </el-tooltip>
                 </div>
                 <el-button
-                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && selectedWorkflowNode.type !== 'start' && !inspectorExpanded"
+                  v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && !inspectorExpanded"
                   type="danger"
                   link
                   @click="confirmRemoveSelectedWorkflowNode"
@@ -1768,7 +1767,6 @@
             </div>
             <div class="wf-toolbar-center"></div>
             <div class="wf-toolbar-right">
-              <el-button @click="resetWorkflowNotificationConfig">リセット</el-button>
               <el-button @click="goToWorkflowSetupStep(2)">前へ</el-button>
               <el-button @click="goToWorkflowStep4FromNotifications">次へ</el-button>
               <el-button type="primary" @click="saveWorkflowNotificationConfig">保存</el-button>

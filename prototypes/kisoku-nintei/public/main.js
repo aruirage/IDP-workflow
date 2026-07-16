@@ -2102,11 +2102,36 @@ const appOptions = {
       notificationRuleEditDraft[key] = insertNotifyVariableText(notificationRuleEditDraft[key] || '', varPath);
     }
 
-    function resetWorkflowNotificationConfig() {
-      form.stepNotifications = { rules: [] };
-      resetNotificationRuleDraft();
-      savedSnapshot.value = JSON.stringify(form);
-      saveStorage(currentSceneId.value, form);
+    function resetWorkflowCanvas() {
+      ElementPlus.ElMessageBox.confirm('ワークフロー画面上のすべてのノードと接続を削除します。開始ノードも削除されます。続行しますか？', '', {
+        confirmButtonText: 'OK',
+        cancelButtonText: 'キャンセル',
+        type: 'warning',
+      }).then(() => {
+        form.workflows.case = {
+          nodes: [],
+          edges: [],
+          startNodeId: '',
+          layoutVersion: 12,
+          templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+          isTemplate: false,
+          topologyCustomized: true,
+        };
+        form.workflows.case.isTemplate = false;
+        form.workflows.case.topologyCustomized = true;
+        form.workflowTestStatus = 'untested';
+        form.scene.publishStatus = 'draft';
+        form.outputConfigStatus = 'unsaved';
+        selectedWorkflowNodeId.value = '';
+        selectedWorkflowEdgeKey.value = null;
+        inspectorMode.value = 'scene';
+        syncCurrentNodeFromWorkflow(null);
+        initWorkflowHistory('Workflow をクリア');
+        savedSnapshot.value = JSON.stringify(form);
+        saveStorage(currentSceneId.value, form);
+        nextTick(() => fitWorkflowToView());
+        ElementPlus.ElMessage.info('リセットしました');
+      }).catch(() => {});
     }
 
     function validateWorkflowNotificationConfig() {
@@ -5053,30 +5078,6 @@ const appOptions = {
       workflowSetupStep.value = 2;
     }
 
-    function resetSceneSetup() {
-      ElementPlus.ElMessageBox.confirm('すべての設定をリセットしますか？', '', {
-        confirmButtonText: 'OK',
-        cancelButtonText: 'キャンセル',
-        type: 'warning',
-      }).then(() => {
-        if (sceneSetupMode.value === 'edit' && sceneSetupDraft.sceneId) {
-          const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
-          if (!scene) {
-            resetSceneSetupDraft();
-          } else if (scene.id === currentSceneId.value) {
-            const saved = normalizeLoadedForm(JSON.parse(savedSnapshot.value)) || form;
-            loadSceneSetupDraftFromData(saved, scene.id, scene.name);
-          } else {
-            const stored = normalizeLoadedForm(loadSceneFromStorage(scene.id)) || sceneFormByScene(scene);
-            loadSceneSetupDraftFromData(stored, scene.id, scene.name);
-          }
-        } else {
-          resetSceneSetupDraft();
-        }
-        ElementPlus.ElMessage.info('リセットしました');
-      }).catch(() => {});
-    }
-
     function goToWorkflowSetupStep(step) {
       if (step === 1) {
         if (workflowSetupStep.value === 1) return;
@@ -5740,10 +5741,6 @@ const appOptions = {
       if (!id) return;
       const node = getActiveWf()?.nodes?.find((n) => n.id === id);
       if (!node) return;
-      if (node.type === 'start' || node.isStart) {
-        ElementPlus.ElMessage.warning('開始ノードは削除できません。');
-        return;
-      }
       const name = getWorkflowNodeDisplayLabel(node);
       ElementPlus.ElMessageBox.confirm(
         `「${name}」を削除しますか？関連する接続も削除されます。`,
@@ -6256,6 +6253,7 @@ const appOptions = {
       wf.topologyCustomized = true;
       wf.nodes = (wf.nodes || []).filter((n) => n.id !== id);
       wf.edges = (wf.edges || []).filter((e) => e.from !== id && e.to !== id);
+      if (wf.startNodeId === id) wf.startNodeId = '';
       if (selectedWorkflowNodeId.value === id) {
         selectedWorkflowNodeId.value = wf.nodes[0]?.id || null;
         if (selectedWorkflowNodeId.value) {
@@ -9305,7 +9303,6 @@ const appOptions = {
       confirmSceneSetup,
       proceedToWorkflowStep,
       publishWorkflowScene,
-      resetSceneSetup,
       WORKFLOW_NOTIFICATION_NODE_OPTIONS,
       notificationRuleDraft,
       notificationRuleEditDraft,
@@ -9324,7 +9321,6 @@ const appOptions = {
       editWorkflowNotificationRule,
       deleteWorkflowNotificationRule,
       updateWorkflowNotificationRuleEnabled,
-      resetWorkflowNotificationConfig,
       enterWorkflowCanvasView,
       cancelSceneSetup,
       goToWorkflowSetupStep,
@@ -9589,6 +9585,7 @@ const appOptions = {
       inspectorMode,
       workflowEdgePaths,
       selectWorkflowNode,
+      resetWorkflowCanvas,
       removeWorkflowNode,
       confirmRemoveSelectedWorkflowNode,
       addWorkflowNodeFromLibrary,
