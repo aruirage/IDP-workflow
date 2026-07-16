@@ -213,7 +213,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/16 17:06:11</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/16 17:11:58</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -289,7 +289,7 @@
   hasSource -- &quot;否&quot; --&gt; noSource[&quot;无触发源\n不发送、不报错&quot;]
   hasSource -- &quot;是&quot; --&gt; render[&quot;渲染件名 / 内容&quot;]
   render --&gt; missingVar{&quot;变量有缺值？&quot;}
-  missingVar -- &quot;是&quot; --&gt; logMissing[&quot;按空值渲染\n记录缺值日志&quot;]
+  missingVar -- &quot;是&quot; --&gt; logMissing[&quot;按空值渲染&quot;]
   missingVar -- &quot;否&quot; --&gt; send[&quot;发送通知&quot;]
   logMissing --&gt; send
   send --&gt; continueFlow[&quot;工作流继续&quot;]</div>
@@ -503,12 +503,6 @@
     }</code></pre>
 <p>输出变量（配置端不折叠；行内仅变量键+类型；i 只显示变量显示名、取值范围；<code>files[]</code> 才显示 1 条短示例）：</p>
 <table><thead><tr><th>变量键</th><th>类型</th><th>消费分类</th><th>取值范围</th><th>定义</th></tr></thead><tbody><tr><td><code>codeStatus</code></td><td>Enum</td><td>条件</td><td><code>processing / success / failed</code></td><td>Python 脚本处理状态；不输出 result 或错误消息变量</td></tr></tbody></table>
-<h4 class="subsection-heading">Step1 账票模板字段</h4>
-<p>Step1 账票模板字段不是节点输出变量。条件节点可以读取上游 OCR 结果聚合后的账票字段叶子，用于简单分岔。<code>帳票フィールド</code> 和 <code>{帳票タイプ}</code> 只是级联分组；只有选到第三级 <code>{OCR字段名}</code> 后，才按 String 类型展示对应运算子。</p>
-<p>条件节点变量级联：</p>
-<table><thead><tr><th>级</th><th>界面文案</th><th>含义</th></tr></thead><tbody><tr><td>L1</td><td>帳票フィールド</td><td>Step1 账票 OCR 字段分组</td></tr><tr><td>L2</td><td>{帳票タイプ}</td><td>具体账票类型名</td></tr><tr><td>L3</td><td>{OCR Field Name}</td><td>该类型模板中的 OCR 字段</td></tr></tbody></table>
-<p>变量规则：</p>
-<table><thead><tr><th>变量键</th><th>类型</th><th>消费分类</th><th>可用运算子</th><th>定义</th></tr></thead><tbody><tr><td><code>docTypes.{账票类型}.{OCR字段名}</code></td><td>String</td><td>条件</td><td>按 String 类型展示</td><td>从 <code>files[].ocrFields</code> 聚合得到的运行时字段值</td></tr></tbody></table>
       </article>
     </main>
   </div>
