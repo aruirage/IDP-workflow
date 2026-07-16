@@ -102,9 +102,9 @@ const INSPECTOR_HINTS = {
 };
 
 const CASE_WORKFLOW_TEMPLATE_VERSION = 23;
-const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 18;
-const WF_LAYOUT_PAD = { x: 48, y: 160 };
-const WF_BRANCH_LANE_GAP = 88;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 19;
+const WF_LAYOUT_PAD = { x: 72, y: 132 };
+const WF_BRANCH_LANE_GAP = 132;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-end',
@@ -4783,12 +4783,17 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   ensureCanonicalCaseWorkflowEndNode(workflow);
   const byId = Object.fromEntries(workflow.nodes.map((node) => [node.id, node]));
   const mainIds = [
-    'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
-    'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
+    'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
+    'wf-map', 'wf-ai', 'wf-d-final',
   ].filter((id) => byId[id]);
+  const hitlAnchors = [
+    ['wf-hu-pre', 'wf-d-pre'],
+    ['wf-hu-ocr', 'wf-d-ocr'],
+    ['wf-hu-final', 'wf-d-final'],
+  ].filter(([hitlId, anchorId]) => byId[hitlId] && byId[anchorId]);
   const notifyIds = ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].filter((id) => byId[id]);
-  const stepGap = WF_NODE_GAP;
-  const notifyLaneGap = WF_BRANCH_LANE_GAP;
+  const stepGap = 96;
+  const notifyLaneGap = 28;
   const rowY = WF_LAYOUT_PAD.y;
   let x = WF_LAYOUT_PAD.x;
   let mainMaxH = 76;
@@ -4802,7 +4807,18 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     x += size.w + stepGap;
   });
 
-  const notifyColumnX = x;
+  let lowerMaxBottom = rowY + mainMaxH;
+  hitlAnchors.forEach(([hitlId, anchorId]) => {
+    const hitl = byId[hitlId];
+    const anchor = byId[anchorId];
+    const anchorSize = sizes.get(anchor.id) || getWorkflowNodeLayoutSize(anchor);
+    const hitlSize = sizes.get(hitl.id) || getWorkflowNodeLayoutSize(hitl);
+    hitl.x = anchor.x + Math.round((anchorSize.w - hitlSize.w) / 2);
+    hitl.y = rowY + mainMaxH + WF_BRANCH_LANE_GAP;
+    lowerMaxBottom = Math.max(lowerMaxBottom, hitl.y + hitlSize.h);
+  });
+
+  const notifyColumnX = x + 8;
   const notifyNodes = notifyIds.map((id) => {
     const size = sizes.get(id) || getWorkflowNodeLayoutSize(byId[id]);
     return { id, size };
@@ -4825,7 +4841,8 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   if (endNode) {
     const endSize = sizes.get(endNode.id) || getWorkflowNodeLayoutSize(endNode);
     endNode.x = (notifyNodes.length ? maxNotifyRight : x) + stepGap;
-    endNode.y = rowY + Math.max(0, Math.round((mainMaxH - endSize.h) / 2));
+    const flowHeight = Math.max(mainMaxH, lowerMaxBottom - rowY, stackHeight);
+    endNode.y = rowY + Math.max(0, Math.round((flowHeight - endSize.h) / 2));
   }
 
   workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;

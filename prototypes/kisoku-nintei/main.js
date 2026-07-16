@@ -1,5 +1,5 @@
-const MAIN_BUILD = '592-ensure-end-node';
-const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v18';
+const MAIN_BUILD = '635-readable-output-layout';
+const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v19';
 
 const appOptions = {
   setup() {

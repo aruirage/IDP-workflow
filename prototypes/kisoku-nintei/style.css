@@ -2925,7 +2925,7 @@ code.export-config-meta-value {
 .export-config--step .export-config-detail {
   border: 1px solid #e4e7ec;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
   background: #fff;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
 }
@@ -3009,8 +3009,13 @@ code.export-config-meta-value {
   border: 1px solid #e4e7ec;
   border-radius: 8px;
   background: #fff;
+  flex: none;
+  overflow-x: auto;
+  overflow-y: visible;
+  max-height: none;
 }
 .export-config--step .export-field-table {
+  min-width: 860px;
   font-size: 15px;
 }
 .export-config--step .export-field-table thead th {
@@ -3035,9 +3040,27 @@ code.export-config-meta-value {
   height: 22px;
 }
 .export-config--step .export-field-table td.col-no {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  white-space: nowrap;
+}
+.export-config--step .export-field-table td.col-no > span {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.export-config--step .export-field-table td.col-no > span + span {
+  margin-left: 8px;
+}
+.export-config--step .export-field-row td {
+  padding-top: 13px;
+  padding-bottom: 13px;
+  line-height: 1.45;
+}
+.export-config--step .export-field-name,
+.export-config--step .export-sample-value,
+.export-config--step .export-match-value {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
 }
 .export-config--step .export-field-drag-handle {
   display: inline-flex;
