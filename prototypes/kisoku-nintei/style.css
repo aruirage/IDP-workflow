@@ -3065,7 +3065,9 @@ code.export-config-meta-value {
 .wf-notification-step-page {
   padding: 18px 24px 28px;
   background: #f8fafc;
-  min-height: calc(100vh - 150px);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .workflow-notification-list {
@@ -3077,7 +3079,7 @@ code.export-config-meta-value {
   background: #fff;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .workflow-notification-row-head {
@@ -3209,6 +3211,14 @@ code.export-config-meta-value {
 
 .workflow-notification-var-select {
   width: 220px;
+}
+
+.idp-workflow-notification-select-popper.el-popper {
+  z-index: 6000 !important;
+}
+
+.idp-workflow-notification-select-popper .el-select-dropdown__wrap {
+  max-height: min(280px, 50vh);
 }
 .export-ocr-table-section {
   margin: 0 18px 18px;
@@ -6584,6 +6594,7 @@ code.export-config-meta-value {
 .idp-workflow-module > .wf-setup-stepper { flex-shrink: 0; }
 .idp-workflow-module > .wf-toolbar { flex-shrink: 0; }
 .idp-workflow-module > .wf-setup-page { flex: 1; min-height: 0; }
+.idp-workflow-module > .wf-notification-step-page { flex: 1; min-height: 0; }
 .idp-workflow-module > .wf-export-step-page { flex: 1; min-height: 0; }
 .idp-workflow-module > .idp-workspace { flex: 1; min-height: 0; }
 .idp-workflow-module > .wf-config-subpage {

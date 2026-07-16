@@ -1787,10 +1787,30 @@ const appOptions = {
       { key: 'ocr', type: 'ocr', label: 'OCR抽出', varName: 'ocr' },
       { key: 'data_mapping', type: 'data_mapping', label: 'データマッピング', varName: 'dataMapping' },
       { key: 'ai_verify', type: 'ai_verify', label: 'AI検証', varName: 'aiVerify' },
+      { key: 'hitl_gate', type: 'hitl_gate', label: '人工確認', varName: 'hitl' },
     ];
 
     function getWorkflowNotificationPoliciesForModule(module) {
       if (!module) return [];
+      if (module.type === 'hitl_gate') {
+        return [
+          {
+            key: 'approve',
+            label: '完了通知',
+            desc: '人工確認で「完成」出口が選択された場合に通知します',
+          },
+          {
+            key: 'request_supplement',
+            label: '補件通知',
+            desc: '人工確認で「補件」出口が選択された場合に通知します',
+          },
+          {
+            key: 'reject',
+            label: '案件終止通知',
+            desc: '人工確認で「案件終止」出口が選択された場合に通知します',
+          },
+        ];
+      }
       return [
         {
           key: 'failed',

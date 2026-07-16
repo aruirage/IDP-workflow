@@ -1778,7 +1778,7 @@
           <div class="wf-notification-step-page">
             <div v-if="!workflowNotificationRows.length" class="export-config-empty-panel">
               <p class="export-config-empty-title">通知を設定できるノードがありません</p>
-              <p class="export-config-empty-desc">Workflow に処理ノード、人工確認、カスタム関数を追加すると通知設定を追加できます。</p>
+              <p class="export-config-empty-desc">Workflow に処理ノードまたは人工確認を追加すると通知設定を追加できます。</p>
               <el-button type="primary" plain @click="goToWorkflowSetupStep(2)">ワークフローへ戻る</el-button>
             </div>
             <div v-else class="workflow-notification-list">
@@ -1828,6 +1828,8 @@
                           multiple
                           collapse-tags
                           collapse-tags-tooltip
+                          teleported
+                          popper-class="idp-workflow-notification-select-popper"
                           placeholder="通知対象を選択"
                           size="small"
                           @change="(values) => updateWorkflowNotificationPolicy(row.node.id, policy.key, 'recipients', values)"
@@ -1849,6 +1851,8 @@
                           </el-radio-group>
                           <el-select
                             class="workflow-notification-var-select"
+                            teleported
+                            popper-class="idp-workflow-notification-select-popper"
                             placeholder="変数"
                             size="small"
                             @change="(value) => insertWorkflowNotificationText(row.node.id, policy.key, value)"
