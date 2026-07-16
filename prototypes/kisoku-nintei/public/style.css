@@ -3377,10 +3377,16 @@ code.export-config-meta-value {
 
 .workflow-notification-insert {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   margin-top: 0;
   color: #667085;
   font-size: 12px;
+}
+
+.workflow-notification-insert-hint {
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .workflow-notification-insert-actions {
@@ -3392,6 +3398,24 @@ code.export-config-meta-value {
 
 .workflow-notification-var-select {
   width: 100%;
+}
+
+.workflow-notification-var-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 240px;
+}
+
+.workflow-notification-var-option code {
+  color: #175cd3;
+  font-size: 12px;
+}
+
+.workflow-notification-var-option span {
+  color: #667085;
+  font-size: 11px;
 }
 
 .idp-workflow-notification-select-popper.el-popper {

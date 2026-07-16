@@ -218,13 +218,17 @@ const appOptions = {
       ['アップロードしたファイルを使い、画布上のノード順に実行します。', '使用上传文件，按画布上的节点顺序执行。'],
       ['案件集約完了後、Workflow ノードを順に実行します', '案件集约完成后，按顺序执行 Workflow 节点'],
       ['右側のノードをクリックすると、ここに処理結果を表示します。', '点击右侧节点后，这里显示处理结果。'],
+      ['右側のノードをクリックすると、ここにチェック結果を表示します。', '点击右侧节点后，这里显示检查结果。'],
       ['ノードをクリックすると設定パネルが表示されます。', '点击节点后将显示设置面板。'],
       ['プレビュー — テスト実行後に確定', '预览 — 测试执行后确定'],
+      ['プレビュー — チェック実行後に確定', '预览 — 检查执行后确定'],
       ['アップロード結果', '上传结果'],
       ['ファイル分割結果', '文件分割结果'],
       ['案件集約結果', '案件集约结果'],
       ['実行パイプライン', '执行链路'],
       ['処理時間', '处理时间'],
+      ['チェック時間', '检查时间'],
+      ['Workflow チェック', 'Workflow 检查'],
       ['補件依頼', '要求补件'],
       ['アクション分岐', '动作分支'],
       ['3 つの出口（+）から下流ノードを接続してください。分岐はシステム固定です。', '请从 3 个出口（+）连接下游节点。分支由系统固定。'],
@@ -756,7 +760,8 @@ const appOptions = {
       ['開始ノードから到達可能な順に Workflow ノードを実行します（環状パス上のノードは初回到達順で表示）', '从起始节点起按可达顺序执行 Workflow 节点（环路径上的节点按首次到达顺序展示）'],
       ['入力前提', '输入前提'],
       ['選択中の入力前提', '当前选中的输入前提'],
-      ['テスト用データ', '测试数据'],
+      ['テスト用データ', '检查输入'],
+      ['チェック入力', '检查输入'],
       ['案件一覧から集約済み案件を選択してください。案件集約は実行しません。', '请从案件一览选择已集约完成的案件；本测试不执行案件集约。'],
       ['または', '或'],
       ['業務シーンを公開すると、集約済み案件を選択できます', '请先发布业务场景，再从案件一览选择已集约案件'],
@@ -791,14 +796,15 @@ const appOptions = {
       ['テストデータを更新しました', '已更新测试数据'],
       ['アップロード', '已上传'],
       ['内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。', '使用内置标准集约済み案件快照（只读）作为测试输入。'],
+      ['内蔵の集約済み案件スナップショットをチェック入力として使用します。実際の OCR / AI / 通知送信 / Python 実行は行いません。', '使用内置集约済み案件快照作为检查输入；不执行真实 OCR / AI / 通知发送 / Python。'],
       ['読み取り専用', '只读'],
       ['JSON の形式が正しくありません', 'JSON 格式不正确'],
-      ['テスト用データを初期値に戻しました', '已恢复测试数据默认值'],
+      ['テスト用データを初期値に戻しました', '已恢复检查输入默认值'],
       ['案件番号を入力してください', '请输入案件编号'],
       ['案件名を入力してください', '请输入案件名'],
       ['紐付ファイルを1件以上追加してください', '请至少添加一个关联文件'],
       ['ファイル名が空の行があります', '存在文件名为空的行'],
-      ['集約済み案件のテスト用スナップショットを編集し、保存すると次回以降も利用できます。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '可编辑集约済み案件测试快照，保存后下次可继续使用。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
+      ['集約済み案件のテスト用スナップショットを編集し、保存すると次回以降も利用できます。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '可编辑集约済み案件检查快照，保存后下次可继续使用。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
       ['案件番号', '案件编号'],
       ['案件名', '案件名'],
       ['起動イベント', '启动事件'],
@@ -809,7 +815,7 @@ const appOptions = {
       ['行を追加', '添加行'],
       ['削除', '删除'],
       ['初期値に戻す', '恢复默认值'],
-      ['テスト用データを保存', '保存测试数据'],
+      ['テスト用データを保存', '保存检查输入'],
       ['主帳票', '主账票'],
       ['関連帳票', '相关账票'],
       ['参考資料', '参考资料'],
@@ -1797,10 +1803,8 @@ const appOptions = {
       return !(ocrNode && enabled.length > 0);
     });
 
-    // 公开：画布可发布，且输出配置有效；无 OCR/标准字段候选时可直接公开
-    const canPublishWorkflowScene = computed(() =>
-      scenePublishStatusKey.value === 'ready'
-      && (form.outputConfigStatus === 'valid' || step3ExportCandidatesEmpty.value));
+    // 公开：只由 Step2 Workflow テスト成功决定；Step3/Step4 保存不作为发布门禁
+    const canPublishWorkflowScene = computed(() => scenePublishStatusKey.value === 'ready');
 
     const outputExportFieldMode = computed({
       get() {
@@ -1976,43 +1980,30 @@ const appOptions = {
     });
 
     const workflowNotificationVariableOptions = computed(() => {
-      const event = notificationRuleEditDialogVisible.value
-        ? notificationRuleEditDraft.event
-        : notificationRuleDraft.event;
-      const options = [
-        { value: 'caseId', label: 'caseId' },
+      const systemOptions = [
+        { value: 'caseId', label: 'caseId', desc: 'システム変数 · 案件ID' },
       ];
-      if (event === 'failed') {
-        options.push({ value: 'status', label: 'status' });
-      }
-      if (event === 'reviewRequired') {
-        options.push({ value: 'result', label: 'result' });
-      }
-      if (['approve', 'request_supplement', 'reject'].includes(event)) {
-        options.push({ value: 'branch', label: 'branch' });
-      }
-      return options;
+      const fileOptions = [
+        { value: 'files[]', label: 'files[]', desc: 'ファイル変数 · ファイル一覧JSON' },
+      ];
+      const nodeOptions = [
+        { value: 'preprocessStatus', label: 'preprocessStatus', desc: 'ノード出力定義 · 前処理 status' },
+        { value: 'preprocessResult', label: 'preprocessResult', desc: 'ノード出力定義 · 前処理 result' },
+        { value: 'ocrStatus', label: 'ocrStatus', desc: 'ノード出力定義 · OCR抽出 status' },
+        { value: 'ocrResult', label: 'ocrResult', desc: 'ノード出力定義 · OCR抽出 result' },
+        { value: 'mappingStatus', label: 'mappingStatus', desc: 'ノード出力定義 · データマッピング status' },
+        { value: 'mappingResult', label: 'mappingResult', desc: 'ノード出力定義 · データマッピング result' },
+        { value: 'verifyStatus', label: 'verifyStatus', desc: 'ノード出力定義 · AI検証 status' },
+        { value: 'verifyResult', label: 'verifyResult', desc: 'ノード出力定義 · AI検証 result' },
+        { value: 'hitlStatus', label: 'hitlStatus', desc: 'ノード出力定義 · 人工確認 status' },
+      ];
+      const seen = new Set();
+      return [...systemOptions, ...fileOptions, ...nodeOptions].filter((option) => {
+        if (!option.value || seen.has(option.value)) return false;
+        seen.add(option.value);
+        return true;
+      });
     });
-
-    function getWorkflowNotificationAllowedVariableNames(event) {
-      const names = ['caseId'];
-      if (event === 'failed') names.push('status');
-      if (event === 'reviewRequired') names.push('result');
-      if (['approve', 'request_supplement', 'reject'].includes(event)) names.push('branch');
-      return names;
-    }
-
-    function extractWorkflowNotificationVariableNames(rule) {
-      const text = `${rule?.subject || ''}\n${rule?.body || ''}`;
-      return [...text.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g)].map((match) => match[1]);
-    }
-
-    function validateWorkflowNotificationVariables(rule) {
-      const allowed = new Set(getWorkflowNotificationAllowedVariableNames(rule?.event));
-      const invalid = [...new Set(extractWorkflowNotificationVariableNames(rule)
-        .filter((name) => !allowed.has(name)))];
-      return invalid.length ? `このイベントでは使用できない変数があります：${invalid.join('、')}` : '';
-    }
 
     function resetNotificationRuleDraft() {
       Object.assign(notificationRuleDraft, {
@@ -2033,8 +2024,6 @@ const appOptions = {
       if (!Array.isArray(rule.recipients) || !rule.recipients.length) return '通知対象を選択してください';
       if (!rule.subject) return '件名を入力してください';
       if (!rule.body) return '内容を入力してください';
-      const variableErr = validateWorkflowNotificationVariables(rule);
-      if (variableErr) return variableErr;
       return '';
     }
 
@@ -2184,6 +2173,10 @@ const appOptions = {
         (rank[a.standardFieldId] ?? 9999) - (rank[b.standardFieldId] ?? 9999));
     });
 
+    const activeOutputScalarFieldRows = computed(() =>
+      activeOutputFieldRows.value.filter((row) => row.kind !== 'column'),
+    );
+
     const activeOutputExportRows = computed(() => activeOutputFieldRows.value);
 
     function buildOutputTablePreviewRows(docType, tableName, columns = []) {
@@ -2208,14 +2201,12 @@ const appOptions = {
 
     const activeOutputTablePreviews = computed(() => {
       if (outputExportFieldMode.value !== 'ocr') return [];
-      const docType = outputSelectedDocType.value;
-      if (!docType) return [];
-      const schemaTables = getDocSchema(docType).tables || {};
-      return Object.entries(schemaTables).map(([name, columns]) => {
-        const rows = buildOutputTablePreviewRows(docType, name, columns);
+      const tableRows = activeOutputFieldRows.value.filter((row) => row.kind === 'column');
+      const tableNames = [...new Set(tableRows.map((row) => row.tableName).filter(Boolean))];
+      return tableNames.map((name) => {
+        const rows = tableRows.filter((row) => row.tableName === name);
         return {
           name,
-          columns,
           rows,
           rowCount: rows.length,
         };
@@ -5475,11 +5466,7 @@ const appOptions = {
     }
 
     function validateWorkflowPublish() {
-      const outputErr = validateOutputConfig();
-      if (outputErr) return outputErr;
-      if (form.outputConfigStatus !== 'valid' && !step3ExportCandidatesEmpty.value) {
-        return 'Step4 の出力設定を保存してください';
-      }
+      if (form.workflowTestStatus !== 'success') return 'Workflow テストを完了してください';
       return '';
     }
 
@@ -7835,7 +7822,7 @@ const appOptions = {
     function reorderExportOcrFields(fromIndex, toIndex) {
       const doc = activeOutputDocFields.value;
       if (!doc || fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
-      const rows = activeOutputFieldRows.value;
+      const rows = activeOutputScalarFieldRows.value;
       if (fromIndex >= rows.length || toIndex >= rows.length) return;
       const orderKeys = rows.map((row) => row.orderKey).filter(Boolean);
       const [moved] = orderKeys.splice(fromIndex, 1);
@@ -7843,6 +7830,27 @@ const appOptions = {
       const restKeys = (doc.itemOrder || buildDefaultItemOrder(doc.fields, doc.tables))
         .filter((key) => !orderKeys.includes(key));
       doc.itemOrder = [...orderKeys, ...restKeys];
+      applyItemOrderToDoc(doc);
+    }
+
+    function reorderExportOcrTableColumns(tableName, fromIndex, toIndex) {
+      const doc = activeOutputDocFields.value;
+      if (!doc || !tableName || fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+      const table = activeOutputTablePreviews.value.find((item) => item.name === tableName);
+      const rows = table?.rows || [];
+      if (fromIndex >= rows.length || toIndex >= rows.length) return;
+      const orderKeys = rows.map((row) => row.orderKey).filter(Boolean);
+      const [moved] = orderKeys.splice(fromIndex, 1);
+      orderKeys.splice(toIndex, 0, moved);
+      const allKeys = doc.itemOrder?.length ? doc.itemOrder : buildDefaultItemOrder(doc.fields, doc.tables);
+      const restKeys = allKeys.filter((key) => !orderKeys.includes(key));
+      const insertAt = restKeys.findIndex((key) => key.startsWith(`column:${tableName}:`));
+      if (insertAt >= 0) {
+        restKeys.splice(insertAt, 0, ...orderKeys);
+        doc.itemOrder = restKeys;
+      } else {
+        doc.itemOrder = [...restKeys, ...orderKeys];
+      }
       applyItemOrderToDoc(doc);
     }
 
@@ -7892,6 +7900,54 @@ const appOptions = {
 
     function isExportFieldDragging(index) {
       return outputDragState.kind === getExportFieldDragKind()
+        && outputDragState.docType === outputSelectedDocType.value
+        && outputDragState.fromIndex === index;
+    }
+
+    function getExportTableDragKind(tableName) {
+      return `export-ocr-table:${tableName}`;
+    }
+
+    function onExportTableFieldDragStart(tableName, index, event) {
+      outputDragState.kind = getExportTableDragKind(tableName);
+      outputDragState.docType = outputSelectedDocType.value;
+      outputDragState.fromIndex = index;
+      outputDragState.overIndex = index;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', `${outputDragState.kind}:${index}`);
+    }
+
+    function onExportTableFieldDragOver(tableName, index, event) {
+      event.preventDefault();
+      if (outputDragState.kind !== getExportTableDragKind(tableName)
+        || outputDragState.docType !== outputSelectedDocType.value) return;
+      outputDragState.overIndex = index;
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    function onExportTableFieldDrop(tableName, index, event) {
+      event.preventDefault();
+      if (outputDragState.kind !== getExportTableDragKind(tableName)
+        || outputDragState.docType !== outputSelectedDocType.value
+        || outputDragState.fromIndex < 0) return;
+      reorderExportOcrTableColumns(tableName, outputDragState.fromIndex, index);
+      resetOutputDragState();
+    }
+
+    function onExportTableFieldDragEnd() {
+      if (outputDragState.kind.startsWith('export-ocr-table:')) resetOutputDragState();
+    }
+
+    function isExportTableFieldDragOver(tableName, index) {
+      return outputDragState.kind === getExportTableDragKind(tableName)
+        && outputDragState.docType === outputSelectedDocType.value
+        && outputDragState.fromIndex >= 0
+        && outputDragState.overIndex === index
+        && outputDragState.fromIndex !== index;
+    }
+
+    function isExportTableFieldDragging(tableName, index) {
+      return outputDragState.kind === getExportTableDragKind(tableName)
         && outputDragState.docType === outputSelectedDocType.value
         && outputDragState.fromIndex === index;
     }
@@ -8149,6 +8205,27 @@ const appOptions = {
     function setOutputOcrFieldForDoc(docType, row, checked) {
       const doc = (form.output.docFields || []).find((item) => item.docType === docType);
       if (!doc || !row?.fieldName) return;
+      if (row?.kind === 'column') {
+        const tableName = row.tableName;
+        const columnName = row.columnName;
+        if (!tableName || !columnName) return;
+        if (!doc.tables) doc.tables = [];
+        let table = doc.tables.find((item) => item.name === tableName);
+        if (!table) {
+          table = { name: tableName, checked: true, columns: [] };
+          doc.tables.push(table);
+        }
+        if (!table.columns) table.columns = [];
+        let column = table.columns.find((item) => item.name === columnName);
+        if (!column) {
+          column = { name: columnName, checked };
+          table.columns.push(column);
+        } else {
+          column.checked = checked;
+        }
+        table.checked = table.columns.some((item) => item.checked !== false);
+        return;
+      }
       if (!doc.fields) doc.fields = [];
       let field = doc.fields.find((item) => item.name === row.fieldName);
       if (!field) {
@@ -8507,13 +8584,13 @@ const appOptions = {
 
     function markSceneConfigChanged(scope = 'workflow') {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
-      if (['published', 'pending_review', 'ready'].includes(form.scene.publishStatus)) {
-        form.scene.publishStatus = 'draft';
-      }
       if (scope === 'output') {
-        // Step4 勾选变更：只回退输出配置有效，不打断 Step2 已测通结论
+        // Step4 勾选变更：只回退输出配置有效，不影响 Step2 测试结论和可发布状态
         form.outputConfigStatus = 'unsaved';
         return;
+      }
+      if (['published', 'pending_review', 'ready'].includes(form.scene.publishStatus)) {
+        form.scene.publishStatus = 'draft';
       }
       form.workflowTestStatus = 'untested';
       form.outputConfigStatus = 'unsaved';
@@ -9171,6 +9248,12 @@ const appOptions = {
       onExportFieldDragEnd,
       isExportFieldDragOver,
       isExportFieldDragging,
+      onExportTableFieldDragStart,
+      onExportTableFieldDragOver,
+      onExportTableFieldDrop,
+      onExportTableFieldDragEnd,
+      isExportTableFieldDragOver,
+      isExportTableFieldDragging,
       getExportStandardFieldSampleValue,
       toggleMasterMatchExportRule,
       setMasterMatchExportValueSource,
@@ -9313,6 +9396,7 @@ const appOptions = {
       isExportStandardFieldDragging,
       activeOutputExportRows,
       activeOutputFieldRows,
+      activeOutputScalarFieldRows,
       activeOutputTablePreviews,
       activeExportFileLabel,
       outputSelectedFileId,

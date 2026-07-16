@@ -534,27 +534,60 @@ function buildExportPreviewTree(docFields) {
 function buildExportOcrFieldRows(docType, docFieldsEntry, matchRules = []) {
   const schema = getDocSchema(docType);
   const schemaFields = schema.fields || [];
-  if (!schemaFields.length) return [];
+  const schemaTables = schema.tables || {};
+  const schemaTableNames = Object.keys(schemaTables).filter((name) => !OUTPUT_DEFERRED_TABLES.has(name));
+  if (!schemaFields.length && !schemaTableNames.length) return [];
   const existing = docFieldsEntry?.fields || [];
   const existingMap = Object.fromEntries(existing.map((field) => [field.name, field]));
-  const orderedNames = existing.length
-    ? [...new Set([...existing.map((field) => field.name), ...schemaFields])]
-    : schemaFields;
-  const fieldRows = orderedNames
-    .filter((name) => schemaFields.includes(name))
-    .map((name) => {
-      const ctx = { docType, fieldName: name };
-      return {
-        key: `ocr:${docType}:${name}`,
-        orderKey: `field:${name}`,
-        fieldName: name,
-        label: name,
-        checked: existingMap[name]?.checked !== false,
-        extractValue: getExportFieldSampleValue(docType, name),
+  const existingTableMap = Object.fromEntries((docFieldsEntry?.tables || []).map((table) => [table.name, table]));
+  const rowsByOrderKey = {};
+
+  schemaFields.forEach((name) => {
+    const ctx = { docType, fieldName: name };
+    rowsByOrderKey[`field:${name}`] = {
+      key: `ocr:${docType}:${name}`,
+      orderKey: `field:${name}`,
+      kind: 'field',
+      fieldName: name,
+      label: name,
+      checked: existingMap[name]?.checked !== false,
+      extractValue: getExportFieldSampleValue(docType, name),
+      matchValue: resolveExportMatchValue(ctx, matchRules),
+    };
+  });
+
+  schemaTableNames.forEach((tableName) => {
+    const schemaColumns = schemaTables[tableName] || [];
+    const existingTable = existingTableMap[tableName];
+    const existingColumnMap = Object.fromEntries((existingTable?.columns || []).map((column) => [column.name, column]));
+    schemaColumns.forEach((columnName) => {
+      const ctx = { docType, fieldName: columnName };
+      rowsByOrderKey[`column:${tableName}:${columnName}`] = {
+        key: `ocr:${docType}:${tableName}:${columnName}`,
+        orderKey: `column:${tableName}:${columnName}`,
+        kind: 'column',
+        tableName,
+        columnName,
+        fieldName: columnName,
+        label: formatTableColumnLabel(tableName, columnName),
+        checked: existingColumnMap[columnName]?.checked ?? existingTable?.checked ?? true,
+        extractValue: getExportFieldSampleValue(docType, columnName),
         matchValue: resolveExportMatchValue(ctx, matchRules),
       };
     });
-  return fieldRows;
+  });
+
+  const defaultOrder = [
+    ...schemaFields.map((name) => `field:${name}`),
+    ...schemaTableNames.flatMap((tableName) =>
+      (schemaTables[tableName] || []).map((columnName) => `column:${tableName}:${columnName}`)),
+  ];
+  const savedOrder = docFieldsEntry?.itemOrder?.length ? docFieldsEntry.itemOrder : defaultOrder;
+  const orderedKeys = [
+    ...savedOrder.filter((key) => rowsByOrderKey[key]),
+    ...defaultOrder.filter((key) => !savedOrder.includes(key)),
+  ];
+  return orderedKeys.map((key) => rowsByOrderKey[key]).filter(Boolean);
 }
 
 /** プレビュー用：Workflow 完了時に自動出力される対象一覧 */

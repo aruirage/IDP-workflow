@@ -1836,6 +1836,7 @@
                   </label>
                   <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
                     <span data-no-translate>{{ t('変数を挿入') }}</span>
+                    <small class="workflow-notification-insert-hint">システム変数・ファイル変数・ノード出力定義を挿入できます。</small>
                     <div class="workflow-notification-insert-actions">
                       <el-radio-group v-model="workflowNotificationInsertTarget" size="small" class="notify-var-insert-target">
                         <el-radio-button value="subject" :label="t('件名')" />
@@ -1854,7 +1855,12 @@
                           :key="option.value"
                           :label="option.label"
                           :value="option.value"
-                        />
+                        >
+                          <div class="workflow-notification-var-option">
+                            <code>{{ option.label }}</code>
+                            <span>{{ option.desc }}</span>
+                          </div>
+                        </el-option>
                       </el-select>
                     </div>
                   </div>
@@ -2032,7 +2038,7 @@
                       </div>
                     </div>
 
-                    <div v-if="activeOutputFieldRows.length" class="export-field-table-wrap">
+                    <div v-if="activeOutputScalarFieldRows.length" class="export-field-table-wrap">
                       <table class="export-field-table export-field-table--step">
                         <thead>
                           <tr>
@@ -2045,7 +2051,7 @@
                         </thead>
                         <tbody>
                           <tr
-                            v-for="(row, index) in activeOutputFieldRows"
+                            v-for="(row, index) in activeOutputScalarFieldRows"
                             :key="row.key"
                             class="export-field-row"
                             :class="{
@@ -2099,18 +2105,56 @@
                         <div class="export-ocr-table-meta">
                           <span class="export-ocr-table-badge">テーブル</span>
                           <strong>{{ table.name }}</strong>
-                          <span>{{ table.rowCount }}行</span>
+                          <span>{{ table.rowCount }}フィールド</span>
                         </div>
                         <div class="export-ocr-table-wrap">
-                          <table class="export-ocr-table">
+                          <table class="export-field-table export-field-table--step export-field-table--nested">
                             <thead>
                               <tr>
-                                <th v-for="column in table.columns" :key="'export-table-head-' + table.name + '-' + column">{{ column }}</th>
+                                <th class="col-no">No.</th>
+                                <th class="col-check"></th>
+                                <th class="col-name">フィールド</th>
+                                <th class="col-value">OCR抽出（サンプル）</th>
+                                <th class="col-match">照合結果（サンプル）</th>
                               </tr>
                             </thead>
                             <tbody>
-                              <tr v-for="(row, rowIndex) in table.rows" :key="'export-table-row-' + table.name + '-' + rowIndex">
-                                <td v-for="column in table.columns" :key="'export-table-cell-' + table.name + '-' + rowIndex + '-' + column">{{ row[column] || '—' }}</td>
+                              <tr
+                                v-for="(row, index) in table.rows"
+                                :key="row.key"
+                                class="export-field-row"
+                                :class="{
+                                  'is-dragging': isExportTableFieldDragging(table.name, index),
+                                  'is-drag-over': isExportTableFieldDragOver(table.name, index),
+                                }"
+                                @dragover="onExportTableFieldDragOver(table.name, index, $event)"
+                                @drop="onExportTableFieldDrop(table.name, index, $event)"
+                              >
+                                <td class="col-no">
+                                  <span
+                                    class="export-field-drag-handle"
+                                    draggable="true"
+                                    title="ドラッグで並べ替え"
+                                    @dragstart="onExportTableFieldDragStart(table.name, index, $event)"
+                                    @dragend="onExportTableFieldDragEnd"
+                                  >↕</span>
+                                  <span>{{ index + 1 }}</span>
+                                </td>
+                                <td class="col-check">
+                                  <el-checkbox
+                                    :model-value="isOutputFieldChecked(row)"
+                                    @change="(checked) => toggleOutputField(row, checked)"
+                                  />
+                                </td>
+                                <td class="col-name">
+                                  <span class="export-field-name">{{ row.columnName || getOutputFieldDisplayName(row) }}</span>
+                                </td>
+                                <td class="col-value">
+                                  <span class="export-sample-value">{{ row.extractValue || '—' }}</span>
+                                </td>
+                                <td class="col-match">
+                                  <span class="export-match-value">{{ row.matchValue || '—' }}</span>
+                                </td>
                               </tr>
                             </tbody>
                           </table>
@@ -2163,7 +2207,7 @@
               @click="workflowTestDraft.samplePanelOpen = !workflowTestDraft.samplePanelOpen"
             >
               <div class="wf-test-collapse-head-main">
-                <h5>{{ t('テスト用データ') }}</h5>
+                <h5>{{ t('チェック入力') }}</h5>
                 <p v-if="!workflowTestDraft.samplePanelOpen" class="wf-test-collapse-summary">
                   {{ workflowTestCaseSummary }}
                 </p>
@@ -2187,7 +2231,7 @@
                     {{ file.name }} · {{ file.docType }} · {{ t(file.role) }}
                   </li>
                 </ul>
-                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。') }}</p>
+                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショットをチェック入力として使用します。実際の OCR / AI / 通知送信 / Python 実行は行いません。') }}</p>
               </div>
             </div>
           </section>
@@ -2201,7 +2245,7 @@
 
             <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'node' && workflowTestNodeDetail.detail">
               <section class="wf-test-artifact-section">
-                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">{{ t('プレビュー — チェック実行後に確定') }}</p>
                 <h5>{{ workflowTestNodeDetail.detail.title }}</h5>
                 <dl class="wf-test-detail-list">
                   <div v-for="row in workflowTestNodeDetail.detail.rows" :key="row.label" class="wf-test-detail-row">
@@ -2217,7 +2261,7 @@
 
             <template v-else-if="workflowTestNodeDetail && workflowTestNodeDetail.kind === 'generic'">
               <section class="wf-test-artifact-section">
-                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">プレビュー — テスト実行後に確定</p>
+                <p v-if="workflowTestNodeDetail.isPreview" class="wf-test-artifact-preview-hint">{{ t('プレビュー — チェック実行後に確定') }}</p>
                 <h5>{{ workflowTestNodeDetail.title }}</h5>
                 <p class="wf-test-artifact-summary">{{ workflowTestNodeDetail.summary }}</p>
               </section>
@@ -2225,7 +2269,7 @@
 
             <template v-else>
               <div class="wf-test-artifact-empty">
-                <p>右側のノードをクリックすると、ここに処理結果を表示します。</p>
+                <p>{{ t('右側のノードをクリックすると、ここにチェック結果を表示します。') }}</p>
               </div>
             </template>
           </div>
@@ -2234,7 +2278,7 @@
         <section class="wf-test-right">
           <div class="wf-test-result-head">
             <div class="wf-test-result-title">
-              <h4>Workflow 実行</h4>
+              <h4>{{ t('Workflow チェック') }}</h4>
               <span
                 v-if="workflowTestSummary"
                 class="wf-test-status-badge"
@@ -2243,7 +2287,7 @@
               <span v-else-if="workflowTestRunning" class="wf-test-status-badge is-running">実行中</span>
             </div>
             <div v-if="workflowTestSummary" class="wf-test-result-meta">
-              <span>処理時間：{{ workflowTestSummary.durationSec }}s</span>
+              <span>{{ t('チェック時間') }}：{{ workflowTestSummary.durationSec }}s</span>
               <span>通過：{{ workflowTestSummary.passedCount }}/{{ workflowTestSummary.totalCount }}</span>
               <span>ノード：{{ workflowTestSummary.workflowNodeCount }}</span>
               <p v-if="workflowTestSummary.structureNote" class="wf-test-structure-note">{{ workflowTestSummary.structureNote }}</p>
@@ -2367,6 +2411,7 @@
           </label>
           <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
             <span data-no-translate>{{ t('変数を挿入') }}</span>
+            <small class="workflow-notification-insert-hint">システム変数・ファイル変数・ノード出力定義を挿入できます。</small>
             <div class="workflow-notification-insert-actions">
               <el-radio-group v-model="workflowNotificationEditInsertTarget" size="small" class="notify-var-insert-target">
                 <el-radio-button value="subject" :label="t('件名')" />
@@ -2385,7 +2430,12 @@
                   :key="option.value"
                   :label="option.label"
                   :value="option.value"
-                />
+                >
+                  <div class="workflow-notification-var-option">
+                    <code>{{ option.label }}</code>
+                    <span>{{ option.desc }}</span>
+                  </div>
+                </el-option>
               </el-select>
             </div>
           </div>

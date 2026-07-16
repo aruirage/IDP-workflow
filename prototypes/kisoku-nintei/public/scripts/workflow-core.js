@@ -101,17 +101,17 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 22;
-const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 17;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 23;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 18;
 const WF_LAYOUT_PAD = { x: 48, y: 160 };
 const WF_BRANCH_LANE_GAP = 88;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
-  'wf-start', 'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+  'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-end',
 ];
 
 const DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
-  'wf-pp', 'wf-d-pre', 'wf-hu-pre', 'wf-oc', 'wf-d-ocr', 'wf-hu-ocr',
+  'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
 ];
 
@@ -3892,22 +3892,8 @@ function buildDefaultCaseWorkflow() {
   place({ id: 'wf-start', type: 'start', label: '開始' });
   place({ id: 'wf-pp', type: 'preprocess', label: '前処理' });
   place({ id: 'wf-d-pre', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
-  place({
-    id: 'wf-hu-pre',
-    type: 'hitl_gate',
-    label: '人工確認',
-    hitlContext: 'preprocess',
-    role: 'operator',
-  });
   place({ id: 'wf-oc', type: 'ocr', label: 'OCR抽出' });
   place({ id: 'wf-d-ocr', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
-  place({
-    id: 'wf-hu-ocr',
-    type: 'hitl_gate',
-    label: '人工確認',
-    hitlContext: 'ocr',
-    role: 'operator',
-  });
   place({ id: 'wf-map', type: 'data_mapping', label: 'データマッピング' });
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
   place({ id: 'wf-d-final', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
@@ -3986,16 +3972,10 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-start', to: 'wf-pp' },
     { from: 'wf-pp', to: 'wf-d-pre' },
     { from: 'wf-d-pre', to: 'wf-oc', branch: 'if', label: '通過' },
-    { from: 'wf-d-pre', to: 'wf-hu-pre', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完成' },
-    { from: 'wf-hu-pre', to: 'wf-end', branch: 'request_supplement', label: '補件', visualHidden: true },
-    { from: 'wf-hu-pre', to: 'wf-end', branch: 'reject', label: '案件終止', visualHidden: true },
+    { from: 'wf-d-pre', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
     { from: 'wf-oc', to: 'wf-d-ocr' },
     { from: 'wf-d-ocr', to: 'wf-map', branch: 'if', label: '通過' },
-    { from: 'wf-d-ocr', to: 'wf-hu-ocr', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完成' },
-    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'request_supplement', label: '補件', visualHidden: true },
-    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'reject', label: '案件終止', visualHidden: true },
+    { from: 'wf-d-ocr', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-end', branch: 'if', label: '通過' },
