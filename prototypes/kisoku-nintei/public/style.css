@@ -3061,6 +3061,155 @@ code.export-config-meta-value {
 .export-config--step .export-field-row.is-dragging {
   opacity: 0.45;
 }
+
+.wf-notification-step-page {
+  padding: 18px 24px 28px;
+  background: #f8fafc;
+  min-height: calc(100vh - 150px);
+}
+
+.workflow-notification-list {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-notification-row {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.workflow-notification-row-head {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.workflow-notification-row-main {
+  display: grid;
+  gap: 3px;
+}
+
+.workflow-notification-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.workflow-notification-row-body {
+  border-top: 1px solid #e4e7ec;
+  padding: 14px 16px 16px;
+  background: #fbfdff;
+}
+
+.workflow-notification-collapse-title {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.workflow-notification-collapse-main {
+  display: grid;
+  gap: 3px;
+}
+
+.workflow-notification-collapse-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.workflow-notification-title {
+  color: #101828;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.workflow-notification-subtitle,
+.workflow-notification-policy-desc {
+  margin-top: 3px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.workflow-notification-count {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workflow-notification-chevron {
+  color: #98a2b3;
+  font-size: 18px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.workflow-notification-row.is-open .workflow-notification-chevron {
+  transform: rotate(90deg);
+}
+
+.workflow-notification-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.workflow-notification-policy {
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fcfcfd;
+}
+
+.workflow-notification-policy-title {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.workflow-notification-field {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workflow-notification-insert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.workflow-notification-insert-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-notification-var-select {
+  width: 220px;
+}
 .export-ocr-table-section {
   margin: 0 18px 18px;
   border: 1px solid #e4e7ec;
@@ -7755,17 +7904,6 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   color: #fff;
   border-color: var(--el-color-primary);
 }
-.wf-node-shell:hover .wf-node-add-btn--start-connect,
-.wf-node-shell.is-selected .wf-node-add-btn--start-connect {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) scale(0.92);
-}
-body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--start-connect {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(-50%) scale(1);
-}
 .idp-canvas-viewport.wf-topology-readonly .wf-node-add-btn,
 .idp-canvas-viewport.wf-topology-readonly .wf-ifelse-port-btn {
   opacity: 0;
@@ -7808,6 +7946,11 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
   transition: border-color var(--transition-time-02), box-shadow var(--transition-time-02);
   overflow: visible;
+}
+/* 仅标题行业务节点：卡体贴满 shell，端口对齐卡片竖直中心 */
+.wf-node-shell:not(.wf-node--decision):not(.wf-node--hitl_gate):not(.wf-node--start):not(.wf-node--end) .wf-node-card {
+  height: 100%;
+  justify-content: center;
 }
 .wf-node-shell:hover .wf-node-card {
   border-color: color-mix(in srgb, var(--wf-node-accent, #b2ccff) 55%, #fff);
@@ -7852,6 +7995,7 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   flex-direction: column;
   gap: 8px;
 }
+.code-fixed-input-row,
 .code-param-list-item {
   display: flex;
   align-items: flex-start;
@@ -7875,6 +8019,10 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   font-weight: 500;
   color: #344054;
 }
+.code-param-required {
+  color: #f04438;
+  margin-left: 2px;
+}
 .code-param-list-tag {
   display: inline-flex;
   align-items: center;
@@ -7890,15 +8038,19 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   border-color: #b2ccff;
   background: #eff8ff;
 }
-.code-param-list-value {
+.code-param-source-display {
   flex: 1 1 100%;
-  font-size: 13px;
-  color: #667085;
+  width: 100%;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
   background: #fff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid #eaecf0;
-  word-break: break-all;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.4;
 }
 .code-param-list-actions {
   display: flex;
@@ -8010,8 +8162,9 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px 6px;
+  padding: 10px 14px;
   min-width: 0;
+  box-sizing: border-box;
 }
 .wf-node-titles {
   flex: 1;
@@ -8287,16 +8440,28 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   flex-direction: column;
   gap: 10px;
 }
+.wf-start-readonly-hint {
+  margin: 0 0 10px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .wf-start-readonly-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   min-height: 44px;
   padding: 10px 12px;
   border: 1px solid #eaecf0;
   border-radius: 8px;
   background: #fff;
+}
+.wf-start-readonly-item--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 0;
 }
 .wf-start-readonly-label {
   color: #667085;
@@ -8306,7 +8471,12 @@ body.wf-connecting .wf-node-shell.wf-node--connect-source .wf-node-add-btn--star
   color: #344054;
   font-size: 15px;
   font-weight: 600;
-  text-align: right;
+  text-align: left;
+}
+.wf-start-readonly-meta {
+  color: #98a2b3;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .wf-start-trigger-detail {
   padding-left: 12px;
@@ -9304,11 +9474,6 @@ body.idp-inspector-resizing * {
 }
 .wf-start-inspector .wf-start-readonly-item:last-child {
   border-bottom: none;
-}
-.wf-start-inspector .wf-start-readonly-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #667085;
 }
 .wf-start-inspector .wf-start-readonly-value {
   font-size: 13px;
@@ -11890,28 +12055,12 @@ body.idp-inspector-resizing * {
   padding: 0;
   border: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
   color: #344054;
   font-size: inherit;
   font-weight: inherit;
   letter-spacing: 0;
   text-align: left;
-}
-.workflow-output-heading:hover .inspector-module-title {
-  color: #175cd3;
-}
-.workflow-output-chevron {
-  width: 6px;
-  height: 6px;
-  margin-left: 2px;
-  border-right: 1.5px solid #98a2b3;
-  border-bottom: 1.5px solid #98a2b3;
-  transform: rotate(-45deg);
-  transition: transform 0.15s ease;
-  flex-shrink: 0;
-}
-.workflow-output-heading.is-open .workflow-output-chevron {
-  transform: rotate(45deg);
 }
 .workflow-output-count {
   color: #667085;
@@ -11922,20 +12071,6 @@ body.idp-inspector-resizing * {
   margin-top: 4px;
   padding: 0;
   background: #fff;
-}
-.workflow-output-group-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.workflow-output-group {
-  min-width: 0;
-}
-.workflow-output-group-title {
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #344054;
 }
 .workflow-output-var-list {
   list-style: none;

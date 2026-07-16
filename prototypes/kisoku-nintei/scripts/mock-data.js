@@ -1615,6 +1615,7 @@ function normalizeInputConfig(input) {
 
 const WORKFLOW_TEST_SCOPE_NOTE = '案件集約は本テストの対象外。選択した案件は既に集約済みであり、Workflow のみ検証します。';
 
+/** 内置「标准集约完成案件」快照：含文件归属与 OCR/标准字段样值，供真模拟消费 */
 const WORKFLOW_TEST_SAMPLES = {
   normal: {
     id: 'normal',
@@ -1630,13 +1631,56 @@ const WORKFLOW_TEST_SAMPLES = {
     startEventId: 'e1',
     startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 6,
+    standardFields: {
+      氏名: '高橋誠',
+      請求金額: '245800',
+      診療日: '2025-03-12',
+      医療機関名: '中央総合病院',
+      診断名: '胆石症',
+    },
     files: [
-      { name: '保険金請求書_p1-2.pdf', docType: '保険金請求書', role: '主帳票' },
-      { name: '診断書_p3-4.pdf', docType: '診断書', role: '関連帳票' },
-      { name: '診療明細書_001.jpg', docType: '診療明細書', role: '関連帳票' },
-      { name: '領収書_p5-6.pdf', docType: '診療明細書', role: '関連帳票' },
-      { name: '領収書_入院費.png', docType: '診療明細書', role: '関連帳票' },
-      { name: '補足説明_p1-2.tiff', docType: 'その他', role: '参考資料' },
+      {
+        id: 'f-claim',
+        name: '保険金請求書_p1-2.pdf',
+        docType: '保険金請求書',
+        role: '主帳票',
+        ocrFields: { 氏名: '高橋誠', 請求金額: '245800', 診療日: '2025-03-12', 医療機関名: '中央総合病院' },
+      },
+      {
+        id: 'f-diag',
+        name: '診断書_p3-4.pdf',
+        docType: '診断書',
+        role: '関連帳票',
+        ocrFields: { 氏名: '高橋誠', 生年月日: '1982-06-18', 診断名: '胆石症', 発行日: '2025-03-14', 医療機関名: '中央総合病院' },
+      },
+      {
+        id: 'f-meisai-1',
+        name: '診療明細書_001.jpg',
+        docType: '診療明細書',
+        role: '関連帳票',
+        ocrFields: { 氏名: '高橋誠', 診療日: '2025-03-12', 金額: '98000', 項目名: '入院基本料' },
+      },
+      {
+        id: 'f-ryoshu-1',
+        name: '領収書_p5-6.pdf',
+        docType: '診療明細書',
+        role: '関連帳票',
+        ocrFields: { 氏名: '高橋誠', 診療日: '2025-03-12', 金額: '87500', 医療機関名: '中央総合病院' },
+      },
+      {
+        id: 'f-ryoshu-2',
+        name: '領収書_入院費.png',
+        docType: '診療明細書',
+        role: '関連帳票',
+        ocrFields: { 氏名: '高橋誠', 診療日: '2025-03-13', 金額: '60300', 医療機関名: '中央総合病院' },
+      },
+      {
+        id: 'f-note',
+        name: '補足説明_p1-2.tiff',
+        docType: 'その他',
+        role: '参考資料',
+        ocrFields: { メモ: '手術後の補足説明' },
+      },
     ],
     scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
   },
@@ -1651,6 +1695,7 @@ const WORKFLOW_TEST_SAMPLES = {
     startEventId: 'e1',
     startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 0,
+    standardFields: {},
     files: [],
     scopeNote: WORKFLOW_TEST_SCOPE_NOTE,
   },
@@ -1691,7 +1736,11 @@ function cloneWorkflowTestCaseDefault() {
     caseLabel: base.caseLabel,
     startEventId: base.startEventId,
     startEventLabel: base.startEventLabel,
-    files: (base.files || []).map((f) => ({ ...f })),
+    standardFields: { ...(base.standardFields || {}) },
+    files: (base.files || []).map((f) => ({
+      ...f,
+      ocrFields: { ...(f.ocrFields || {}) },
+    })),
     source: 'builtin',
     uploadFileName: '',
     savedAt: null,
@@ -1707,7 +1756,11 @@ function normalizeWorkflowTestCase(raw) {
     caseLabel: raw?.caseLabel || def.caseLabel,
     startEventId,
     startEventLabel: raw?.startEventLabel || getWorkflowTestStartEventLabel(startEventId),
-    files: def.files.map((f) => ({ ...f })),
+    standardFields: { ...def.standardFields },
+    files: def.files.map((f) => ({
+      ...f,
+      ocrFields: { ...(f.ocrFields || {}) },
+    })),
     source: 'builtin',
     uploadFileName: '',
     savedAt: null,
@@ -1715,11 +1768,8 @@ function normalizeWorkflowTestCase(raw) {
 }
 
 function validateWorkflowTestCase(testCase) {
-  const tc = normalizeWorkflowTestCase(testCase);
-  if (!tc.caseNo.trim()) return '案件番号を入力してください';
-  if (!tc.caseLabel.trim()) return '案件名を入力してください';
-  if (!tc.files.length) return '紐付ファイルを1件以上追加してください';
-  if (tc.files.some((f) => !f.name.trim())) return 'ファイル名が空の行があります';
+  // 本期固定内置样例：normalize 后必然有文件与元数据；不对「样例是否存在」做用户侧门禁
+  normalizeWorkflowTestCase(testCase);
   return '';
 }
 
@@ -1737,17 +1787,567 @@ function buildWorkflowTestInputContext(testCase) {
   };
 }
 
+/** 从内置样例解析条件左值（支持裸键 / docTypes.帳票.字段 / standardFields.字段） */
+function resolveWorkflowTestSampleLeafValue(variablePath, testCase) {
+  const tc = normalizeWorkflowTestCase(testCase);
+  const raw = String(variablePath || '').trim();
+  if (!raw) return undefined;
+  const path = raw.replace(/^\{|\}$/g, '').replace(/^case\./, '');
+  const bare = path.includes('.') ? path.split('.').pop() : path;
 
-function buildWorkflowTestDecisionDetail(step, workflow) {
+  if (path.startsWith('standardFields.') || path.startsWith('standardFields[')) {
+    const key = path.replace(/^standardFields\.?/, '').replace(/^\["|"\]$/g, '');
+    return tc.standardFields?.[key] ?? tc.standardFields?.[bare];
+  }
+  if (path.startsWith('docTypes.') || path.includes('.ocrFields')) {
+    const parts = path.replace(/^docTypes\./, '').split('.');
+    const docType = parts[0];
+    const field = parts[parts.length - 1];
+    const file = (tc.files || []).find((f) => f.docType === docType);
+    return file?.ocrFields?.[field];
+  }
+  if (tc.standardFields && Object.prototype.hasOwnProperty.call(tc.standardFields, bare)) {
+    return tc.standardFields[bare];
+  }
+  for (const file of tc.files || []) {
+    if (file.ocrFields && Object.prototype.hasOwnProperty.call(file.ocrFields, bare)) {
+      return file.ocrFields[bare];
+    }
+  }
+  return undefined;
+}
+
+function evaluateWorkflowTestConditionOp(left, op, right) {
+  const l = left == null ? '' : String(left);
+  const r = right == null ? '' : String(right);
+  const ln = Number(l);
+  const rn = Number(r);
+  const bothNum = l !== '' && r !== '' && Number.isFinite(ln) && Number.isFinite(rn);
+  switch (op) {
+    case '=':
+    case '==':
+    case 'eq':
+      return bothNum ? ln === rn : l === r;
+    case '!=':
+    case 'ne':
+      return bothNum ? ln !== rn : l !== r;
+    case '>':
+      return bothNum ? ln > rn : l > r;
+    case '>=':
+      return bothNum ? ln >= rn : l >= r;
+    case '<':
+      return bothNum ? ln < rn : l < r;
+    case '<=':
+      return bothNum ? ln <= rn : l <= r;
+    case 'contains':
+      return l.includes(r);
+    case 'not_contains':
+      return !l.includes(r);
+    case 'empty':
+      return !l;
+    case 'not_empty':
+      return !!l;
+    default:
+      return l === r;
+  }
+}
+
+function evaluateWorkflowTestDecisionCase(decisionCase, testCase) {
+  const conditions = decisionCase?.conditions || [];
+  if (!conditions.length) return false;
+  const logic = decisionCase.logic === 'or' ? 'or' : 'and';
+  const results = conditions.map((cond) => {
+    if (!cond?.variable) return false;
+    const left = resolveWorkflowTestSampleLeafValue(cond.variable, testCase);
+    return evaluateWorkflowTestConditionOp(left, cond.operator || cond.op || '=', cond.value);
+  });
+  return logic === 'or' ? results.some(Boolean) : results.every(Boolean);
+}
+
+function pickWorkflowTestDecisionBranch(node, workflow, testCase) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const outEdges = (wf.edges || []).filter((e) => e.from === node.id && !e.visualHidden);
+  const cases = node.cases || [];
+  for (let index = 0; index < cases.length; index += 1) {
+    const decisionCase = cases[index];
+    const branchKey = decisionCase.kind === 'if' || index === 0
+      ? 'if'
+      : (decisionCase.id || `elif_${index}`);
+    if (!evaluateWorkflowTestDecisionCase(decisionCase, testCase)) continue;
+    const edge = outEdges.find((item) => item.branch === branchKey || item.branch === decisionCase.id);
+    if (edge) {
+      return {
+        branchKey,
+        edge,
+        label: decisionCase.label || (index === 0 ? 'IF' : `ELIF ${index}`),
+        matched: true,
+      };
+    }
+  }
+  const elseEdge = outEdges.find((e) => e.branch === 'else');
+  if (elseEdge) {
+    return { branchKey: 'else', edge: elseEdge, label: 'ELSE', matched: false };
+  }
+  const first = outEdges[0];
+  return first
+    ? { branchKey: first.branch || 'main', edge: first, label: first.label || '分岐', matched: false }
+    : null;
+}
+
+function getSceneDocumentTypeSet(sceneContext = {}) {
+  const docs = sceneContext.documents || sceneContext?.scene?.documents || [];
+  return new Set(docs.map((d) => d.type || d.docType || d.id).filter(Boolean));
+}
+
+/**
+ * 按 PRD 维度收集门禁错误（用例→结构→连线→节点配置…）。前层有错时仍收集同层全部，供错误列表；调用方决定是否进入模拟。
+ */
+function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {}) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const nodes = wf.nodes || [];
+  const edges = (wf.edges || []).filter((e) => !e.visualHidden);
+  const tc = normalizeWorkflowTestCase(testCase);
+  const errors = [];
+  const push = (ruleId, dimension, message, nodeId = '', hint = '') => {
+    errors.push({ ruleId, dimension, message, nodeId, hint });
+  };
+
+  // —— 用例：仅 S2-03（样例与 Step1 账票漂移）。S2-01/02 本期不作为用户侧门禁 ——
+  const step1Types = getSceneDocumentTypeSet(sceneContext);
+  if (step1Types.size) {
+    tc.files.forEach((f) => {
+      if (f.role === '参考資料' || f.docType === 'その他') return;
+      if (f.docType && !step1Types.has(f.docType)) {
+        push('S2-03', '用例', `用例帳票「${f.docType}」が Step1 帳票集合にありません`, '', 'Step1 に帳票を戻すか用例を見直してください');
+      }
+    });
+  }
+  if (errors.some((e) => e.dimension === '用例')) return { errors, blockedDimension: '用例' };
+
+  // —— 结构 S2-04～08 ——
+  const starts = nodes.filter((n) => n.type === 'start');
+  const ends = nodes.filter((n) => n.type === 'end');
+  if (starts.length !== 1) {
+    push('S2-04', '结构', starts.length ? '開始ノードは1件のみにしてください' : '開始ノードがありません', starts[0]?.id || '');
+  }
+  if (!ends.length) {
+    push('S2-05', '结构', '終了ノードを1件以上配置してください');
+  }
+  ends.forEach((end) => {
+    if (edges.some((e) => e.from === end.id)) {
+      push('S2-05', '结构', '終了ノードから出る接続は設定できません', end.id);
+    }
+  });
+  const reachable = new Set(getWorkflowTestReachableNodeIds(wf));
+  if (starts.length === 1 && ends.length && !ends.some((e) => reachable.has(e.id))) {
+    push('S2-06', '结构', '開始ノードから終了ノードへ到達できません', starts[0].id);
+  }
+  // 每条从分支出口出发须能到结束
+  nodes.filter((n) => n.type === 'decision' || n.type === 'hitl_gate').forEach((node) => {
+    const outs = edges.filter((e) => e.from === node.id);
+    outs.forEach((edge) => {
+      const canEnd = typeof workflowEdgeLeadsToEnd === 'function'
+        ? ends.some((end) => workflowEdgeLeadsToEnd(wf, edge.from, edge.to, end.id))
+        : reachable.has(edge.to);
+      if (!canEnd && outs.length) {
+        // fallback: BFS from edge.to
+        const seen = new Set();
+        const q = [edge.to];
+        let ok = false;
+        while (q.length) {
+          const id = q.shift();
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          if (ends.some((e) => e.id === id)) { ok = true; break; }
+          edges.filter((ed) => ed.from === id).forEach((ed) => q.push(ed.to));
+        }
+        if (!ok) {
+          push('S2-06', '结构', `分岐「${edge.branch || edge.label || edge.to}」が終了ノードに到達できません`, node.id);
+        }
+      }
+    });
+  });
+  nodes.forEach((node) => {
+    if (node.type === 'start' || node.type === 'end') return;
+    const hasIn = edges.some((e) => e.to === node.id);
+    const hasOut = edges.some((e) => e.from === node.id);
+    if (!hasIn && !hasOut) {
+      push('S2-07', '结构', '接続のない孤立ノードがあります', node.id);
+    } else if (!reachable.has(node.id)) {
+      push('S2-07', '结构', '開始から到達できないノードがあります', node.id);
+    }
+  });
+  if (typeof getWorkflowCycleNodeIds === 'function') {
+    const cycles = getWorkflowCycleNodeIds(wf);
+    if (cycles?.size) {
+      let canTerminate = ends.some((e) => reachable.has(e.id));
+      if (!canTerminate) {
+        push('S2-08', '结构', '回流により終了ノードへ到達できない経路があります', [...cycles][0] || '');
+      }
+    }
+  }
+  if (errors.some((e) => e.dimension === '结构')) return { errors, blockedDimension: '结构' };
+
+  // —— 连线 S2-09～12 ——
+  const inboundMain = {};
+  edges.forEach((edge) => {
+    if (edge.branch) return;
+    inboundMain[edge.to] = (inboundMain[edge.to] || 0) + 1;
+  });
+  Object.entries(inboundMain).forEach(([nodeId, count]) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.type === 'start') return;
+    if (count > 1) {
+      push('S2-09', '连线', '主入力は1本までです', nodeId);
+    }
+  });
+  nodes.filter((n) => n.type === 'decision').forEach((node) => {
+    const outs = edges.filter((e) => e.from === node.id);
+    const seen = new Set();
+    let elseCount = 0;
+    outs.forEach((e) => {
+      const key = e.branch || '';
+      if (key === 'else') elseCount += 1;
+      if (key && seen.has(key)) {
+        push('S2-10', '连线', `条件出口「${key}」が重複しています`, node.id);
+      }
+      seen.add(key);
+    });
+    if (elseCount > 1) push('S2-10', '连线', 'ELSE 出口は1本までです', node.id);
+  });
+  nodes.filter((n) => n.type === 'hitl_gate').forEach((node) => {
+    const outs = edges.filter((e) => e.from === node.id && e.branch);
+    if (!outs.length) {
+      push('S2-11', '连线', '人工確認出口を1本以上接続してください', node.id);
+    }
+    const seen = new Set();
+    outs.forEach((e) => {
+      if (seen.has(e.branch)) {
+        push('S2-11', '连线', `人工確認出口「${e.branch}」が重複しています`, node.id);
+      }
+      seen.add(e.branch);
+    });
+  });
+  edges.forEach((edge) => {
+    if (!nodes.some((n) => n.id === edge.from) || !nodes.some((n) => n.id === edge.to)) {
+      push('S2-12', '连线', '悬空な接続があります（端点ノードが存在しません）');
+    }
+  });
+  if (errors.some((e) => e.dimension === '连线')) return { errors, blockedDimension: '连线' };
+
+  // —— 节点配置（对可达节点）——
+  const { processing, documents } = getWorkflowTestSceneContext(sceneContext);
+  reachable.forEach((id) => {
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return;
+    const step = { id: node.id, type: node.type };
+    const cfg = validateWorkflowTestNodeConfig(wf, step, sceneContext);
+    if (cfg) {
+      const rule = ({
+        preprocess: 'S2-13',
+        ocr: 'S2-14',
+        data_mapping: 'S2-15',
+        ai_verify: 'S2-16',
+        hitl_gate: 'S2-17',
+        code: 'S2-19',
+        decision: 'S2-10',
+      })[node.type] || 'S2-13';
+      push(rule, '节点配置', cfg, node.id);
+    }
+    // S2-13 目标账票
+    if (node.type === 'preprocess') {
+      const targets = processing?.image?.targetDocTypes || processing?.targetDocTypes || [];
+      if (Array.isArray(targets) && targets.length && step1Types.size) {
+        targets.forEach((t) => {
+          if (t && !step1Types.has(t)) {
+            push('S2-13', '节点配置', `前処理対象帳票「${t}」が Step1 にありません`, node.id);
+          }
+        });
+      }
+    }
+    if (node.type === 'ocr') {
+      const enabled = processing?.ocrExtract?.enabledTypes || [];
+      enabled.forEach((t) => {
+        if (t && step1Types.size && !step1Types.has(t)) {
+          push('S2-14', '节点配置', `OCR 対象帳票「${t}」が Step1 にありません`, node.id);
+        }
+      });
+    }
+    if (node.type === 'data_mapping') {
+      const ref = node.configRef || node.mappingConfigId || 'current_scene';
+      if (!ref) push('S2-15', '节点配置', 'データマッピング設定が未選択です', node.id);
+    }
+  });
+  if (errors.some((e) => e.dimension === '节点配置')) return { errors, blockedDimension: '节点配置' };
+
+  // —— 变量引用 / 字段选择 S2-20～25 ——
+  const varSceneCtx = {
+    docTypes: sceneContext.docTypes
+      || (sceneContext.documents || []).map((d) => d.type || d.docType).filter(Boolean),
+    getDocSchema: sceneContext.getDocSchema,
+    getDocLabel: sceneContext.getDocLabel,
+  };
+  const isContainerVarPath = (raw) => {
+    const path = String(raw || '').replace(/^\{|\}$/g, '').trim();
+    if (!path) return true;
+    if (/^(case\.)?standardFields$/i.test(path) || /\.standardFields$/i.test(path)) return true;
+    if (/^docTypes\[\]$/i.test(path) || /docTypes\[\]$/i.test(path)) return true;
+    if (/^files\[\]$/i.test(path)) return true;
+    return false;
+  };
+  const isDisabledConditionType = (opt, raw) => {
+    const path = String(raw || '');
+    const type = String(opt?.dataType || opt?.type || '').toLowerCase();
+    if (type === 'array' || type === 'date' || type === 'datetime') return true;
+    if (/files\[\]/i.test(path)) return true;
+    if (opt?.nodeType === 'end' || /\.end\b|case\.finalResult|case\.endedAt/i.test(path) && opt?.nodeType === 'end') {
+      return opt?.nodeType === 'end';
+    }
+    return false;
+  };
+  nodes.filter((n) => n.type === 'decision' && reachable.has(n.id)).forEach((node) => {
+    const options = typeof getDecisionVariableOptions === 'function'
+      ? getDecisionVariableOptions(wf, node.id, sceneContext.verify || null, varSceneCtx)
+      : [];
+    (node.cases || []).forEach((decisionCase) => {
+      (decisionCase.conditions || []).forEach((cond) => {
+        const raw = String(cond?.variable || '').trim();
+        if (!raw) return;
+        if (isContainerVarPath(raw)) {
+          push('S2-24', '字段选择', `条件左値「${raw}」は容器です。叶子フィールドを選んでください`, node.id);
+          return;
+        }
+        const opt = options.find((o) => o.value === raw
+          || o.value === raw.replace(/^\{|\}$/g, '')
+          || String(o.localId || '') === raw);
+        if (isDisabledConditionType(opt, raw)) {
+          push('S2-25', '字段选择', `条件左値「${raw}」は条件に使えない型です`, node.id);
+          return;
+        }
+        if (options.length && !opt) {
+          push('S2-20', '变量引用', `条件変数「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id, '削除・改線後に参照が残っていないか確認してください');
+        }
+      });
+    });
+  });
+  nodes.filter((n) => n.type === 'code' && reachable.has(n.id)).forEach((node) => {
+    const normalized = typeof normalizeCodeNode === 'function' ? normalizeCodeNode(node, wf) : node;
+    const options = typeof getDecisionVariableOptions === 'function'
+      ? getDecisionVariableOptions(wf, node.id, sceneContext.verify || null, varSceneCtx)
+      : [];
+    (normalized?.inputs || node.inputs || []).forEach((row) => {
+      if (row.source !== 'reference') return;
+      const raw = String(row.variable || '').trim();
+      if (!raw) return;
+      const ok = !options.length || options.some((o) => o.value === raw || o.value?.endsWith(`.${raw}`));
+      if (!ok) {
+        push('S2-22', '变量引用', `関数入参「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id);
+      }
+    });
+  });
+  if (errors.some((e) => e.dimension === '变量引用')) return { errors, blockedDimension: '变量引用' };
+  if (errors.some((e) => e.dimension === '字段选择')) return { errors, blockedDimension: '字段选择' };
+
+  // —— 依赖：HITL 上游 / 映射前有 OCR ——
+  validateWorkflowTestHitlContext(wf).forEach((issue) => {
+    push('S2-28', '依赖', issue.message, issue.nodeId);
+  });
+  const hasOcrUpstream = (nodeId) => {
+    const seen = new Set();
+    const q = edges.filter((e) => e.to === nodeId).map((e) => e.from);
+    while (q.length) {
+      const id = q.shift();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const n = nodes.find((x) => x.id === id);
+      if (n?.type === 'ocr' || n?.type === 'preprocess') return true;
+      edges.filter((e) => e.to === id).forEach((e) => q.push(e.from));
+    }
+    return false;
+  };
+  nodes.filter((n) => n.type === 'data_mapping' && reachable.has(n.id)).forEach((node) => {
+    if (!hasOcrUpstream(node.id)) {
+      push('S2-26', '依赖', 'データマッピングの上流に前処理/OCR がありません', node.id);
+    }
+  });
+  nodes.filter((n) => n.type === 'ai_verify' && reachable.has(n.id)).forEach((node) => {
+    if (!hasOcrUpstream(node.id)) {
+      push('S2-27', '依赖', 'AI検証の上流に OCR/前処理結果がありません', node.id);
+    }
+  });
+  if (errors.some((e) => e.dimension === '依赖')) return { errors, blockedDimension: '依赖' };
+
+  return { errors, blockedDimension: '' };
+}
+
+/** 按样例驱动走通模拟路径（条件求值；人工确认跳过真人动作后按已连接出口继续） */
+function simulateWorkflowTestExecutionPath(workflow, testCase) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const edges = (wf.edges || []).filter((e) => !e.visualHidden);
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((n) => [n.id, n]));
+  const start = (typeof getWorkflowStartNode === 'function' ? getWorkflowStartNode(wf) : null)
+    || (wf.nodes || []).find((n) => n.type === 'start');
+  if (!start) {
+    return {
+      pathIds: [],
+      branchHits: {},
+      error: { ruleId: 'S2-29', nodeId: '', message: '開始ノードがないため実行順序を決定できません' },
+    };
+  }
+  const pathIds = [];
+  const branchHits = {};
+  const visited = new Set();
+  let current = start.id;
+  let guard = 0;
+  while (current && guard < 200) {
+    guard += 1;
+    if (visited.has(current)) {
+      // 回流：允许再经过，但须能推进；防止无限环
+      const outs = edges.filter((e) => e.from === current);
+      const unvisitedOut = outs.find((e) => !visited.has(e.to));
+      if (!unvisitedOut) {
+        return {
+          pathIds,
+          branchHits,
+          error: {
+            ruleId: 'S2-08',
+            nodeId: current,
+            message: '回流により終了ノードへ到達できない経路があります',
+          },
+        };
+      }
+      pathIds.push(current);
+      current = unvisitedOut.to;
+      continue;
+    }
+    visited.add(current);
+    pathIds.push(current);
+    const node = nodeMap[current];
+    if (!node) {
+      return {
+        pathIds,
+        branchHits,
+        error: { ruleId: 'S2-29', nodeId: current, message: '実行順序上のノードが存在しません' },
+      };
+    }
+    if (node.type === 'end') {
+      return { pathIds, branchHits, error: null };
+    }
+
+    let nextEdge = null;
+    if (node.type === 'decision') {
+      const picked = pickWorkflowTestDecisionBranch(node, wf, testCase);
+      if (!picked?.edge) {
+        return {
+          pathIds,
+          branchHits,
+          error: {
+            ruleId: 'S2-29',
+            nodeId: node.id,
+            message: '条件分岐の出口を決定できません',
+          },
+        };
+      }
+      branchHits[node.id] = picked;
+      nextEdge = picked.edge;
+    } else if (node.type === 'hitl_gate') {
+      const outs = edges.filter((e) => e.from === node.id && e.branch);
+      if (!outs.length) {
+        return {
+          pathIds,
+          branchHits,
+          error: {
+            ruleId: 'S2-30',
+            nodeId: node.id,
+            message: '人工確認の出口が接続されていないため、テストを継続できません',
+          },
+        };
+      }
+      nextEdge = outs.find((e) => e.branch === 'approve')
+        || outs.find((e) => e.branch === 'pass')
+        || outs[0];
+      branchHits[node.id] = {
+        branchKey: nextEdge.branch,
+        edge: nextEdge,
+        label: nextEdge.label || nextEdge.branch,
+        skippedHuman: true,
+      };
+    } else {
+      const mainOuts = edges.filter((e) => e.from === node.id && !e.branch);
+      const anyOuts = mainOuts.length ? mainOuts : edges.filter((e) => e.from === node.id);
+      nextEdge = anyOuts[0] || null;
+    }
+
+    if (!nextEdge) {
+      return {
+        pathIds,
+        branchHits,
+        error: {
+          ruleId: 'S2-29',
+          nodeId: node.id,
+          message: '次のノードへ進む出口がありません',
+        },
+      };
+    }
+    current = nextEdge.to;
+  }
+  return {
+    pathIds,
+    branchHits,
+    error: {
+      ruleId: 'S2-32',
+      nodeId: pathIds[pathIds.length - 1] || '',
+      message: '終了ノードへ到達できませんでした',
+    },
+  };
+}
+
+function validateWorkflowTestNotifySimulation(node, workflow, sceneContext = {}) {
+  const wf = workflow || { nodes: [], edges: [] };
+  const normalized = typeof normalizeNotifyNode === 'function' ? normalizeNotifyNode(node, wf) : node;
+  const text = `${normalized?.subject || node.subject || ''}\n${normalized?.body || node.body || node.message || ''}`;
+  const tokens = [...text.matchAll(/\{\{?\s*([^{}\s]+)\s*\}?\}/g)].map((m) => m[1]);
+  if (!tokens.length) return '';
+  const varSceneCtx = {
+    docTypes: sceneContext.docTypes
+      || (sceneContext.documents || []).map((d) => d.type || d.docType).filter(Boolean),
+    getDocSchema: sceneContext.getDocSchema,
+    getDocLabel: sceneContext.getDocLabel,
+  };
+  const options = typeof getNotifyVariableOptions === 'function'
+    ? getNotifyVariableOptions(wf, node.id, sceneContext.verify || null, varSceneCtx)
+    : [];
+  if (!options.length) return '';
+  const allowed = new Set(options.map((o) => String(o.value || '').replace(/^\{|\}$/g, '')));
+  for (const token of tokens) {
+    const bare = String(token || '').replace(/^\{|\}$/g, '');
+    const short = bare.includes('.') ? bare.split('.').pop() : bare;
+    if (['caseNo', 'caseLabel', 'caseStatus', 'caseId', 'missingDocuments', 'missingFields', 'errorMessage', 'finalResult'].includes(short)) {
+      continue;
+    }
+    if (allowed.has(bare) || [...allowed].some((v) => v.endsWith(`.${short}`) || v === short)) continue;
+    return `通知テンプレート変数「${token}」を置換できません（S2-31）`;
+  }
+  return '';
+}
+
+
+function buildWorkflowTestDecisionDetail(step, workflow, testCase = null) {
   const wf = workflow || { nodes: [], edges: [] };
   const node = (wf.nodes || []).find((n) => n.id === step.id);
   if (!node) return null;
-  const variableOptions = typeof getDecisionCanvasVariableOptions === 'function'
-    ? getDecisionCanvasVariableOptions(node)
+  const variableOptions = typeof getDecisionVariableOptions === 'function'
+    ? getDecisionVariableOptions(wf, node.id)
     : [];
   const outEdges = (wf.edges || []).filter((edge) => edge.from === node.id && !edge.visualHidden);
+  const picked = testCase ? pickWorkflowTestDecisionBranch(node, wf, testCase) : null;
   const rows = [
-    { label: '評価結果', value: '成立（テスト模擬）' },
+    {
+      label: '評価結果',
+      value: picked
+        ? (picked.matched ? `成立 → ${picked.label}` : `ELSE / 非成立 → ${picked.label}`)
+        : '未評価',
+    },
   ];
   const issues = [];
   let hitBranch = '';
@@ -1763,11 +2363,15 @@ function buildWorkflowTestDecisionDetail(step, workflow) {
         ? decisionConditionPreview(decisionCase, variableOptions)
         : (decisionCase.label || '条件未設定'));
     const branchLabel = decisionCase.label || (index === 0 ? 'IF' : `ELIF ${index}`);
+    const sampleHit = picked?.branchKey === branchKey;
+    const condEval = testCase
+      ? (evaluateWorkflowTestDecisionCase(decisionCase, testCase) ? '真' : '偽')
+      : '—';
     rows.push({
       label: branchLabel,
-      value: preview || '条件未設定',
+      value: `${preview || '条件未設定'}（評価: ${condEval}${sampleHit ? ' · 命中' : ''}）`,
     });
-    if (!hitBranch && edge) {
+    if (sampleHit && edge) {
       const target = (wf.nodes || []).find((item) => item.id === edge.to);
       hitBranch = `${branchLabel} → ${target?.label || edge.to}`;
     }
@@ -1782,14 +2386,14 @@ function buildWorkflowTestDecisionDetail(step, workflow) {
       label: 'ELSE',
       value: node.elseLabel || '条件に該当しない場合',
     });
-    if (!hitBranch && elseEdge) {
+    if (picked?.branchKey === 'else' && elseEdge) {
       hitBranch = `ELSE → ${elseTarget?.label || elseEdge.to}`;
     }
   }
 
   rows.splice(1, 0, {
     label: '命中分岐',
-    value: hitBranch || rows[1]?.label || 'IF（テスト模擬）',
+    value: hitBranch || picked?.label || '—',
   });
 
   if ((node.cases || []).some((decisionCase) => !decisionCase.conditions?.some((c) => c.variable))) {
@@ -1815,7 +2419,18 @@ function appendWorkflowTestDetailIssues(detail, step) {
 function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
   const type = step?.type || '';
   const input = buildWorkflowTestInputContext(testCase);
+  const tc = normalizeWorkflowTestCase(testCase);
   const fileCount = input.fileCount || 0;
+  const ocrFieldCount = (tc.files || []).reduce((sum, f) => sum + Object.keys(f.ocrFields || {}).length, 0);
+  const standardFieldCount = Object.keys(tc.standardFields || {}).length;
+  const docTypeSummary = (() => {
+    const map = {};
+    (tc.files || []).forEach((f) => {
+      if (!f.docType) return;
+      map[f.docType] = (map[f.docType] || 0) + Object.keys(f.ocrFields || {}).length;
+    });
+    return Object.entries(map).map(([k, v]) => `${k} ${v}`).join(' / ') || '—';
+  })();
   if (type === 'start') {
     return appendWorkflowTestDetailIssues({
       title: '開始ノード',
@@ -1835,80 +2450,77 @@ function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
       rows: [
         { label: '成功ファイル', value: `${fileCount} / ${fileCount}` },
         { label: '失敗ファイル', value: '0' },
-        { label: '回転補正', value: `${Math.min(fileCount, 4)} 件適用` },
-        { label: '透視補正', value: `${Math.min(fileCount, 2)} 件適用` },
+        { label: '対象ファイル例', value: (tc.files || []).slice(0, 3).map((f) => f.name).join('、') || '—' },
       ],
       issues: [],
     }, step);
   }
   if (type === 'ocr') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: 'OCR 抽出結果',
       rows: [
-        { label: '抽出フィールド', value: '42 件' },
+        { label: '抽出フィールド', value: `${ocrFieldCount} 件（用例）` },
         { label: '低信頼フィールド', value: '0 件' },
-        { label: '帳票タイプ別', value: '保険金請求書 11 / 診断書 9 / 診療明細書 22' },
+        { label: '帳票タイプ別', value: docTypeSummary },
+        { label: '例：氏名', value: tc.standardFields?.氏名 || tc.files?.[0]?.ocrFields?.氏名 || '—' },
       ],
       issues: [],
-    };
+    }, step);
   }
   if (type === 'data_mapping') {
-    return {
+    const fieldPreview = Object.entries(tc.standardFields || {})
+      .slice(0, 4)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('、');
+    return appendWorkflowTestDetailIssues({
       title: 'データマッピング結果',
       rows: [
-        { label: '標準フィールド', value: '11 件' },
+        { label: '標準フィールド', value: `${standardFieldCount} 件（用例）` },
         { label: '競合フィールド', value: '0 件' },
         { label: '未マッピング', value: '0 件' },
+        { label: '値プレビュー', value: fieldPreview || '—' },
       ],
       issues: [],
-    };
-  }
-  if (type === 'notify') {
-    return {
-      title: '通知送信結果',
-      rows: [
-        { label: '送信状態', value: '成功' },
-        { label: '送信先', value: 'ops@example.com' },
-      ],
-      issues: [],
-    };
+    }, step);
   }
   if (type === 'ai_verify') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: 'AI 検証結果',
       rows: [
-        { label: '総合判定', value: '通過' },
-        { label: '検証モジュール', value: '6 / 6 実行' },
-        { label: 'データ検証', value: '3 / 3 通過' },
+        { label: '総合判定', value: step.status === 'error' ? '失敗' : '通過（用例スナップショット）' },
+        { label: '標準フィールド', value: `${standardFieldCount} 件` },
+        { label: 'OCR フィールド', value: `${ocrFieldCount} 件` },
+        { label: '必要書類', value: `${fileCount} ファイル` },
         { label: 'マッピング競合', value: '0 件' },
-        { label: '必要書類', value: '充足' },
       ],
       issues: [],
-    };
+    }, step);
   }
   if (type === 'decision') {
-    return appendWorkflowTestDetailIssues(buildWorkflowTestDecisionDetail(step, workflow), step);
+    return appendWorkflowTestDetailIssues(buildWorkflowTestDecisionDetail(step, workflow, testCase), step);
   }
   if (type === 'hitl_gate') {
+    const branch = step.branchLabel || getWorkflowTestHitlBranchLabel(workflow, step.id);
     return appendWorkflowTestDetailIssues({
-      title: '人工確認待ち',
+      title: '人工確認（テストスキップ）',
       rows: [
         { label: '確認対象', value: step.label || '人工確認' },
-        { label: 'テスト状態', value: 'このノードで停止し、待確認内容を表示します' },
+        { label: 'テスト挙動', value: '本物の人工確認はスキップし、出口チェック後に継続' },
+        { label: '継続出口', value: branch || '—' },
       ],
       issues: [],
     }, step);
   }
   if (type === 'end') {
-    return {
+    return appendWorkflowTestDetailIssues({
       title: '出力結果',
       rows: [
-        { label: 'テスト案件', value: 'REQ-2025-0018890' },
-        { label: '実行結果', value: 'Workflow 終了まで到達' },
-        { label: '出力フィールド', value: 'OCR 18 / 標準 11' },
+        { label: 'テスト案件', value: tc.caseNo },
+        { label: '実行結果', value: step.status === 'error' ? '終了未到達または失敗' : 'Workflow 終了まで到達' },
+        { label: '出力フィールド', value: `OCR ${ocrFieldCount} / 標準 ${standardFieldCount}` },
       ],
       issues: [],
-    };
+    }, step);
   }
   return null;
 }
@@ -1929,12 +2541,12 @@ function workflowTestStepResultText(step, testCase) {
   const summaries = {
     start: `起動イベント: ${input.startEventLabel} — Workflow を起動しました`,
     preprocess: '画像補正・回転・画像分割を完了しました',
-    ocr: '帳票タイプ別に公式フィールドを抽出しました',
-    data_mapping: '標準フィールドへマッピングしました',
-    ai_verify: '必須フィールド・必要書類・各種検証を通過しました',
-    decision: '条件分岐を評価しました',
-    hitl_gate: '人工確認が必要なため、このノードで停止しました',
-    notify: '通知テンプレートを生成しました',
+    ocr: '用例の OCR フィールドを読み込みました',
+    data_mapping: '用例の標準フィールドへマッピングしました',
+    ai_verify: '用例スナップショットで検証を模擬しました',
+    decision: '用例フィールドで条件分岐を評価しました',
+    hitl_gate: '人工確認をスキップし、出口チェック後に継続しました',
+    notify: '通知テンプレート変数の置換可否を検査しました（実送信なし）',
     end: 'Workflow を終了しました',
     mcp: '外部連携を完了しました',
     code: 'コード実行を完了しました',
@@ -1946,6 +2558,12 @@ function getWorkflowTestSceneContext(sceneContext) {
   return {
     processing: sceneContext?.processing || {},
     documents: sceneContext?.documents || [],
+    scene: sceneContext?.scene || null,
+    verify: sceneContext?.verify || null,
+    docTypes: sceneContext?.docTypes
+      || (sceneContext?.documents || []).map((d) => d.type || d.docType).filter(Boolean),
+    getDocSchema: sceneContext?.getDocSchema,
+    getDocLabel: sceneContext?.getDocLabel,
   };
 }
 
@@ -2086,17 +2704,6 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
       if (!String(node.role || '').trim()) return '審査ロールを選択してください';
       return '';
     }
-    case 'notify': {
-      if (typeof normalizeNotifyNode !== 'function' || typeof validateNotifyRecipients !== 'function') {
-        return '';
-      }
-      const normalized = normalizeNotifyNode(node, wf);
-      const raw = String(normalized.recipients || '').trim();
-      if (!raw) return '送信先を設定してください';
-      const result = validateNotifyRecipients(normalized.channel, raw);
-      if (!result.ok) return result.message || '送信先を設定してください';
-      return '';
-    }
     case 'code': {
       if (typeof normalizeCodeNode !== 'function') return '';
       const normalized = normalizeCodeNode(node, wf);
@@ -2142,56 +2749,170 @@ function getWorkflowTestReachableNodeIds(workflow) {
 
 function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   const wf = workflow || { nodes: [], edges: [] };
-  const chainIds = getWorkflowTestReachableNodeIds(wf);
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
   const cycleNodeIds = typeof getWorkflowCycleNodeIds === 'function'
     ? getWorkflowCycleNodeIds(wf)
     : new Set();
-  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
-  const orderedChainIds = [
-    ...chainIds.filter((id) => nodeMap[id]?.type !== 'end'),
-    ...chainIds.filter((id) => nodeMap[id]?.type === 'end'),
-  ];
-  const wfSteps = orderedChainIds.map((id) => {
+  const gate = collectWorkflowTestDimensionErrors(wf, testCase, sceneContext);
+  const makeStep = (id, overrides = {}) => {
     const node = nodeMap[id] || {};
-    return {
+    const base = {
       id,
       label: node.label || (typeof getWorkflowNodeMeta === 'function'
         ? getWorkflowNodeMeta(node.type).title
         : node.type),
       type: node.type || 'custom',
-    };
-  });
-  const allSteps = wfSteps;
-  const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
-  const hitlIssues = Object.fromEntries(validateWorkflowTestHitlContext(wf).map((issue) => [issue.nodeId, issue.message]));
-  const skippedTypes = new Set(['hitl_gate']);
-
-  return allSteps.map((step) => {
-    const errorReason = hitlIssues[step.id]
-      || workflowTestStepErrorReason(step, wf, sceneContext, canvasAnalysis)
-      || '';
-    let status = 'success';
-    if (skippedTypes.has(step.type) && !errorReason) status = 'skipped';
-    if (errorReason) status = 'error';
-    return {
-      ...step,
-      status,
-      onCycle: cycleNodeIds.has(step.id),
-      summary: (() => {
-        let text = status === 'pending' ? '未実行' : workflowTestStepResultText(step, testCase);
-        if (step.type === 'hitl_gate' && status === 'skipped') {
-          const branchLabel = getWorkflowTestHitlBranchLabel(wf, step.id);
-          if (branchLabel) text = `${text}（${branchLabel}）`;
-        }
-        if (cycleNodeIds.has(step.id) && status !== 'pending') {
-          text += '（環状パス上のノード）';
-        }
-        return text;
-      })(),
-      errorReason,
+      status: 'pending',
+      onCycle: cycleNodeIds.has(id),
+      summary: '未実行',
+      errorReason: '',
       needsHuman: false,
+      ruleId: '',
+      dimension: '',
+      branchLabel: '',
     };
-  });
+    return { ...base, ...overrides };
+  };
+
+  const formatGateError = (err) => {
+    if (!err) return 'テスト前チェックに失敗しました';
+    const hint = err.hint ? `（${err.hint}）` : '';
+    return `${err.ruleId} ${err.message}${hint}`;
+  };
+
+  // 前层门禁失败：不进入模拟；错误节点标失败，其余保持未実行
+  if (gate.blockedDimension) {
+    const first = gate.errors[0];
+    const start = (typeof getWorkflowStartNode === 'function' ? getWorkflowStartNode(wf) : null)
+      || (wf.nodes || []).find((n) => n.type === 'start');
+    const steps = [];
+    if (start && start.id !== first?.nodeId) {
+      steps.push(makeStep(start.id, {
+        status: 'success',
+        summary: workflowTestStepResultText({ type: 'start', label: start.label }, testCase),
+      }));
+    }
+    const errorId = first?.nodeId || start?.id || (wf.nodes || [])[0]?.id || 'gate';
+    if (!nodeMap[errorId] && errorId === 'gate') {
+      steps.push({
+        id: 'gate',
+        label: 'テスト前チェック',
+        type: 'custom',
+        status: 'error',
+        onCycle: false,
+        summary: formatGateError(first),
+        errorReason: formatGateError(first),
+        needsHuman: false,
+        ruleId: first?.ruleId || '',
+        dimension: first?.dimension || gate.blockedDimension,
+        branchLabel: '',
+        dimensionErrors: gate.errors,
+      });
+    } else {
+      steps.push(makeStep(errorId, {
+        status: 'error',
+        summary: formatGateError(first),
+        errorReason: formatGateError(first),
+        ruleId: first?.ruleId || '',
+        dimension: first?.dimension || gate.blockedDimension,
+        dimensionErrors: gate.errors,
+      }));
+    }
+    return steps;
+  }
+
+  const sim = simulateWorkflowTestExecutionPath(wf, testCase);
+  const pathIds = sim.pathIds || [];
+  if (!pathIds.length) {
+    return [makeStep((wf.nodes || [])[0]?.id || 'empty', {
+      status: 'error',
+      summary: sim.error?.message || '実行順序を決定できません（S2-29）',
+      errorReason: sim.error?.message || '実行順序を決定できません（S2-29）',
+      ruleId: sim.error?.ruleId || 'S2-29',
+      dimension: '模拟执行',
+    })];
+  }
+
+  const steps = [];
+  for (let i = 0; i < pathIds.length; i += 1) {
+    const id = pathIds[i];
+    const node = nodeMap[id];
+    if (!node) continue;
+    let status = 'success';
+    let errorReason = '';
+    let ruleId = '';
+    let dimension = '';
+    let branchLabel = '';
+
+    if (sim.error && sim.error.nodeId === id) {
+      status = 'error';
+      errorReason = `${sim.error.ruleId || 'S2-29'} ${sim.error.message}`;
+      ruleId = sim.error.ruleId || 'S2-29';
+      dimension = '模拟执行';
+    }
+
+    if (!errorReason && node.type === 'hitl_gate') {
+      status = 'skipped';
+      const hit = sim.branchHits?.[id];
+      branchLabel = hit?.label
+        || getWorkflowTestHitlBranchLabel(wf, id)
+        || (hit?.branchKey ? `分岐: ${hit.branchKey}` : '');
+    }
+
+    if (!errorReason && node.type === 'decision') {
+      const hit = sim.branchHits?.[id];
+      if (hit?.label) branchLabel = `命中: ${hit.label}`;
+    }
+
+    if (!errorReason && node.type === 'end' && sim.error && !sim.error.nodeId) {
+      status = 'error';
+      errorReason = `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`;
+      ruleId = sim.error.ruleId || 'S2-32';
+      dimension = '模拟执行';
+    }
+
+    let summary = status === 'pending'
+      ? '未実行'
+      : workflowTestStepResultText({ id, type: node.type, label: node.label }, testCase);
+    if (node.type === 'hitl_gate' && status === 'skipped' && branchLabel) {
+      summary = `${summary}（${branchLabel}）`;
+    }
+    if (node.type === 'decision' && branchLabel && status !== 'error') {
+      summary = `${summary}（${branchLabel}）`;
+    }
+    if (cycleNodeIds.has(id) && status !== 'pending') {
+      summary += '（環状パス上のノード）';
+    }
+    if (status === 'error') summary = errorReason;
+
+    steps.push(makeStep(id, {
+      status,
+      summary,
+      errorReason,
+      ruleId,
+      dimension,
+      branchLabel,
+      needsHuman: false,
+    }));
+
+    // 模拟失败即停：后续路径节点不再列入成功；动画侧依赖 status=error 停止
+    if (status === 'error') break;
+  }
+
+  // 若路径未到 end 且循环结束无显式 error，补终了失败
+  const last = steps[steps.length - 1];
+  if (last && last.type !== 'end' && last.status !== 'error') {
+    const msg = sim.error
+      ? `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`
+      : 'S2-32 終了ノードへ到達できませんでした';
+    last.status = 'error';
+    last.errorReason = msg;
+    last.ruleId = sim.error?.ruleId || 'S2-32';
+    last.dimension = '模拟执行';
+    last.summary = msg;
+  }
+
+  return steps;
 }
 
 /** 终了节点结构与到达要件（并入工作流测试；勿在测试外再挂一层门禁） */
@@ -2225,15 +2946,22 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   const wf = workflow || { nodes: [], edges: [] };
   const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
   const passed = list.filter((step) => ['success', 'skipped'].includes(step.status)).length;
-  const hasError = list.some((step) => step.status === 'error');
+  const errorStep = list.find((step) => step.status === 'error');
+  const hasError = !!errorStep;
   const stoppedEarly = hasError && list.some((step) => step.status === 'pending');
   const endStep = [...list].reverse().find((step) => step.type === 'end');
   const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
-  const hasCanvasIssue = canvasAnalysis.canvasHighlights.length > 0;
-  const endRequirementError = validateWorkflowEndRequirements(wf);
+  const dimensionErrors = errorStep?.dimensionErrors
+    || (errorStep ? [{
+      ruleId: errorStep.ruleId || '',
+      dimension: errorStep.dimension || '',
+      message: errorStep.errorReason || '',
+      nodeId: errorStep.id,
+    }] : []);
   let overallStatus = 'success';
   let overallLabel = '成功';
-  if (hasError || hasCanvasIssue || endRequirementError) {
+  // S2-33：以时间线结论为准（门禁错误已写入 error 步骤）；不再用画布次要高亮单独否决已测通路径
+  if (hasError) {
     overallStatus = 'error';
     overallLabel = stoppedEarly ? '失敗（停止）' : '失敗';
   } else if (!reachedEnd) {
@@ -2241,24 +2969,29 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
     overallLabel = '終了未到達';
   }
   const input = buildWorkflowTestInputContext(testCase);
-  const structureMessages = [...new Set(canvasAnalysis.canvasHighlights.map((item) => item.message))];
-  if (endRequirementError && !structureMessages.includes(endRequirementError)) {
-    structureMessages.push(endRequirementError);
-  }
+  const structureMessages = [
+    ...dimensionErrors.map((e) => [e.ruleId, e.message].filter(Boolean).join(' ')).filter(Boolean),
+    ...canvasAnalysis.canvasHighlights.map((item) => item.message),
+  ];
+  const uniqueNotes = [...new Set(structureMessages.filter(Boolean))];
+  const failHighlights = errorStep?.id
+    ? [{ nodeId: errorStep.id, kind: 'test_error', message: errorStep.errorReason || '' }]
+    : canvasAnalysis.canvasHighlights;
   return {
     overallStatus,
     overallLabel,
-    durationSec: 18.4,
+    durationSec: Math.max(1, Math.round(list.length * 0.4 * 10) / 10),
     passedCount: passed,
     totalCount: list.length,
     workflowNodeCount: list.length,
     inputFileCount: input.fileCount,
     reachedEnd,
-    canvasHighlights: canvasAnalysis.canvasHighlights,
-    structureNote: structureMessages.length
-      ? `構造エラー：${structureMessages.join('、')}`
+    canvasHighlights: failHighlights,
+    dimensionErrors,
+    structureNote: uniqueNotes.length
+      ? `エラー：${uniqueNotes.slice(0, 3).join('、')}`
       : '',
-    endRequirementError: endRequirementError || '',
+    endRequirementError: errorStep?.errorReason || '',
   };
 }
 

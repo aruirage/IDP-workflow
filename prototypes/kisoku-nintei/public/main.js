@@ -245,18 +245,18 @@ const appOptions = {
       ['出力変数', '输出变量'],
       ['スクリプトへ渡す引数を定義します。上流ノードの出力変数を選択できます。', '定义传给脚本的参数。可选择上游节点输出变量。'],
       ['上流ノードの出力変数を JSON として Python 関数へ渡します。', '将上游节点输出变量作为 JSON 传给 Python 函数。'],
-      ['追加した入力変数は Python スクリプト内でパラメータ名として参照します。', '添加的输入变量可在 Python 脚本内用参数名参照。'],
+      ['追加した入力変数は Python スクリプト内で変数名として参照します。', '添加的输入变量可在 Python 脚本内用变量名参照。'],
       ['main(inputs) 関数を実装します。', '实现 main(inputs) 函数。'],
       ['戻り値は実行ログで確認できます。変数プールには入りません。', '返回值可在执行日志查看，不进入变量池。'],
       ['入力変数がありません', '没有输入变量'],
       ['出力変数がありません', '没有输出变量'],
-      ['パラメータ名', '参数名'],
+      ['変数名', '变量名'],
       ['データ型', '数据类型'],
       ['ソース', '来源'],
-      ['参照パラメータ', '参照参数'],
+      ['参照変数', '参照变量'],
       ['カスタム', '自定义'],
       ['上流ノードの出力変数を選択', '选择上游节点输出变量'],
-      ['（参照パラメータ未設定）', '（未设置参照参数）'],
+      ['（参照変数未設定）', '（未设置参照变量）'],
       ['必須', '必填'],
       ['文字列', '字符串'],
       ['整数', '整数'],
@@ -264,14 +264,13 @@ const appOptions = {
       ['辞書', '字典'],
       ['配列', '数组'],
       ['参照変数 JSON', '参照变量 JSON'],
-      ['上流ノードの files[] JSON', '上游节点的 files[] JSON'],
-      ['上流 files[] JSON', '上游 files[] JSON'],
+      ['start.files[]', 'start.files[]'],
       ['変数を挿入', '插入变量'],
       ['入力変数を選択', '选择输入变量'],
       ['先に入力変数を追加', '请先添加输入变量'],
       ['ソース', '来源'],
       ['ソースを選択', '选择来源'],
-      ['ソース初期値は上流ノードの files[] JSON。追加後、スクリプトでパラメータ名を参照します。', '来源默认是上游节点的 files[] JSON。添加后可在脚本中用参数名引用。'],
+      ['ソース初期値は start.files[]。追加後、スクリプトで変数名を参照します。', '来源默认是 start.files[]。添加后可在脚本中用变量名引用。'],
       ['追加済みの入力変数名だけをスクリプトへ挿入できます。', '只能插入已添加的输入变量名到脚本。'],
       ['string / int / dict / array / float から選択します。', '从 string / int / dict / array / float 中选择。'],
       ['デフォルトは上流ノードの全 files[] 出力をまとめた JSON です。個別の files[] へ変更もできます。', '默认是上游全部 files[] 输出汇总 JSON。也可改为单个上游 files[]。'],
@@ -516,7 +515,7 @@ const appOptions = {
       ['空白で作成', '空白创建'],
       ['既存シーンからコピー', '从已有场景复制'],
       ['Step1 から手動で設定します。', '从 Step1 手动设定。'],
-      ['Step1/Step2/Step3 をコピーし、構造チェック結果を確認します。', '复制 Step1/Step2/Step3，并确认结构检查结果。'],
+      ['Step1〜Step4 をコピーし、構造チェック結果を確認します。', '复制 Step1～Step4，并确认结构检查结果。'],
       ['コピー範囲', '复制范围'],
       ['コピー元シーン', '复制来源场景'],
       ['dry-run チェック方針', 'Dry-run 检查方针'],
@@ -529,9 +528,9 @@ const appOptions = {
       ['システム既定', '系统默认'],
       ['Tool がありません', '没有 Tool'],
       ['MCP サーバーがありません', '没有 MCP 服务器'],
-      ['パラメータ定義がありません', '没有参数定义'],
-      ['パラメータを保存', '保存参数'],
-      ['パラメータ名を入力してください', '请输入参数名'],
+      ['変数定義がありません', '没有变量定义'],
+      ['変数を保存', '保存变量'],
+      ['変数名を入力してください', '请输入变量名'],
       ['左の一覧から MCP サーバーを選択してください', '请从左侧列表选择 MCP 服务器'],
       ['マスタ一覧', 'Master 列表'],
       ['マスタ名で検索', '按 Master 名搜索'],
@@ -657,7 +656,7 @@ const appOptions = {
       ['起始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。', '建议从起始节点（输入）开始，按前处理 → OCR → 外部 API → AI 校验 → 输出的顺序配置。编辑模式下可用 N 键或工具栏 + 添加节点。'],
       ['出力ポートをドラッグしてノード間を接続します。ノード前後または連線上の + でノードを追加・挿入できます。', '拖拽输出端口连接节点。可通过节点前后或连线上的 + 添加/插入节点。'],
       ['MCP サーバー管理', 'MCP 服务器管理'],
-      ['Server 接続・Tool 定義・入力パラメータを集中管理。Workflow では Server / Tool の選択のみ行います。', '集中管理 Server 连接、Tool 定义和输入参数。Workflow 中只选择 Server / Tool。'],
+      ['Server 接続・Tool 定義・入力変数を集中管理。Workflow では Server / Tool の選択のみ行います。', '集中管理 Server 连接、Tool 定义和输入变量。Workflow 中只选择 Server / Tool。'],
       ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
       ['出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。', '拖拽输出端口可连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
       ['ファイル分割は他製品の既存ルールをそのまま利用します。本 PRD では再定義しません。Step1 では設定しません。', '文件分割沿用其他产品已有规则，本 PRD 不重复定义，不在 Step1 配置。'],
@@ -682,9 +681,8 @@ const appOptions = {
       ['帳票タイプ・フィールド・処理範囲（複数ファイル）と、参照するマスタ・シート・照合列・返却列をルールごとに定義します。', '按规则定义账票类型、字段、处理范围（多文件），以及参照的 Master、Sheet、照合列、返回列。'],
       ['同一帳票タイプに複数ファイルがある場合の照合単位です。インスタンス別＝ファイルごと、帳票タイプ集約＝タイプ単位、案件集約＝案件全体で1回照合します。', '这是同一账票类型存在多个文件时的照合单位。按实例=按文件；按账票类型集约=按类型；案件集约=案件整体执行一次。'],
       ['照合方式：キーワード検索 / ベクトル検索 / 混合検索 / コード検索。', '照合方式：关键词搜索 / 向量搜索 / 混合搜索 / 代码搜索。'],
-      ['後続ノード・IF/ELSE 条件・通知テンプレートで使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件、通知模板中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
-      ['Step1 案件変数（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。起動イベントは案件状態に対応する 3 種（読み取り専用）。账票字段仅在条件选择时从 Step1 模板加载。', 'Step1 案件变量（caseId / caseNo / businessScene / caseStatus）+ docTypes[] + files[]。启动事件对应 3 种案件状态（只读）。账票字段仅在条件选择时从 Step1 模板加载。'],
-      ['ファイルアップロード自体は Workflow を開始しません。案件状態が 待機中/処理中（集約完了）・補件（帰属完了）・処理中止（再実行）のとき起動します。', '文件上传本身不会启动 Workflow。当案件状态为 待机中/处理中（集约完成）、补件（归属完成）、处理中止（再执行）时启动。'],
+      ['後続ノード・IF/ELSE 条件で使える出力変数です。{ノード変数名.項目} 形式で指定します。', '这是后续节点、IF/ELSE 条件中可使用的输出变量。以 {节点变量名.项目} 形式指定。'],
+      ['案件 ID（caseId）とファイル一覧（files[]）のみ。帳票タイプは条件ノードで Step1 から直接選択。', '仅案件 ID（caseId）与文件一览（files[]）。账票类型在条件节点从 Step1 直接选择。'],
       ['処理済みファイル・低信頼件数・ステータス。後続ノードの条件分岐で参照できます。', '处理后文件、低置信件数、状态。可在后续节点的条件分支中引用。'],
       ['前処理総状態・成功/失敗件数・人工確認要否・処理済み/未処理ファイル・分類警告。', '前处理总状态、成功/失败件数、是否需人工确认、已处理/未处理文件、分类警告。'],
       ['OCR 結果・ファイル別 OCR 結果・低信頼フィールド件数・モデル不一致件数・ステータス。', 'OCR 结果、按文件 OCR 结果、低置信字段件数、模型不一致件数、状态。'],
@@ -878,7 +876,8 @@ const appOptions = {
       ['关注点', '关注点'],
       ['通知送信状態・送信日時。', '通知发送状态、发送时间。'],
       ['通知送信状態・送信日時・送信失敗理由。', '通知发送状态、发送时间、发送失败原因。'],
-      ['Workflow 入口。案件状態が 待機中/処理中・補件・処理中止 のとき起動・続行・再実行します（読み取り専用）。', 'Workflow 入口。当案件状态为 待机中/处理中、补件、处理中止 时启动、续跑或再执行（只读）。'],
+      ['システム固定入口。設定項目はありません。', '系统固定入口。没有配置项。'],
+      ['Workflow の終点。設定項目・出力変数はありません。', 'Workflow 终点。没有配置项和输出变量。'],
       ['AI検証確認は顧客設定不要。以下イベントで待办を生成・合并します（顧客設定不可）。', 'AI 检证确认无需客户配置。按以下事件生成・合并待办（客户不可配置）。'],
       ['无需配置；AI 检证入口等待汇总，人工待办 open 追加', '无需配置；AI 检证入口等待汇总，人工待办 open 追加'],
       ['等待条件', '等待条件'],
@@ -976,7 +975,7 @@ const appOptions = {
       ['Workflow テストが失敗しました', 'Workflow 测试失败'],
       ['テスト失敗で停止：', '测试失败并停止：'],
       ['失敗（停止）', '失败（已停止）'],
-      ['Step2 の Workflow テストを完了してください', '请先完成 Step2 的 Workflow 测试'],
+      ['Step2 の Workflow テストは参考確認です', 'Step2 的 Workflow 测试仅供参考'],
       ['終了ノードを1件以上配置してください', '请至少配置 1 个终了节点'],
       ['終了ノードから出る接続は設定できません', '终了节点不能再连出'],
       ['開始ノードから終了ノードへ到達できません', '无法从开始节点到达终了节点'],
@@ -1464,7 +1463,7 @@ const appOptions = {
     }
 
     function openFixedDocSettings(typeId) {
-      if (typeId) fixedDocSettingsTarget.value = typeId;
+      fixedDocSettingsTarget.value = typeId ? typeId : '';
       switchModule('fixed-doc');
     }
 
@@ -1668,20 +1667,9 @@ const appOptions = {
       };
       return labels[scenePublishStatusKey.value] || labels.draft;
     });
-    function getStep2GateError() {
-      const baseErr = validateWorkflowReadyForTest();
-      if (baseErr) return baseErr;
-      if (form.workflowTestStatus !== 'success') {
-        return 'Step2 の Workflow テストを完了してください';
-      }
-      return '';
-    }
-
-    const canEnterWorkflowStep3 = computed(() => !getStep2GateError());
-
     function updateSceneReadyState() {
       if (form.scene.publishStatus === 'published') return;
-      // Step2 测试成功 → 画布状态「公開可能」（终了要件在测试内已检）
+      // Step2 测试仅作为参考检查，不再决定是否可进入下一步
       form.scene.publishStatus = form.workflowTestStatus === 'success' ? 'ready' : 'draft';
     }
 
@@ -1752,7 +1740,7 @@ const appOptions = {
       return enabled.includes(docType);
     });
 
-    /** Step3：无 OCR 抽出候选时整页空态（只选 OCR 账票/字段） */
+    /** Step4：无 OCR 抽出候选时整页空态（只选 OCR 账票/字段） */
     const step3ExportCandidatesEmpty = computed(() => {
       const ocrNode = primaryOcrNode.value;
       const enabled = form.processing?.ocrExtract?.enabledTypes || [];
@@ -1783,6 +1771,188 @@ const appOptions = {
         form.output.exportFieldModeByDoc[docType] = mode;
       },
     });
+
+    function ensureWorkflowNotificationStore() {
+      if (!form.stepNotifications || typeof form.stepNotifications !== 'object' || Array.isArray(form.stepNotifications)) {
+        form.stepNotifications = { policies: {} };
+      }
+      if (!form.stepNotifications.policies || typeof form.stepNotifications.policies !== 'object') {
+        form.stepNotifications.policies = {};
+      }
+      return form.stepNotifications.policies;
+    }
+
+    const WORKFLOW_NOTIFICATION_MODULES = [
+      { key: 'preprocess', type: 'preprocess', label: '前処理', varName: 'preprocess' },
+      { key: 'ocr', type: 'ocr', label: 'OCR抽出', varName: 'ocr' },
+      { key: 'data_mapping', type: 'data_mapping', label: 'データマッピング', varName: 'dataMapping' },
+      { key: 'ai_verify', type: 'ai_verify', label: 'AI検証', varName: 'aiVerify' },
+    ];
+
+    function getWorkflowNotificationPoliciesForModule(module) {
+      if (!module) return [];
+      return [
+        {
+          key: 'failed',
+          label: '失敗通知',
+          desc: '処理状態が failed の場合に通知します',
+        },
+        {
+          key: 'reviewRequired',
+          label: '要確認通知',
+          desc: '処理状態が success かつ処理結果が reviewRequired の場合に通知します',
+        },
+      ];
+    }
+
+    function getWorkflowNodeStatusVarKey(type) {
+      const map = {
+        preprocess: 'preprocessStatus',
+        ocr: 'ocrStatus',
+        data_mapping: 'mappingStatus',
+        ai_verify: 'verifyStatus',
+        hitl_gate: 'hitlStatus',
+        code: 'codeStatus',
+      };
+      return map[type] || 'status';
+    }
+
+    const workflowNotificationRows = computed(() => {
+      return WORKFLOW_NOTIFICATION_MODULES.map((module) => ({
+        node: { id: module.key, type: module.type },
+        label: module.label,
+        typeLabel: module.label,
+        sequenceLabel: module.label,
+        varName: module.varName,
+        statusKey: getWorkflowNodeStatusVarKey(module.type),
+        statusPath: `${module.varName}.case.${getWorkflowNodeStatusVarKey(module.type)}`,
+        policies: getWorkflowNotificationPoliciesForModule(module),
+      }));
+    });
+
+    const workflowNotificationExpandableRows = computed(() => workflowNotificationRows.value.map((row) => ({
+      ...row,
+      configuredCount: (row.policies || []).filter((policy) => isWorkflowNotificationPolicyConfigured(row.node.id, policy.key)).length,
+      policyCount: (row.policies || []).length,
+    })));
+    const workflowNotificationOpenRows = reactive({});
+    const workflowNotificationInsertTarget = reactive({});
+
+    watch(workflowNotificationRows, (rows) => {
+      (rows || []).forEach((row) => {
+        (row.policies || []).forEach((policy) => {
+          const key = `${row.node.id}-${policy.key}`;
+          if (!workflowNotificationInsertTarget[key]) workflowNotificationInsertTarget[key] = 'body';
+        });
+      });
+    }, { immediate: true });
+
+    const workflowNotificationVariableOptions = computed(() => {
+      const wf = getActiveWf();
+      const nodes = wf?.nodes || [];
+      return nodes.flatMap((node) =>
+        getWorkflowNodeOutputVarItems(node, wf)
+          .filter((item) => item?.path)
+          .map((item) => ({
+            value: item.path,
+            label: `${getWorkflowNodeVarName(node, wf)}.${item.name || item.id}`,
+          })),
+      );
+    });
+
+    function getWorkflowNotificationPolicy(nodeId, policyKey) {
+      const policies = ensureWorkflowNotificationStore();
+      return policies?.[nodeId]?.[policyKey] || { recipients: [], subject: '', body: '' };
+    }
+
+    function isWorkflowNotificationPolicyConfigured(nodeId, policyKey) {
+      const policy = getWorkflowNotificationPolicy(nodeId, policyKey);
+      return Boolean((policy.recipients || []).length || policy.subject || policy.body);
+    }
+
+    function updateWorkflowNotificationPolicy(nodeId, policyKey, field, value) {
+      if (!nodeId || !policyKey || !['recipient', 'recipients', 'subject', 'body'].includes(field)) return;
+      const policies = ensureWorkflowNotificationStore();
+      if (!policies[nodeId]) policies[nodeId] = {};
+      const current = policies[nodeId][policyKey] || { recipients: [], subject: '', body: '' };
+      const nextField = field === 'recipient' ? 'recipients' : field;
+      const nextValue = field === 'recipient'
+        ? (Array.isArray(value) ? value : [value]).filter(Boolean)
+        : (value || '');
+      policies[nodeId][policyKey] = { ...current, [nextField]: nextValue };
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+    }
+
+    function clearWorkflowNotificationPolicy(nodeId, policyKey) {
+      const policies = ensureWorkflowNotificationStore();
+      if (!policies[nodeId]) return;
+      delete policies[nodeId][policyKey];
+      if (!Object.keys(policies[nodeId]).length) delete policies[nodeId];
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+    }
+
+    function insertWorkflowNotificationVariable(nodeId, policyKey, field, varPath) {
+      if (!varPath) return;
+      const current = getWorkflowNotificationPolicy(nodeId, policyKey);
+      const key = field === 'subject' ? 'subject' : 'body';
+      const next = insertNotifyVariableText(current[key] || '', varPath);
+      updateWorkflowNotificationPolicy(nodeId, policyKey, key, next);
+    }
+
+    function toggleWorkflowNotificationRow(nodeId) {
+      if (!nodeId) return;
+      const next = !workflowNotificationOpenRows[nodeId];
+      Object.keys(workflowNotificationOpenRows).forEach((key) => {
+        workflowNotificationOpenRows[key] = false;
+      });
+      workflowNotificationOpenRows[nodeId] = next;
+    }
+
+    function insertWorkflowNotificationText(nodeId, policyKey, varPath) {
+      if (!nodeId || !policyKey || !varPath) return;
+      const field = workflowNotificationInsertTarget[`${nodeId}-${policyKey}`] || 'body';
+      insertWorkflowNotificationVariable(nodeId, policyKey, field, varPath);
+    }
+
+    function resetWorkflowNotificationConfig() {
+      form.stepNotifications = { policies: {} };
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+    }
+
+    function validateWorkflowNotificationConfig() {
+      const rows = workflowNotificationRows.value || [];
+      for (const row of rows) {
+        for (const policyMeta of row.policies || []) {
+          const policy = getWorkflowNotificationPolicy(row.node.id, policyMeta.key);
+          const hasAny = Boolean((policy.recipients || []).length || policy.subject || policy.body);
+          if (!hasAny) continue;
+          if (!(policy.recipients || []).length || !policy.subject || !policy.body) {
+            return `${row.label}・${policyMeta.label}：通知対象、件名、内容を入力してください`;
+          }
+        }
+      }
+      return '';
+    }
+
+    function saveWorkflowNotificationConfig(options = {}) {
+      const err = validateWorkflowNotificationConfig();
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return false;
+      }
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
+      if (!options.silent) ElementPlus.ElMessage.success('保存しました');
+      return true;
+    }
+
+    function goToWorkflowStep4FromNotifications() {
+      if (!saveWorkflowNotificationConfig({ silent: true })) return;
+      goToWorkflowSetupStep(4);
+    }
 
     const activeExportFileLabel = computed(() => {
       if (outputExportFieldMode.value === 'standard') return '標準フィールド';
@@ -2251,49 +2421,6 @@ const appOptions = {
     const notifyVariableCascaderOptions = computed(() =>
       buildDecisionVariableCascaderTree(notifyVariableOptions.value));
 
-    const codeVariableOptions = computed(() => {
-      const wf = getActiveWf();
-      const node = selectedWorkflowNode.value;
-      if (!wf || !node || node.type !== 'code') return [];
-      return buildCodeSourceVariableOptions(wf, node.id);
-    });
-
-    const codeVariableCascaderOptions = computed(() =>
-      buildDecisionVariableCascaderTree(codeVariableOptions.value));
-
-    const codeScriptInputOptions = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code') return [];
-      return (node.inputs || [])
-        .filter((row) => row?.name)
-        .map((row) => ({
-          value: row.name,
-          label: row.name,
-          dataType: row.dataType || 'string',
-        }));
-    });
-
-    const codeScriptInsertPick = ref('');
-
-    function getCodeVariableOption(value) {
-      if (!value) return null;
-      return codeVariableOptions.value.find((opt) => opt.value === value) || null;
-    }
-
-    function formatCodeInputVariableDisplay(row) {
-      if (!row) return 'ソース未設定';
-      if (row.source === 'upstream_files_json' || isCodeUpstreamFilesJsonSource(row.variable)) {
-        return '上流 files[] JSON';
-      }
-      if (!row.variable) return 'ソース未設定';
-      return formatDecisionVariableDisplay(row.variable, codeVariableOptions.value)
-        || formatCodeInputVariableToken(row.variable);
-    }
-
-    function formatCodeInputVariableType(row) {
-      return getCodeParamDataTypeLabel(row?.dataType) || 'string';
-    }
-
     function insertNotifyVariable(field, varPath) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'notify') return;
@@ -2358,134 +2485,92 @@ const appOptions = {
       return { key: 'case', label: '案件変数' };
     }
 
+    function onCodeFieldChange() {
+      pushWorkflowHistory('カスタム関数を変更');
+    }
+
     const codeParamDialogVisible = ref(false);
-    const codeParamDialogMode = ref('input');
-    const codeParamDialogDraft = ref(createCodeParamDialogDraft('input'));
+    const codeParamDialogMode = ref('add');
+    const codeParamDialogDraft = reactive(createCodeParamDialogDraft('input'));
 
-    const codeParamDialogTitle = computed(() => {
-      const editing = !!codeParamDialogDraft.value?.id;
-      const kind = '入力変数';
-      return editing ? `${kind}を編集` : `${kind}を追加`;
-    });
-
-    const codeParamDialogConfirmLabel = computed(() =>
-      (codeParamDialogDraft.value?.id ? '保存' : '追加'));
-
-    const codeParamDialogSavable = computed(() => {
-      const draft = codeParamDialogDraft.value;
-      if (!draft?.name?.trim()) return false;
-      if (!draft.dataType) return false;
-      return !!draft.variable;
-    });
-
-    function onCodeParamVariableChange(variable) {
-      const draft = codeParamDialogDraft.value;
-      if (!draft) return;
-      if (isCodeUpstreamFilesJsonSource(variable)) {
-        draft.source = 'upstream_files_json';
-        draft.variable = CODE_UPSTREAM_FILES_JSON;
-        if (!draft.dataType || draft.dataType === 'string') draft.dataType = 'dict';
-        return;
-      }
-      draft.source = 'reference';
-      draft.variable = variable || '';
-      const opt = getCodeVariableOption(variable);
-      if (opt?.dataType) {
-        const mapped = migrateCodeDataType(opt.dataType);
-        // files[] 单体默认 array；不覆盖用户已改成其它类型的选择（除首次）
-        if (!draft._userPickedDataType) draft.dataType = mapped;
-      }
-    }
-
-    function onCodeParamDataTypeChange() {
-      const draft = codeParamDialogDraft.value;
-      if (!draft) return;
-      draft._userPickedDataType = true;
-      draft.dataType = migrateCodeDataType(draft.dataType);
-    }
-
-    function openCodeParamDialog(mode = 'input', row = null) {
+    const selectedCodeInputRows = computed(() => {
       const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code') return;
-      codeParamDialogMode.value = 'input';
-      if (row) {
-        const normalized = normalizeCodeInputRow(row);
-        codeParamDialogDraft.value = {
-          id: normalized.id,
-          name: normalized.name,
-          dataType: normalized.dataType,
-          source: normalized.source,
-          required: normalized.required !== false,
-          variable: normalized.variable,
-          _userPickedDataType: true,
-        };
-      } else {
-        const draft = createCodeParamDialogDraft('input');
-        const count = (node.inputs || []).length;
-        draft.name = `input_${count + 1}`;
-        draft.variable = CODE_UPSTREAM_FILES_JSON;
-        draft.source = 'upstream_files_json';
-        draft.dataType = 'dict';
-        draft._userPickedDataType = false;
-        codeParamDialogDraft.value = draft;
-      }
+      if (!node || node.type !== 'code') return [];
+      if (!Array.isArray(node.inputs)) node.inputs = [];
+      return node.inputs;
+    });
+
+    const codeVariableOptions = computed(() => {
+      const node = selectedWorkflowNode.value;
+      if (!node || node.type !== 'code') return [];
+      return buildCodeVariableOptions(getActiveWf(), node.id);
+    });
+
+    function resetCodeParamDialogDraft(row = null) {
+      const next = row
+        ? normalizeCodeInputRow(row, 0)
+        : createCodeParamDialogDraft('input');
+      Object.assign(codeParamDialogDraft, next);
+    }
+
+    function openCodeParamDialog(row = null) {
+      codeParamDialogMode.value = row ? 'edit' : 'add';
+      resetCodeParamDialogDraft(row);
       codeParamDialogVisible.value = true;
     }
 
-    function closeCodeParamDialog() {
-      codeParamDialogVisible.value = false;
+    function validateCodeParamDraft() {
+      const node = selectedWorkflowNode.value;
+      const name = String(codeParamDialogDraft.name || '').trim();
+      if (!name) return '変数名を入力してください';
+      if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) {
+        return '変数名は英字または _ で始め、英数字と _ のみ使用してください';
+      }
+      const duplicate = (node?.inputs || []).some((row) =>
+        row.id !== codeParamDialogDraft.id && String(row.name || '').trim() === name);
+      if (duplicate) return '同じ変数名が既に存在します';
+      if (!codeParamDialogDraft.variable) return '入力変数を選択してください';
+      return '';
     }
 
-    function confirmCodeParamDialog() {
+    function saveCodeParamDialog() {
       const node = selectedWorkflowNode.value;
-      const draft = codeParamDialogDraft.value;
-      if (!node || node.type !== 'code' || !codeParamDialogSavable.value) return;
+      if (!node || node.type !== 'code') return;
+      const err = validateCodeParamDraft();
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return;
+      }
       if (!Array.isArray(node.inputs)) node.inputs = [];
-      const payload = normalizeCodeInputRow({
-        id: draft.id || newRuleId('cin'),
-        name: draft.name.trim(),
-        dataType: draft.dataType,
-        source: draft.source,
-        required: draft.required,
-        variable: draft.variable || CODE_UPSTREAM_FILES_JSON,
+      const next = normalizeCodeInputRow({
+        ...codeParamDialogDraft,
+        name: String(codeParamDialogDraft.name || '').trim(),
+        source: isCodeUpstreamFilesJsonSource(codeParamDialogDraft.variable) ? 'upstream_files_json' : 'reference',
       }, node.inputs.length);
-      const idx = node.inputs.findIndex((r) => r.id === draft.id);
-      if (idx >= 0) node.inputs[idx] = payload;
-      else node.inputs.push(payload);
-      pushWorkflowHistory(draft.id ? '入参を更新' : '入参を追加');
+      const idx = node.inputs.findIndex((row) => row.id === next.id);
+      if (idx >= 0) node.inputs[idx] = next;
+      else node.inputs.push(next);
       codeParamDialogVisible.value = false;
+      pushWorkflowHistory(codeParamDialogMode.value === 'edit' ? '入力変数を編集' : '入力変数を追加');
     }
 
-    function addCodeInputRow() {
-      openCodeParamDialog('input');
-    }
-
-    function removeCodeInputRow(rowId) {
+    function removeCodeInputParam(rowId) {
       const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code' || !node.inputs?.length) return;
-      node.inputs = node.inputs.filter((r) => r.id !== rowId);
-      pushWorkflowHistory('入参を削除');
+      if (!node || node.type !== 'code' || !Array.isArray(node.inputs)) return;
+      node.inputs = node.inputs.filter((row) => row.id !== rowId);
+      pushWorkflowHistory('入力変数を削除');
     }
 
-    function insertCodeScriptVariable(paramName) {
-      const node = selectedWorkflowNode.value;
-      if (!node || node.type !== 'code' || !paramName) return;
-      const snippet = formatCodeScriptVarSnippet(paramName);
-      if (!snippet) return;
-      const current = String(node.pythonCode || '');
-      const needsSpace = current && !/\s$/.test(current);
-      node.pythonCode = `${current}${needsSpace ? '\n' : ''}${snippet}`;
-      codeScriptInsertPick.value = '';
-      pushWorkflowHistory('スクリプトへ入力変数を挿入');
+    function onCodeInputVariableChange(row, variable) {
+      if (!row) return;
+      row.variable = variable;
+      row.source = isCodeUpstreamFilesJsonSource(variable) ? 'upstream_files_json' : 'reference';
+      pushWorkflowHistory('入力変数の参照元を変更');
     }
 
-    function onCodeScriptInsertPick(paramName) {
-      if (!paramName) return;
-      insertCodeScriptVariable(paramName);
-    }
-
-    function onCodeFieldChange() {
-      pushWorkflowHistory('カスタム関数を変更');
+    function formatCodeInputSourceLabel(variable) {
+      const option = codeVariableOptions.value.find((item) => item.value === variable);
+      return option?.label || formatCodeInputRowDisplay({ variable });
     }
 
     const workflowConditionAiLoading = ref(false);
@@ -2670,12 +2755,6 @@ const appOptions = {
       getWorkflowNodeOutputVarItems(selectedWorkflowNode.value, getActiveWf()),
     );
 
-    const workflowOutputVarsExpanded = ref(true);
-
-    watch(selectedWorkflowNodeId, () => {
-      workflowOutputVarsExpanded.value = true;
-    });
-
     const showWorkflowNodeOutputSection = computed(() => {
       if (inspectorMode.value !== 'node' || !selectedWorkflowNode.value) return false;
       if (['edge', 'overview', 'scene'].includes(inspectorPanel.value)) return false;
@@ -2709,36 +2788,41 @@ const appOptions = {
       }));
     });
 
+    function getWorkflowOutputChineseName(item = {}) {
+      const id = String(item.localId || item.id || item.name || '');
+      const bare = id.includes('.') ? id.split('.').pop() : id;
+      const byBare = {
+        caseId: '案件ID',
+        files: '文件列表',
+        'files[]': '文件列表',
+        preprocessStatus: '前处理状态',
+        preprocessResult: '前处理结果',
+        ocrStatus: 'OCR抽出状态',
+        ocrResult: 'OCR抽出结果',
+        mappingStatus: '数据映射状态',
+        mappingResult: '数据映射结果',
+        standardFields: '标准字段',
+        verifyStatus: 'AI检证状态',
+        verifyResult: 'AI检证结果',
+        hitlStatus: '人工确认状态',
+        codeStatus: '自定义函数状态',
+      };
+      return byBare[bare] || item.label || bare || '变量';
+    }
+
     function formatWorkflowOutputInfo(item) {
+      const name = getWorkflowOutputChineseName(item);
       const parts = [
-        item?.label,
-        item?.valueSpec ? `取值: ${item.valueSpec}` : '',
-        item?.description,
+        `変数名：${name}`,
+        item?.valueSpec ? `取値範囲：${item.valueSpec}` : '',
       ].filter(Boolean);
       const base = [...new Set(parts)].join('\n') || '説明なし';
       const example = typeof getWorkflowOutputVarExample === 'function'
         ? getWorkflowOutputVarExample(item)
         : '';
       if (!example) return base;
-      return `${base}\n\n例:\n${example}`;
+      return `${base}\n\n例：\n${example}`;
     }
-
-    const WORKFLOW_OUTPUT_SCOPE_ORDER = ['案件変数', 'ファイル変数', '帳票タイプ変数'];
-    const workflowOutputVariableGroups = computed(() => {
-      const map = new Map();
-      workflowOutputVariableRows.value.forEach((item) => {
-        const key = item.scope || '案件';
-        if (!map.has(key)) map.set(key, []);
-        map.get(key).push(item);
-      });
-      return [...map.entries()]
-        .sort((a, b) => {
-          const ai = WORKFLOW_OUTPUT_SCOPE_ORDER.indexOf(a[0]);
-          const bi = WORKFLOW_OUTPUT_SCOPE_ORDER.indexOf(b[0]);
-          return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-        })
-        .map(([label, items]) => ({ label, items }));
-    });
 
     function getRuleConfigVersion(node) {
       if (!node) return '—';
@@ -2951,7 +3035,7 @@ const appOptions = {
       const labels = {
         step1: 'Step1 案件集約',
         step2: 'Step2 ノード設定',
-        step3: 'Step3 導出設定',
+        step3: 'Step4 導出設定',
         node: 'ノード設定',
       };
       return labels[scope] || scope;
@@ -3100,14 +3184,12 @@ const appOptions = {
 
     function buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
       const dx = x2 - x1;
-      const dy = y2 - y1;
       const backflow = x2 < x1 - 20;
-      const sweep = Math.max(56, Math.min(160, Math.abs(dx) * 0.34 + Math.abs(dy) * 0.12));
-      const bend = Math.max(40, Math.min(120, Math.abs(dy) * 0.42 + laneOffset * 0.65));
+      const sweep = Math.max(56, Math.min(160, Math.abs(dx) * 0.34));
       const sign = direction === 'top' ? -1 : 1;
-      let laneY = y1 + sign * bend;
+      // 回流：绕上下通道，避免横切主链
       if (backflow) {
-        laneY = direction === 'bottom'
+        let laneY = direction === 'bottom'
           ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
           : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
         const midX = (x1 + x2) / 2;
@@ -3122,10 +3204,13 @@ const appOptions = {
           labelAnchor: { x: midX, y: laneY },
         };
       }
-      const c1x = x1 + sweep;
-      const c1y = y1 + sign * (bend * 0.72);
-      const c2x = x2 - sweep;
-      const c2y = y2 - sign * (bend * 0.42);
+      // 正向：左右中部端点，优先横向三次贝塞尔（控制点保持源/目标 Y）
+      const curve = Math.max(28, Math.min(140, Math.abs(dx) * 0.45));
+      const yBias = laneOffset ? sign * laneOffset : 0;
+      const c1x = x1 + curve;
+      const c1y = y1 + yBias;
+      const c2x = x2 - curve;
+      const c2y = y2 + yBias;
       const d = `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
       const mid = wfBezierPoint(x1, y1, x2, y2, 0.5);
       return {
@@ -3247,12 +3332,12 @@ const appOptions = {
                   : '',
         };
         const span = Math.abs(x2 - x1);
+        // 正向主链不因轻微纵向偏移绕路；回流 / 分支 / 穿节点才绕
         draft.shouldRoute = draft.isBackflow
           || x2 < x1 - 24
           || !!edge.branch
-          || Math.abs(y2 - y1) > 10
           || workflowEdgeIntersectsNode(draft, nodes);
-        draft.shouldOffset = !draft.shouldRoute && span > 48;
+        draft.shouldOffset = !draft.shouldRoute && span > 48 && Math.abs(y2 - y1) > 36;
         draft.routeDirection = getWorkflowEdgeRouteDirection(draft);
         return draft;
       }).filter(Boolean);
@@ -3689,7 +3774,8 @@ const appOptions = {
 
     function showWfNodeAddBtn(node) {
       if (!isWorkflowTopologyEditable.value) return false;
-      return node && !isWorkflowTerminalNode(node) && node.type !== 'decision' && !isHitlGateNode(node);
+      // 开始节点右侧也显示 ＋（与普通节点一致）；结束节点不显示
+      return node && node.type !== 'end' && node.type !== 'decision' && !isHitlGateNode(node);
     }
 
     function showWfNodeAddInBtn(node) {
@@ -4825,7 +4911,7 @@ const appOptions = {
           proceedToWorkflowStep();
           return;
         }
-        // Step3 → Step2：纯回退不改状态；有画布修改时由 pushWorkflowHistory 回草稿
+        // Step3/4 → Step2：纯回退不改状态；有画布修改时由 pushWorkflowHistory 回草稿
         if (currentNode.value === 'output') currentNode.value = 'scene';
         workflowSetupStep.value = 2;
         sceneSetupVisible.value = false;
@@ -4838,10 +4924,19 @@ const appOptions = {
           proceedToWorkflowStep();
           if (workflowSetupStep.value !== 2) return;
         }
-        const step2Err = getStep2GateError();
-        if (step2Err) {
-          ElementPlus.ElMessage.warning(step2Err);
-          return;
+        updateSceneReadyState();
+        currentNode.value = 'scene';
+        selectedWorkflowEdgeKey.value = null;
+        selectedWorkflowNodeId.value = null;
+        inspectorPanelCollapsed.value = true;
+        sceneSetupVisible.value = false;
+        workflowSetupStep.value = 3;
+        return;
+      }
+      if (step === 4) {
+        if (workflowSetupStep.value === 1) {
+          proceedToWorkflowStep();
+          if (workflowSetupStep.value !== 2) return;
         }
         updateSceneReadyState();
         syncOutputDocFieldsBySceneDocs();
@@ -4854,7 +4949,7 @@ const appOptions = {
         selectedWorkflowNodeId.value = null;
         inspectorPanelCollapsed.value = true;
         sceneSetupVisible.value = false;
-        workflowSetupStep.value = 3;
+        workflowSetupStep.value = 4;
       }
     }
 
@@ -5181,28 +5276,23 @@ const appOptions = {
     }
 
     function validateOutputConfig() {
-      // Step3 仅勾选 OCR 账票类型下的抽出字段；允许 0 字段，不校验导出格式/输出目标
+      // Step4 仅勾选 OCR 账票类型下的抽出字段；允许 0 字段，不校验导出格式/输出目标
       syncOutputDocFieldsBySceneDocs();
       return '';
     }
 
     function validateWorkflowPublish() {
-      const step2Err = getStep2GateError();
-      if (step2Err) return step2Err;
       const outputErr = validateOutputConfig();
       if (outputErr) return outputErr;
       if (form.outputConfigStatus !== 'valid' && !step3ExportCandidatesEmpty.value) {
-        return 'Step3 の出力設定を保存してください';
-      }
-      if (form.scene.publishStatus !== 'ready') {
-        return 'Step2 の Workflow テストを完了してください';
+        return 'Step4 の出力設定を保存してください';
       }
       return '';
     }
 
     function publishWorkflowScene() {
       ElementPlus.ElMessageBox.confirm(
-        'Step1〜Step3の現在の設定を公開します。公開後、この業務シーンの新しい案件処理に反映されます。',
+        'Step1〜Step4の現在の設定を公開します。公開後、この業務シーンの新しい案件処理に反映されます。',
         '業務シーンを公開しますか？',
         {
           confirmButtonText: '公開',
@@ -6340,18 +6430,14 @@ const appOptions = {
       const branchLabel = String(decisionCase?.label || '');
       const branchId = String(decisionCase?.id || '');
       const branchText = `${branchLabel} ${branchId}`;
-      if (/confirmAction$/.test(variable)) {
-        if (branchText.includes('補件')) return 'request_supplement';
-        if (branchText.includes('案件終止') || branchText.includes('異常')) return 'reject';
-        if (branchText.includes('完成') || branchText.includes('通過')) return 'approve';
-        return 'approve';
-      }
-      if (/verifyStatus$|ocrStatus$|preprocessStatus$|mappingStatus$|mappingConflictStatus$/.test(variable)) {
+      if (/(preprocess|ocr|mapping|verify)Status$/.test(variable)) {
         if (branchText.includes('異常')) return 'failed';
+        return 'success';
+      }
+      if (/(preprocess|ocr|mapping|verify)Result$/.test(variable)) {
         if (branchText.includes('補件') || branchText.includes('不足') || branchText.includes('確認')) return 'reviewRequired';
         return 'passed';
       }
-      if (/lowConfidenceFieldCount$/.test(variable)) return '0';
       const dataType = getDecisionConditionDataType(condition);
       if (dataType === 'Boolean') return branchText.includes('補件') ? 'true' : 'false';
       return '';
@@ -6557,11 +6643,9 @@ const appOptions = {
         left: `${node.x}px`,
         top: `${node.y}px`,
         width: `${size.w}px`,
+        height: `${size.h}px`,
         minHeight: `${size.h}px`,
       };
-      if (node?.type === 'decision' || isHitlGateNode(node)) {
-        style.height = `${size.h}px`;
-      }
       if (isHitlGateNode(node)) {
         style.overflow = 'visible';
       }
@@ -8234,7 +8318,7 @@ const appOptions = {
         form.scene.publishStatus = 'draft';
       }
       if (scope === 'output') {
-        // Step3 勾选变更：只回退输出配置有效，不打断 Step2 已测通结论
+        // Step4 勾选变更：只回退输出配置有效，不打断 Step2 已测通结论
         form.outputConfigStatus = 'unsaved';
         return;
       }
@@ -8276,7 +8360,11 @@ const appOptions = {
         : testCase;
       workflowTestDraft.testCase = {
         ...normalized,
-        files: (normalized.files || []).map((f) => ({ ...f })),
+        standardFields: { ...(normalized.standardFields || {}) },
+        files: (normalized.files || []).map((f) => ({
+          ...f,
+          ocrFields: { ...(f.ocrFields || {}) },
+        })),
       };
     }
 
@@ -8341,6 +8429,11 @@ const appOptions = {
       return {
         processing: form.processing,
         documents: form.scene?.documents || [],
+        scene: form.scene,
+        verify: form.verify,
+        docTypes: (form.scene?.documents || []).map((d) => d.type).filter(Boolean),
+        getDocSchema,
+        getDocLabel: getDocDisplayLabel,
       };
     }
 
@@ -8750,13 +8843,13 @@ const appOptions = {
       selectWorkflowTestStep,
       getWorkflowTestStepDisplayStatus,
       runWorkflowTest,
+      saveWorkflowNotificationConfig,
+      goToWorkflowStep4FromNotifications,
       saveOutputConfigFromStep3,
       workflowTestStatusLabel,
       applyWorkflowTestContinue,
       sceneStats,
       canPublishWorkflowScene,
-      canEnterWorkflowStep3,
-      getStep2GateError,
       outputFieldCount,
       selectedStandardOutputFieldCount,
       outputTableStats,
@@ -8790,31 +8883,18 @@ const appOptions = {
       CODE_OUTPUT_TYPES,
       CODE_UPSTREAM_FILES_JSON,
       DEFAULT_CODE_PYTHON,
-      codeVariableOptions,
-      codeVariableCascaderOptions,
-      codeScriptInputOptions,
-      codeScriptInsertPick,
+      onCodeFieldChange,
       codeParamDialogVisible,
       codeParamDialogMode,
       codeParamDialogDraft,
-      codeParamDialogTitle,
-      codeParamDialogConfirmLabel,
-      codeParamDialogSavable,
+      selectedCodeInputRows,
+      codeVariableOptions,
       openCodeParamDialog,
-      closeCodeParamDialog,
-      confirmCodeParamDialog,
-      getCodeParamDataTypeLabel,
-      formatCodeInputVariableDisplay,
-      formatCodeInputVariableType,
-      onCodeParamVariableChange,
-      onCodeParamDataTypeChange,
-      insertCodeScriptVariable,
-      onCodeScriptInsertPick,
-      addCodeInputRow,
-      removeCodeInputRow,
-      onCodeFieldChange,
-      formatCodeInputVariableToken,
-      formatCodeScriptVarSnippet,
+      saveCodeParamDialog,
+      removeCodeInputParam,
+      onCodeInputVariableChange,
+      formatCodeInputRowDisplay,
+      formatCodeInputSourceLabel,
       normalizeCodeNode,
       getHitlGateBranchCanvasLabel,
       judgmentAllowsElif,
@@ -8950,6 +9030,19 @@ const appOptions = {
       proceedToWorkflowStep,
       publishWorkflowScene,
       resetSceneSetup,
+      workflowNotificationRows,
+      workflowNotificationExpandableRows,
+      workflowNotificationOpenRows,
+      workflowNotificationInsertTarget,
+      workflowNotificationVariableOptions,
+      getWorkflowNotificationPolicy,
+      isWorkflowNotificationPolicyConfigured,
+      updateWorkflowNotificationPolicy,
+      clearWorkflowNotificationPolicy,
+      insertWorkflowNotificationVariable,
+      insertWorkflowNotificationText,
+      resetWorkflowNotificationConfig,
+      toggleWorkflowNotificationRow,
       enterWorkflowCanvasView,
       cancelSceneSetup,
       goToWorkflowSetupStep,
@@ -9194,9 +9287,7 @@ const appOptions = {
       inspectorHeadHint,
       inspectorModuleAccentStyle,
       workflowNodeOutputVars,
-      workflowOutputVarsExpanded,
       workflowOutputVariableRows,
-      workflowOutputVariableGroups,
       formatWorkflowOutputInfo,
       getRuleConfigVersion,
       getRuleCheckStatusLabel,
