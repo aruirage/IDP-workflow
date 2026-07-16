@@ -74,7 +74,7 @@ const INSPECTOR_HINTS = {
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
   hitlGate: '案件レベルの人工確認タスクを生成します。審査ロールを指定し、必要な出口だけ下流へ接続してください（未接続の出口は自動的に不要扱い）。確認対象は上流ノードから自動判定されます。',
-  hitlContext: '前処理・OCR 抽出・AI 検証の直後に接続すると、確認対象が自動判定されます。',
+  hitlContext: '前処理・OCR 抽出・AI 検証の要確認分岐に接続すると、確認対象が自動判定されます。条件分岐を挟んだ接続にも対応します。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
   decisionElseLabel: '接続線ラベルや実行ログに表示される名称です。',
@@ -101,18 +101,18 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 23;
-const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 19;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 24;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 20;
 const WF_LAYOUT_PAD = { x: 72, y: 132 };
 const WF_BRANCH_LANE_GAP = 132;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
-  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final', 'wf-end',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-pre', 'wf-hu-ocr', 'wf-hu-final', 'wf-end',
 ];
 
 const DEFAULT_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
   'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
-  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-final',
+  'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-pre', 'wf-hu-ocr', 'wf-hu-final',
 ];
 
 const PREVIOUS_CASE_WORKFLOW_TEMPLATE_NODE_IDS = [
@@ -3898,9 +3898,23 @@ function buildDefaultCaseWorkflow() {
   place({ id: 'wf-ai', type: 'ai_verify', label: 'AI検証' });
   place({ id: 'wf-d-final', type: 'decision', label: '条件判断', judgmentContext: 'custom' });
   place({
+    id: 'wf-hu-pre',
+    type: 'hitl_gate',
+    label: '前処理人工確認',
+    hitlContext: 'preprocess',
+    role: 'case_owner',
+  });
+  place({
+    id: 'wf-hu-ocr',
+    type: 'hitl_gate',
+    label: 'OCR人工確認',
+    hitlContext: 'ocr',
+    role: 'operator',
+  });
+  place({
     id: 'wf-hu-final',
     type: 'hitl_gate',
-    label: '人工確認',
+    label: 'AI検証人工確認',
     hitlContext: 'verification',
     role: 'operation_admin',
   });
@@ -3972,15 +3986,21 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-start', to: 'wf-pp' },
     { from: 'wf-pp', to: 'wf-d-pre' },
     { from: 'wf-d-pre', to: 'wf-oc', branch: 'if', label: '通過' },
-    { from: 'wf-d-pre', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
+    { from: 'wf-d-pre', to: 'wf-hu-pre', branch: 'else', label: '人工確認' },
     { from: 'wf-oc', to: 'wf-d-ocr' },
     { from: 'wf-d-ocr', to: 'wf-map', branch: 'if', label: '通過' },
-    { from: 'wf-d-ocr', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
+    { from: 'wf-d-ocr', to: 'wf-hu-ocr', branch: 'else', label: '人工確認' },
     { from: 'wf-map', to: 'wf-ai' },
     { from: 'wf-ai', to: 'wf-d-final' },
     { from: 'wf-d-final', to: 'wf-end', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-end', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
+    { from: 'wf-hu-pre', to: 'wf-end', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-pre', to: 'wf-end', branch: 'request_supplement', label: '補件' },
+    { from: 'wf-hu-pre', to: 'wf-end', branch: 'reject', label: '案件終止' },
+    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'request_supplement', label: '補件' },
+    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'reject', label: '案件終止' },
     { from: 'wf-hu-final', to: 'wf-end', branch: 'approve', label: '完成' },
     { from: 'wf-hu-final', to: 'wf-end', branch: 'request_supplement', label: '補件' },
     { from: 'wf-hu-final', to: 'wf-end', branch: 'reject', label: '案件終止' },

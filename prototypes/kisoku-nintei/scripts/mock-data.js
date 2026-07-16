@@ -1648,7 +1648,7 @@ function normalizeInputConfig(input) {
 
 const WORKFLOW_TEST_SCOPE_NOTE = '案件集約は本テストの対象外。選択した案件は既に集約済みであり、Workflow のみ検証します。';
 
-/** 内置「标准集约完成案件」快照：含文件归属与 OCR/标准字段样值，供真模拟消费 */
+/** 内置「标准集约完成案件」快照：含文件归属与 OCR/标准字段初值，供 Workflow 测试执行消费 */
 const WORKFLOW_TEST_SAMPLES = {
   normal: {
     id: 'normal',
@@ -1656,13 +1656,11 @@ const WORKFLOW_TEST_SAMPLES = {
     fixtureName: 'surgery_claim_post_aggregate.zip',
     description: '案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。',
     includes: [
-      '起動：待機中 · 案件集約完了 · 6 ファイル',
+      '案件集約完了 · 6 ファイル',
       '主帳票・関連帳票を含む標準構成',
     ],
     caseNo: 'REQ-2025-0018890',
     caseLabel: '高橋誠_手術請求',
-    startEventId: 'e1',
-    startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 6,
     standardFields: {
       氏名: '高橋誠',
@@ -1725,8 +1723,6 @@ const WORKFLOW_TEST_SAMPLES = {
     includes: [],
     caseNo: '—',
     caseLabel: '—',
-    startEventId: 'e1',
-    startEventLabel: '待機中 / 処理中 · 案件集約完了',
     fileCount: 0,
     standardFields: {},
     files: [],
@@ -1767,8 +1763,6 @@ function cloneWorkflowTestCaseDefault() {
     label: base.label,
     caseNo: base.caseNo,
     caseLabel: base.caseLabel,
-    startEventId: base.startEventId,
-    startEventLabel: base.startEventLabel,
     standardFields: { ...(base.standardFields || {}) },
     files: (base.files || []).map((f) => ({
       ...f,
@@ -1782,13 +1776,10 @@ function cloneWorkflowTestCaseDefault() {
 
 function normalizeWorkflowTestCase(raw) {
   const def = cloneWorkflowTestCaseDefault();
-  const startEventId = normalizeWorkflowTestStartEvent(raw?.startEventId || raw?.triggerType, def.startEventId);
   return {
     label: raw?.label || def.label,
     caseNo: raw?.caseNo || def.caseNo,
     caseLabel: raw?.caseLabel || def.caseLabel,
-    startEventId,
-    startEventLabel: raw?.startEventLabel || getWorkflowTestStartEventLabel(startEventId),
     standardFields: { ...def.standardFields },
     files: def.files.map((f) => ({
       ...f,
@@ -1933,7 +1924,7 @@ function getSceneDocumentTypeSet(sceneContext = {}) {
 }
 
 /**
- * 按 PRD 维度收集门禁错误（用例→结构→连线→节点配置…）。前层有错时仍收集同层全部，供错误列表；调用方决定是否进入模拟。
+ * 按 PRD 维度收集门禁错误（用例→结构→连线→节点配置…）。前层有错时仍收集同层全部，供错误列表；调用方决定是否进入测试执行。
  */
 function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {}) {
   const wf = workflow || { nodes: [], edges: [] };
@@ -2213,7 +2204,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
   return { errors, blockedDimension: '' };
 }
 
-/** 按样例驱动走通模拟路径（条件求值；人工确认跳过真人动作后按已连接出口继续） */
+/** 按内置测试样例执行 Workflow 路径；人工确认用测试场景的预设判断结果选择出口 */
 function simulateWorkflowTestExecutionPath(workflow, testCase) {
   const wf = workflow || { nodes: [], edges: [] };
   const edges = (wf.edges || []).filter((e) => !e.visualHidden);
@@ -2303,7 +2294,7 @@ function simulateWorkflowTestExecutionPath(workflow, testCase) {
         branchKey: nextEdge.branch,
         edge: nextEdge,
         label: nextEdge.label || nextEdge.branch,
-        skippedHuman: true,
+        simulatedHuman: true,
       };
     } else {
       const mainOuts = edges.filter((e) => e.from === node.id && !e.branch);
@@ -2469,7 +2460,7 @@ function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
       title: '開始ノード',
       rows: [
         { label: 'テスト案件', value: input.caseLabel || '—' },
-        { label: '起動イベント', value: input.startEventLabel },
+        { label: 'テスト状態', value: '案件集約完了' },
         { label: '案件番号', value: input.caseNo },
         { label: '案件名', value: input.caseLabel },
         { label: '紐付ファイル', value: `${input.fileCount} 件` },
@@ -2535,11 +2526,12 @@ function buildWorkflowTestNodeDetail(step, testCase, workflow = null) {
   if (type === 'hitl_gate') {
     const branch = step.branchLabel || getWorkflowTestHitlBranchLabel(workflow, step.id);
     return appendWorkflowTestDetailIssues({
-      title: '人工確認（テストスキップ）',
+      title: '人工確認（テスト確認）',
       rows: [
         { label: '確認対象', value: step.label || '人工確認' },
-        { label: 'テスト挙動', value: '本物の人工確認はスキップし、出口チェック後に継続' },
-        { label: '継続出口', value: branch || '—' },
+        { label: 'テスト挙動', value: 'テストシナリオの判断結果で出口を選択' },
+        { label: '実行しない内容', value: '人工確認タスク作成、審査者待ち、通知送信' },
+        { label: '選択出口', value: branch || '—' },
       ],
       issues: [],
     }, step);
@@ -2572,14 +2564,14 @@ function workflowTestStepResultText(step, testCase) {
   const type = step.type || '';
   const input = buildWorkflowTestInputContext(testCase);
   const summaries = {
-    start: `起動イベント: ${input.startEventLabel} — Workflow を起動しました`,
+    start: '案件集約済みスナップショットから Workflow を開始しました',
     preprocess: '画像補正・回転・画像分割を完了しました',
     ocr: '用例の OCR フィールドを読み込みました',
     data_mapping: '用例の標準フィールドへマッピングしました',
-    ai_verify: '用例スナップショットで検証を模擬しました',
+    ai_verify: 'AI 検証をテスト実行しました',
     decision: '用例フィールドで条件分岐を評価しました',
-    hitl_gate: '人工確認をスキップし、出口チェック後に継続しました',
-    notify: '通知テンプレート変数の置換可否を検査しました（実送信なし）',
+    hitl_gate: '人工確認をテストシナリオで判定し、出口へ進みました',
+    notify: '通知テンプレート変数の置換可否を検査しました（通知・メール送信なし）',
     end: 'Workflow を終了しました',
     mcp: '外部連携を完了しました',
     code: 'コード実行を完了しました',
@@ -2813,7 +2805,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
     return `${err.ruleId} ${err.message}${hint}`;
   };
 
-  // 前层门禁失败：不进入模拟；错误节点标失败，其余保持未実行
+  // 前层门禁失败：不进入测试执行；错误节点标失败，其余保持未実行
   if (gate.blockedDimension) {
     const first = gate.errors[0];
     const start = (typeof getWorkflowStartNode === 'function' ? getWorkflowStartNode(wf) : null)
@@ -2862,7 +2854,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       summary: sim.error?.message || '実行順序を決定できません（S2-29）',
       errorReason: sim.error?.message || '実行順序を決定できません（S2-29）',
       ruleId: sim.error?.ruleId || 'S2-29',
-      dimension: '模擬実行',
+      dimension: 'テスト実行',
     })];
   }
 
@@ -2881,11 +2873,10 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       status = 'error';
       errorReason = `${sim.error.ruleId || 'S2-29'} ${sim.error.message}`;
       ruleId = sim.error.ruleId || 'S2-29';
-      dimension = '模擬実行';
+      dimension = 'テスト実行';
     }
 
     if (!errorReason && node.type === 'hitl_gate') {
-      status = 'skipped';
       const hit = sim.branchHits?.[id];
       branchLabel = hit?.label
         || getWorkflowTestHitlBranchLabel(wf, id)
@@ -2901,13 +2892,13 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       status = 'error';
       errorReason = `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`;
       ruleId = sim.error.ruleId || 'S2-32';
-      dimension = '模擬実行';
+      dimension = 'テスト実行';
     }
 
     let summary = status === 'pending'
       ? '未実行'
       : workflowTestStepResultText({ id, type: node.type, label: node.label }, testCase);
-    if (node.type === 'hitl_gate' && status === 'skipped' && branchLabel) {
+    if (node.type === 'hitl_gate' && branchLabel) {
       summary = `${summary}（${branchLabel}）`;
     }
     if (node.type === 'decision' && branchLabel && status !== 'error') {
@@ -2928,7 +2919,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
       needsHuman: false,
     }));
 
-    // 模拟失败即停：后续路径节点不再列入成功；动画侧依赖 status=error 停止
+    // テスト実行失败即停：后续路径节点不再列入成功；动画侧依赖 status=error 停止
     if (status === 'error') break;
   }
 
@@ -2941,7 +2932,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
     last.status = 'error';
     last.errorReason = msg;
     last.ruleId = sim.error?.ruleId || 'S2-32';
-    last.dimension = '模擬実行';
+    last.dimension = 'テスト実行';
     last.summary = msg;
   }
 
@@ -2978,12 +2969,12 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   const list = steps || [];
   const wf = workflow || { nodes: [], edges: [] };
   const canvasAnalysis = analyzeWorkflowTestCanvas(wf);
-  const passed = list.filter((step) => ['success', 'skipped'].includes(step.status)).length;
+  const passed = list.filter((step) => step.status === 'success').length;
   const errorStep = list.find((step) => step.status === 'error');
   const hasError = !!errorStep;
   const stoppedEarly = hasError && list.some((step) => step.status === 'pending');
   const endStep = [...list].reverse().find((step) => step.type === 'end');
-  const reachedEnd = !!endStep && ['success', 'skipped'].includes(endStep.status);
+  const reachedEnd = !!endStep && endStep.status === 'success';
   const dimensionErrors = errorStep?.dimensionErrors
     || (errorStep ? [{
       ruleId: errorStep.ruleId || '',
@@ -3077,7 +3068,7 @@ function validateWorkflowTestHitlContext(workflow) {
         : '上流ノードなし';
       issues.push({
         nodeId: node.id,
-        message: `${node.label || '人工確認'}：前処理・OCR・AI検証のいずれか直後に接続してください。現在の上流は ${sourceLabels} です。`,
+        message: `${node.label || '人工確認'}：条件ノードを挟んだ直前上流が前処理・OCR・AI検証のいずれかになるよう接続してください。現在の上流は ${sourceLabels} です。`,
       });
     }
   });

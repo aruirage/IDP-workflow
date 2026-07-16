@@ -2223,15 +2223,12 @@
                 <p class="wf-test-sample-meta">
                   {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
                 </p>
-                <p v-if="workflowTestDraft.testCase.startEventLabel" class="wf-test-sample-meta">
-                  {{ t('起動イベント') }}：{{ workflowTestDraft.testCase.startEventLabel }}
-                </p>
                 <ul v-if="workflowTestDraft.testCase.files.length" class="wf-test-sample-includes">
                   <li v-for="(file, i) in workflowTestDraft.testCase.files" :key="'wf-case-file-' + i">
                     {{ file.name }} · {{ file.docType }} · {{ t(file.role) }}
                   </li>
                 </ul>
-                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショットをチェック入力として使用します。実際の OCR / AI / 通知送信 / Python 実行は行いません。') }}</p>
+                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショットで Workflow をテスト実行します。人工確認タスク作成・通知送信・メール送信は行いません。') }}</p>
               </div>
             </div>
           </section>
@@ -2605,7 +2602,7 @@
           </div>
         </section>
         <section class="reuse-dialog-section reuse-dialog-section--note">
-          <div class="reuse-review-title">dry-run チェック方針</div>
+          <div class="reuse-review-title">コピー前チェック方針</div>
           <p class="reuse-review-note">構造依存と参照欠落のみチェックします。帳票タイプ、OCRフィールド、標準変数、上流変数、マスタ参照、導出フィールドのリスクを提示し、業務上の妥当性は自動判断しません。</p>
         </section>
       </div>
