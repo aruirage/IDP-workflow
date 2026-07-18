@@ -101,10 +101,11 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 24;
-const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 20;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 27;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 23;
 const WF_LAYOUT_PAD = { x: 72, y: 132 };
 const WF_BRANCH_LANE_GAP = 132;
+const WF_LAYOUT_MIN_EDGE_GAP = 132;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-pre', 'wf-hu-ocr', 'wf-hu-final', 'wf-end',
@@ -3972,10 +3973,10 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-d-final', to: 'wf-end', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-end', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-pre', to: 'wf-end', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完成' },
     { from: 'wf-hu-pre', to: 'wf-end', branch: 'request_supplement', label: '補件' },
     { from: 'wf-hu-pre', to: 'wf-end', branch: 'reject', label: '案件終止' },
-    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完成' },
     { from: 'wf-hu-ocr', to: 'wf-end', branch: 'request_supplement', label: '補件' },
     { from: 'wf-hu-ocr', to: 'wf-end', branch: 'reject', label: '案件終止' },
     { from: 'wf-hu-final', to: 'wf-end', branch: 'approve', label: '完成' },
@@ -4736,6 +4737,33 @@ function resolveWorkflowBranchOverlaps(branchNodes, sizes) {
   }
 }
 
+function disperseWorkflowNodesForSmoothEdges(workflow, sizes) {
+  const nodes = workflow?.nodes || [];
+  const edges = workflow?.edges || [];
+  if (!nodes.length || !edges.length) return;
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  for (let pass = 0; pass < 4; pass += 1) {
+    let changed = false;
+    edges.forEach((edge) => {
+      const from = byId[edge.from];
+      const to = byId[edge.to];
+      if (!from || !to || from.type === 'end' || to.type === 'end') return;
+      if (to.x <= from.x) return;
+      const fromSize = sizes.get(from.id) || getWorkflowNodeLayoutSize(from);
+      const targetX = from.x + fromSize.w + WF_LAYOUT_MIN_EDGE_GAP;
+      if (to.x >= targetX) return;
+      const delta = targetX - to.x;
+      const threshold = to.x - 1;
+      nodes.forEach((node) => {
+        if (node.id === from.id || node.type === 'end') return;
+        if (node.x >= threshold) node.x += delta;
+      });
+      changed = true;
+    });
+    if (!changed) break;
+  }
+}
+
 function isStraightCaseWorkflowLayoutTarget(workflow) {
   if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) return true;
   const ids = new Set((workflow?.nodes || []).map((node) => node.id));
@@ -4796,7 +4824,7 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     ['wf-hu-final', 'wf-d-final'],
   ].filter(([hitlId, anchorId]) => byId[hitlId] && byId[anchorId]);
   const notifyIds = ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].filter((id) => byId[id]);
-  const stepGap = 96;
+  const stepGap = 132;
   const notifyLaneGap = 28;
   const rowY = WF_LAYOUT_PAD.y;
   let x = WF_LAYOUT_PAD.x;
@@ -4817,7 +4845,7 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     const anchor = byId[anchorId];
     const anchorSize = sizes.get(anchor.id) || getWorkflowNodeLayoutSize(anchor);
     const hitlSize = sizes.get(hitl.id) || getWorkflowNodeLayoutSize(hitl);
-    hitl.x = anchor.x + Math.round((anchorSize.w - hitlSize.w) / 2);
+    hitl.x = anchor.x + anchorSize.w + Math.round(stepGap * 0.45);
     hitl.y = rowY + mainMaxH + WF_BRANCH_LANE_GAP;
     lowerMaxBottom = Math.max(lowerMaxBottom, hitl.y + hitlSize.h);
   });
@@ -4840,6 +4868,8 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     maxNotifyRight = Math.max(maxNotifyRight, node.x + item.size.w);
     notifyY += item.size.h + notifyLaneGap;
   });
+
+  disperseWorkflowNodesForSmoothEdges(workflow, sizes);
 
   const endNode = workflow.nodes.find((n) => n.type === 'end');
   if (endNode) {
@@ -4877,7 +4907,7 @@ function layoutWorkflowGraph(workflow) {
   const decisionNode = [...mainChain].reverse().find((n) => n.type === 'decision')
     || mainChain[mainChain.length - 1];
   const branchStartX = decisionNode
-    ? decisionNode.x + sizes.get(decisionNode.id).w + WF_NODE_GAP
+    ? decisionNode.x + sizes.get(decisionNode.id).w + WF_LAYOUT_MIN_EDGE_GAP
     : WF_LAYOUT_PAD.x;
   const elseLaneY = decisionNode
     ? decisionNode.y + sizes.get(decisionNode.id).h + WF_BRANCH_LANE_GAP
@@ -4899,13 +4929,13 @@ function layoutWorkflowGraph(workflow) {
       const isElse = branch === 'else';
       const isElif = branch && String(branch).startsWith('elif');
       if (isElif) {
-        node.x = source.x + Math.round((srcSize.w - size.w) / 2);
+        node.x = source.x + srcSize.w + WF_LAYOUT_MIN_EDGE_GAP;
         node.y = source.y + srcSize.h + WF_BRANCH_LANE_GAP;
       } else if (isElse) {
-        node.x = branchStartX;
-        node.y = elseLaneY;
+        node.x = source.x + srcSize.w + WF_LAYOUT_MIN_EDGE_GAP;
+        node.y = source.y + srcSize.h + WF_BRANCH_LANE_GAP;
       } else {
-        node.x = source.x + srcSize.w + WF_NODE_GAP;
+        node.x = source.x + srcSize.w + WF_LAYOUT_MIN_EDGE_GAP;
         node.y = source.y + srcSize.h + WF_BRANCH_LANE_GAP;
       }
       return;
@@ -4915,6 +4945,7 @@ function layoutWorkflowGraph(workflow) {
   });
 
   resolveWorkflowBranchOverlaps(branchNodes, sizes);
+  disperseWorkflowNodesForSmoothEdges(workflow, sizes);
 
   const endNode = nodes.find((n) => n.type === 'end');
   if (endNode) {

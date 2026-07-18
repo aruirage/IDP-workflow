@@ -1,5 +1,5 @@
-const MAIN_BUILD = '635-readable-output-layout';
-const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v20';
+const MAIN_BUILD = '640-horizontal-first-workflow-layout';
+const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v23';
 
 const appOptions = {
   setup() {
@@ -3490,21 +3490,32 @@ const appOptions = {
       return 'top';
     }
 
-    function buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
+    function wfCubicPoint(x1, y1, c1x, c1y, c2x, c2y, x2, y2, t) {
+      const mt = 1 - t;
+      return {
+        x: (mt ** 3) * x1 + 3 * (mt ** 2) * t * c1x + 3 * mt * (t ** 2) * c2x + (t ** 3) * x2,
+        y: (mt ** 3) * y1 + 3 * (mt ** 2) * t * c1y + 3 * mt * (t ** 2) * c2y + (t ** 3) * y2,
+      };
+    }
+
+    function buildWorkflowDifyCurveEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
       const dx = x2 - x1;
       const backflow = x2 < x1 - 20;
-      const sweep = Math.max(56, Math.min(160, Math.abs(dx) * 0.34));
+      const absDx = Math.abs(dx);
+      const maxForwardCurve = Math.max(8, Math.abs(dx) / 2 - 6);
+      const curve = backflow
+        ? Math.max(36, Math.min(104, absDx * 0.32))
+        : Math.min(maxForwardCurve, Math.max(16, Math.min(84, absDx * 0.32)));
       const sign = direction === 'top' ? -1 : 1;
-      // 回流：绕上下通道，避免横切主链
       if (backflow) {
-        let laneY = direction === 'bottom'
+        const laneY = direction === 'bottom'
           ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
           : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
         const midX = (x1 + x2) / 2;
         const d = [
           `M ${x1} ${y1}`,
-          `C ${x1 + sweep} ${y1}, ${x1 + sweep} ${laneY}, ${midX} ${laneY}`,
-          `C ${x2 - sweep} ${laneY}, ${x2 - sweep} ${y2}, ${x2} ${y2}`,
+          `C ${x1 + curve} ${y1}, ${x1 + curve} ${laneY}, ${midX} ${laneY}`,
+          `C ${x2 - curve} ${laneY}, ${x2 - curve} ${y2}, ${x2} ${y2}`,
         ].join(' ');
         return {
           d,
@@ -3512,15 +3523,13 @@ const appOptions = {
           labelAnchor: { x: midX, y: laneY },
         };
       }
-      // 正向：左右中部端点，优先横向三次贝塞尔（控制点保持源/目标 Y）
-      const curve = Math.max(28, Math.min(140, Math.abs(dx) * 0.45));
       const yBias = laneOffset ? sign * laneOffset : 0;
       const c1x = x1 + curve;
       const c1y = y1 + yBias;
       const c2x = x2 - curve;
       const c2y = y2 + yBias;
       const d = `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
-      const mid = wfBezierPoint(x1, y1, x2, y2, 0.5);
+      const mid = wfCubicPoint(x1, y1, c1x, c1y, c2x, c2y, x2, y2, 0.5);
       return {
         d,
         mid,
@@ -3529,15 +3538,15 @@ const appOptions = {
     }
 
     function buildWorkflowBackflowEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0, clearance = null) {
-      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
+      return buildWorkflowDifyCurveEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
     }
 
     function buildWorkflowOffsetEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0) {
-      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset);
+      return buildWorkflowDifyCurveEdgePath(x1, y1, x2, y2, direction, laneOffset);
     }
 
     function buildWorkflowAvoidingEdgePath(x1, y1, x2, y2, direction = 'top', laneOffset = 0, clearance = null) {
-      return buildWorkflowBezierEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
+      return buildWorkflowDifyCurveEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
     }
 
     function assignWorkflowRouteLaneOffsets(drafts) {
@@ -3661,18 +3670,7 @@ const appOptions = {
             new Set([draft.edge.from, draft.edge.to]),
           )
           : null;
-        const routed = draft.shouldRoute || draft.shouldOffset
-          ? buildWorkflowBezierEdgePath(
-            draft.x1,
-            draft.y1,
-            draft.x2,
-            draft.y2,
-            draft.routeDirection,
-            draft.laneOffset,
-            clearance,
-          )
-          : null;
-        const d = routed?.d || buildWorkflowBezierEdgePath(
+        const routed = buildWorkflowDifyCurveEdgePath(
           draft.x1,
           draft.y1,
           draft.x2,
@@ -3680,15 +3678,8 @@ const appOptions = {
           draft.routeDirection,
           draft.laneOffset,
           clearance,
-        ).d;
-        const mid = routed?.mid || wfBezierPoint(draft.x1, draft.y1, draft.x2, draft.y2, 0.5);
-        const labelAnchor = routed?.labelAnchor || wfBezierPoint(
-          draft.x1,
-          draft.y1,
-          draft.x2,
-          draft.y2,
-          (draft.from.type === 'decision' || isHitlGateNode(draft.from)) && draft.edge.branch ? 0.32 : 0.42,
         );
+        const { d, mid, labelAnchor } = routed;
 
         return {
           d,
