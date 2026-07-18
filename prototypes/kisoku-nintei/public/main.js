@@ -2008,9 +2008,6 @@ const appOptions = {
       const systemOptions = [
         { value: 'caseId', label: 'caseId', desc: 'システム変数 · 案件ID' },
       ];
-      const fileOptions = [
-        { value: 'files[]', label: 'files[]', desc: 'ファイル変数 · ファイル一覧JSON' },
-      ];
       const nodeOptions = [
         { value: 'preprocessStatus', label: 'preprocessStatus', desc: 'ノード出力定義 · 前処理 status' },
         { value: 'preprocessResult', label: 'preprocessResult', desc: 'ノード出力定義 · 前処理 result' },
@@ -2023,7 +2020,7 @@ const appOptions = {
         { value: 'hitlStatus', label: 'hitlStatus', desc: 'ノード出力定義 · 人工確認 status' },
       ];
       const seen = new Set();
-      return [...systemOptions, ...fileOptions, ...nodeOptions].filter((option) => {
+      return [...systemOptions, ...nodeOptions].filter((option) => {
         if (!option.value || seen.has(option.value)) return false;
         seen.add(option.value);
         return true;

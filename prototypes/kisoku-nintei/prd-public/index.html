@@ -213,7 +213,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/18 11:29:50</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/18 11:34:46</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -272,9 +272,9 @@
 <p>页面下方是「通知ルール一覧」。每条规则展示 No.、対象ノード（对象节点）、トリガーイベント（触发事件）、通知对象、件名、内容摘要、状态和操作。每条规则可开启、关闭、编辑、删除。点击「編集」打开弹窗编辑器，不回填到页面上方生成器。</p>
 <table><thead><tr><th>配置项</th><th>控件</th><th>必填</th><th>规则</th></tr></thead><tbody><tr><td>対象ノード</td><td>单选下拉</td><td>是</td><td>固定为前处理、OCR 抽出、数据映射、AI 检证、人工确认</td></tr><tr><td>トリガーイベント</td><td>单选下拉</td><td>是</td><td>随対象ノード切换；处理节点展示该节点可触发通知的输出变量及取值，开放 <code>status=processing/success/failed</code> 和 <code>result=passed/reviewRequired</code>；人工确认按画布三分支开放完成、补件、案件终止</td></tr><tr><td>通知对象</td><td>多选下拉</td><td>是</td><td>可多选；允许同一対象ノード、同一トリガーイベント、同一通知对象保存多条规则</td></tr><tr><td>件名</td><td>文本</td><td>是</td><td>支持插入变量</td></tr><tr><td>内容</td><td>多行文本</td><td>是</td><td>支持插入变量</td></tr><tr><td>状态</td><td>开关</td><td>是</td><td>开启规则参与运行时匹配；关闭规则保留配置但不触发</td></tr></tbody></table>
 <p>通知可插入变量：</p>
-<table><thead><tr><th>变量来源</th><th>可插入范围</th><th>插入格式示例</th><th>说明</th></tr></thead><tbody><tr><td>系统变量</td><td>案件 ID</td><td><code>{caseId}</code></td><td>运行时由通知引擎注入</td></tr><tr><td>文件变量</td><td>开始节点文件列表</td><td><code>{files[]}</code></td><td>可用于件名或内容说明涉及的文件；不展开文件子字段</td></tr><tr><td>节点输出变量</td><td>可配置通知节点的标准输出变量定义</td><td><code>{ocrStatus}</code>、<code>{verifyResult}</code>、<code>{hitlStatus}</code></td><td>Step3 为全局模板页，不读取 Step2 当前画布；运行时有对应节点输出时填值，没有值时按缺值规则处理</td></tr></tbody></table>
+<table><thead><tr><th>变量来源</th><th>可插入范围</th><th>插入格式示例</th><th>说明</th></tr></thead><tbody><tr><td>系统变量</td><td>案件 ID</td><td><code>{caseId}</code></td><td>运行时由通知引擎注入</td></tr><tr><td>节点输出变量</td><td>可配置通知节点的标准输出变量定义</td><td><code>{ocrStatus}</code>、<code>{verifyResult}</code>、<code>{hitlStatus}</code></td><td>Step3 为全局模板页，不读取 Step2 当前画布；运行时有对应节点输出时填值，没有值时按缺值规则处理</td></tr></tbody></table>
 <p>通知变量选择器规则：</p>
-<ol><li>变量插入只影响件名和内容，不允许用户配置触发表达式。</li><li>トリガーイベント只决定什么时候发送通知，不限制件名/内容可插入的变量范围。</li><li>变量选择器展示系统变量 <code>caseId</code>、文件变量 <code>files[]</code> 和固定节点类型的标准输出变量定义，不读取 Step2 当前画布，也不随画布节点增删动态变化。</li><li>保存时只校验变量 token 格式，不校验变量是否属于当前トリガーイベント，也不校验 Step2 当前画布是否存在対象ノード。</li><li>运行时若某变量在具体案件路径中没有值，按空值渲染；不阻断工作流。</li></ol>
+<ol><li>变量插入只影响件名和内容，不允许用户配置触发表达式。</li><li>トリガーイベント只决定什么时候发送通知，不限制件名/内容可插入的变量范围。</li><li>变量选择器展示系统变量 <code>caseId</code> 和固定节点类型的标准输出变量定义，不展示文件变量 <code>files[]</code>，不读取 Step2 当前画布，也不随画布节点增删动态变化。</li><li>保存时只校验变量 token 格式，不校验变量是否属于当前トリガーイベント，也不校验 Step2 当前画布是否存在対象ノード。</li><li>运行时若某变量在具体案件路径中没有值，按空值渲染；不阻断工作流。</li></ol>
 <p>内置触发事件：</p>
 <table><thead><tr><th>対象ノード</th><th>可选トリガーイベント</th><th>说明</th></tr></thead><tbody><tr><td>前处理</td><td><code>preprocessStatus = processing/success/failed</code>；<code>preprocessResult = passed/reviewRequired</code></td><td>直接选择前处理节点输出变量的具体取值</td></tr><tr><td>OCR 抽出</td><td><code>ocrStatus = processing/success/failed</code>；<code>ocrResult = passed/reviewRequired</code></td><td>直接选择 OCR 抽出节点输出变量的具体取值</td></tr><tr><td>数据映射</td><td><code>mappingStatus = processing/success/failed</code>；<code>mappingResult = passed/reviewRequired</code></td><td>直接选择数据映射节点输出变量的具体取值</td></tr><tr><td>AI 检证</td><td><code>verifyStatus = processing/success/failed</code>；<code>verifyResult = passed/reviewRequired</code></td><td>直接选择 AI 检证节点输出变量的具体取值</td></tr><tr><td>人工确认</td><td>完成；补件；案件终止</td><td>人工确认按画布三分支触发</td></tr></tbody></table>
 <p>校验规则：</p>
@@ -402,7 +402,7 @@
 <p>自定义函数节点和人工确认节点只输出各自节点状态键：<code>hitlStatus</code> / <code>codeStatus</code>，取值同处理状态：<code>processing / success / failed</code>。它们不输出 <code>result</code>。</p>
 <h4 class="subsection-heading">变量消费分类</h4>
 <p>案件状态是平台固定聚合状态，不是 Step2 节点变量。条件节点不能直接选择案件状态。</p>
-<table><thead><tr><th>消费分类</th><th>谁消费</th><th>可消费变量</th><th>不可消费变量</th><th>说明</th></tr></thead><tbody><tr><td>条件</td><td>条件判断节点</td><td>上游可达、消费分类含条件的变量；标准字段和 Step1 OCR 字段必须选到叶子</td><td>开始节点输出、结束节点输出、<code>files[]</code>、Array 容器、Date、DateTime、系统变量</td><td>只用于 IF / ELIF 分岔</td></tr><tr><td>通知</td><td>Step3 通知规则模板</td><td><code>caseId</code>、<code>files[]</code>、可配置通知节点的标准输出变量定义（前处理/OCR 抽出/数据映射/AI 检证的 <code>Status</code>/<code>Result</code>）</td><td>触发条件本身不可配置；自定义函数脚本返回值</td><td>只用于主题和内容插值；缺值按空值渲染并记日志</td></tr><tr><td>系统</td><td>引擎、日志、状态汇聚、Step4</td><td>开始 <code>caseId</code> / <code>files[]</code>、映射 <code>standardFields</code> 等</td><td>不提供给条件</td><td>可在出力変数面板展示</td></tr></tbody></table>
+<table><thead><tr><th>消费分类</th><th>谁消费</th><th>可消费变量</th><th>不可消费变量</th><th>说明</th></tr></thead><tbody><tr><td>条件</td><td>条件判断节点</td><td>上游可达、消费分类含条件的变量；标准字段和 Step1 OCR 字段必须选到叶子</td><td>开始节点输出、结束节点输出、<code>files[]</code>、Array 容器、Date、DateTime、系统变量</td><td>只用于 IF / ELIF 分岔</td></tr><tr><td>通知</td><td>Step3 通知规则模板</td><td><code>caseId</code>、可配置通知节点的标准输出变量定义（前处理/OCR 抽出/数据映射/AI 检证的 <code>Status</code>/<code>Result</code>、人工确认的 <code>Status</code>）</td><td><code>files[]</code>、触发条件本身、自定义函数脚本返回值</td><td>只用于主题和内容插值；缺值按空值渲染并记日志</td></tr><tr><td>系统</td><td>引擎、日志、状态汇聚、Step4</td><td>开始 <code>caseId</code> / <code>files[]</code>、映射 <code>standardFields</code> 等</td><td>不提供给条件</td><td>可在出力変数面板展示</td></tr></tbody></table>
 <p>同一业务事件的推荐写法：</p>
 <table><thead><tr><th>场景</th><th>条件变量</th><th>待办/运行时</th></tr></thead><tbody><tr><td>结果要确认</td><td><code>{node}.case.*Result = reviewRequired</code></td><td>人工确认页展示明细</td></tr><tr><td>节点失败</td><td><code>{node}.case.*Status = failed</code></td><td>异常分支或终止</td></tr><tr><td>全部通过</td><td><code>*Status = success</code> 且 <code>*Result = passed</code></td><td>走主流程</td></tr></tbody></table>
 <h4 class="subsection-heading">条件变量规则</h4>

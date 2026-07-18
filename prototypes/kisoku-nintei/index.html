@@ -1834,7 +1834,7 @@
                   </label>
                   <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
                     <span data-no-translate>{{ t('変数を挿入') }}</span>
-                    <small class="workflow-notification-insert-hint">システム変数・ファイル変数・ノード出力定義を挿入できます。</small>
+                    <small class="workflow-notification-insert-hint">システム変数・ノード出力定義を挿入できます。</small>
                     <div class="workflow-notification-insert-actions">
                       <el-radio-group v-model="workflowNotificationInsertTarget" size="small" class="notify-var-insert-target">
                         <el-radio-button value="subject" :label="t('件名')" />
@@ -2397,7 +2397,7 @@
           </label>
           <div v-if="workflowNotificationVariableOptions.length" class="workflow-notification-insert">
             <span data-no-translate>{{ t('変数を挿入') }}</span>
-            <small class="workflow-notification-insert-hint">システム変数・ファイル変数・ノード出力定義を挿入できます。</small>
+            <small class="workflow-notification-insert-hint">システム変数・ノード出力定義を挿入できます。</small>
             <div class="workflow-notification-insert-actions">
               <el-radio-group v-model="workflowNotificationEditInsertTarget" size="small" class="notify-var-insert-target">
                 <el-radio-button value="subject" :label="t('件名')" />
