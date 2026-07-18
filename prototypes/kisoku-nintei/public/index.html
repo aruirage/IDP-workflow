@@ -59,7 +59,6 @@
                     <el-dropdown-item command="copy">コピー</el-dropdown-item>
                     <el-dropdown-item command="rename">名称変更</el-dropdown-item>
                     <el-dropdown-item command="delete" class="scene-menu-danger">削除</el-dropdown-item>
-                    <el-dropdown-item command="history">変更履歴</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -806,7 +805,7 @@
                           <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
                         </div>
                         <button
-                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable && node.type !== 'start' && !node.isStart"
                           type="button"
                           class="wf-node-action"
                           title="削除"
@@ -1043,16 +1042,6 @@
 
               <div class="wf-canvas-floating-actions wf-canvas-view-actions" aria-label="表示操作" @mousedown.stop @click.stop>
                 <div class="wf-canvas-toolbar wf-canvas-toolbar--bottom">
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                  </button>
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                  </button>
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn wf-zoom-btn--fit" title="画面に合わせる" @click="fitWorkflowToView">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 3H3v2.2M10.8 3H13v2.2M13 10.8V13h-2.2M5.2 13H3v-2.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.2 6.2h3.6v3.6H6.2z" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/></svg>
-                  </button>
-                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
                   <button
                     type="button"
                     class="wf-canvas-tool-btn"
@@ -1070,6 +1059,16 @@
                     @click="organizeWorkflowNodes"
                   >
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.2h3M10 4.2h3M6 4.2c1.2 0 1.8.9 2 2.1.2 1.2.8 2.1 2 2.1M3 11.8h3M10 11.8h3M6 11.8c1.2 0 1.8-.9 2-2.1.2-1.2.8-2.1 2-2.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn wf-zoom-btn--fit" title="画面に合わせる" @click="fitWorkflowToView">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 3H3v2.2M10.8 3H13v2.2M13 10.8V13h-2.2M5.2 13H3v-2.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.2 6.2h3.6v3.6H6.2z" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
               </div>

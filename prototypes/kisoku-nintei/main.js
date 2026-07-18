@@ -1444,7 +1444,7 @@ const appOptions = {
       restoreSceneSidebarAfterEditor();
       currentModule.value = moduleId;
       if (moduleId !== 'case-workflow') return;
-      initWorkflowHistory('案件フローを読み込み');
+      resetWorkflowEditTracking('案件フローを読み込み');
       enterWorkflowCanvasView();
       nextTick(() => fitWorkflowToView());
     }
@@ -1543,11 +1543,16 @@ const appOptions = {
       return q ? scenes.value.filter((s) => s.name.includes(q)) : scenes.value;
     });
 
+    function formatWorkflowHistoryTime() {
+      const date = new Date();
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
     function snapshotWorkflowState() {
       return cloneJson(getActiveWf() || { nodes: [], edges: [] });
     }
 
-    function initWorkflowHistory(label = '初期状態') {
+    function resetWorkflowEditTracking(label = '初期状態') {
       wfHistoryTimeline.value = [{
         id: String(Date.now()),
         label,
@@ -1555,6 +1560,19 @@ const appOptions = {
         workflow: snapshotWorkflowState(),
       }];
       wfHistoryIndex.value = 0;
+    }
+
+    function mergeWorkflowNodeForCanvasRestore(restoredNode, currentNode) {
+      if (!currentNode || currentNode.type !== restoredNode.type) return restoredNode;
+      return {
+        ...cloneJson(currentNode),
+        id: restoredNode.id,
+        type: restoredNode.type,
+        label: restoredNode.label,
+        x: restoredNode.x,
+        y: restoredNode.y,
+        isStart: restoredNode.isStart,
+      };
     }
 
     function restoreWorkflowSnapshot(snapshot) {
@@ -1565,7 +1583,9 @@ const appOptions = {
         return;
       }
       const normalized = normalizeWorkflow(cloneJson(snapshot));
-      wf.nodes = normalized.nodes;
+      const currentNodeById = new Map((wf.nodes || []).map((node) => [node.id, node]));
+      wf.nodes = normalized.nodes.map((node) =>
+        mergeWorkflowNodeForCanvasRestore(node, currentNodeById.get(node.id)));
       wf.edges = normalized.edges;
       wf.isTemplate = normalized.isTemplate;
       wf.topologyCustomized = normalized.topologyCustomized;
@@ -1578,19 +1598,75 @@ const appOptions = {
       wfHistoryRecording = true;
     }
 
-    function pushWorkflowHistory(label) {
+    function normalizeWorkflowHistoryLabel(label) {
+      const text = String(label || '').trim();
+      if (!text) return 'Workflow を編集';
+      if (
+        text.includes('ノードを追加')
+        || text.includes('ノードを挿入')
+        || text.includes('ノードを削除')
+        || text.includes('開始ノードを挿入')
+        || text.includes('終了ノードを挿入')
+      ) return 'ノード構成を変更';
+      if (
+        text.includes('条件')
+        || text.includes('判断')
+        || text.includes('分岐')
+        || text.includes('CASE')
+        || text.includes('ELIF')
+        || text.includes('ELSE')
+        || text.includes('閾値')
+        || text.includes('ゲートウェイ')
+        || text.includes('スキップ')
+      ) return null;
+      if (
+        text.includes('接続')
+        || text.includes('ポート')
+      ) return '接続を変更';
+      if (
+        text.includes('位置')
+        || text.includes('整列')
+      ) return 'ノード位置を変更';
+      if (
+        text.includes('入力変数')
+        || text.includes('カスタム')
+        || text.includes('OCR')
+        || text.includes('AI検証')
+        || text.includes('AI 補助')
+        || text.includes('通知メッセージ')
+        || text.includes('コピー設定')
+        || text.includes('ルール適用性')
+      ) return 'ノード設定を編集';
+      return text;
+    }
+
+    function markWorkflowEdited(label) {
       if (!wfHistoryRecording || !getActiveWf()) return;
+      const normalizedLabel = normalizeWorkflowHistoryLabel(label);
+      if (!normalizedLabel) {
+        markSceneConfigChanged('workflow');
+        return;
+      }
       const trimmed = wfHistoryTimeline.value.slice(0, wfHistoryIndex.value + 1);
-      trimmed.push({
+      const entry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        label,
+        label: normalizedLabel,
         time: formatWorkflowHistoryTime(),
         workflow: snapshotWorkflowState(),
-      });
+      };
+      const last = trimmed[trimmed.length - 1];
+      if (last && last.label === normalizedLabel) {
+        trimmed[trimmed.length - 1] = { ...entry, id: last.id };
+      } else {
+        trimmed.push(entry);
+      }
       if (trimmed.length > 50) trimmed.shift();
       wfHistoryTimeline.value = trimmed;
       wfHistoryIndex.value = trimmed.length - 1;
-      // 画布有实质修改时：可发布/已发布回草稿，测试结论作废
+      markSceneConfigChanged('workflow');
+    }
+
+    function markWorkflowConfigEdited() {
       markSceneConfigChanged('workflow');
     }
 
@@ -1643,7 +1719,7 @@ const appOptions = {
         ElementPlus.ElMessage.warning('メインフロー上の隣接ノードのみ入れ替えできます');
         return;
       }
-      pushWorkflowHistory('ノード位置を入れ替え');
+      markWorkflowEdited('ノード位置を入れ替え');
       ElementPlus.ElMessage.success('ノード位置を入れ替えました');
     }
 
@@ -1654,6 +1730,7 @@ const appOptions = {
         ...entry,
         index: wfHistoryTimeline.value.length - 1 - reverseIdx,
       })));
+
     const canSwapWorkflowNodeLeft = computed(() => {
       const id = selectedWorkflowNodeId.value;
       if (!id) return false;
@@ -2148,7 +2225,7 @@ const appOptions = {
         selectedWorkflowEdgeKey.value = null;
         inspectorMode.value = 'scene';
         syncCurrentNodeFromWorkflow(null);
-        initWorkflowHistory('Workflow をクリア');
+        resetWorkflowEditTracking('Workflow をクリア');
         savedSnapshot.value = JSON.stringify(form);
         saveStorage(currentSceneId.value, form);
         nextTick(() => fitWorkflowToView());
@@ -2607,7 +2684,7 @@ const appOptions = {
       if (prev === contextValue) return;
       const apply = () => {
         applyJudgmentContextToNode(node, contextValue, true);
-        pushWorkflowHistory('判断コンテキストを変更');
+        markWorkflowEdited('判断コンテキストを変更');
       };
       if (prev === 'custom' || contextValue === 'custom') {
         apply();
@@ -2626,7 +2703,7 @@ const appOptions = {
       node.elseDescription = node.elseLabel || '';
       const wf = getActiveWf();
       if (wf) sanitizeDecisionEdges(wf);
-      pushWorkflowHistory('ELSE ラベルを変更');
+      markWorkflowEdited('ELSE ラベルを変更');
     }
 
     const notifyVarInsertTarget = ref('body');
@@ -2657,7 +2734,7 @@ const appOptions = {
       if (!node || node.type !== 'notify') return;
       const key = field === 'subject' ? 'subject' : 'body';
       node[key] = insertNotifyVariableText(node[key], varPath);
-      pushWorkflowHistory('通知メッセージへ変数を挿入');
+      markWorkflowConfigEdited();
     }
 
     function onNotifyVariablePickChange(varPath) {
@@ -2717,7 +2794,7 @@ const appOptions = {
     }
 
     function onCodeFieldChange() {
-      pushWorkflowHistory('カスタム関数を変更');
+      markWorkflowConfigEdited();
     }
 
     const codeParamDialogVisible = ref(false);
@@ -2782,21 +2859,21 @@ const appOptions = {
       if (idx >= 0) node.inputs[idx] = next;
       else node.inputs.push(next);
       codeParamDialogVisible.value = false;
-      pushWorkflowHistory(codeParamDialogMode.value === 'edit' ? '入力変数を編集' : '入力変数を追加');
+      markWorkflowConfigEdited();
     }
 
     function removeCodeInputParam(rowId) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code' || !Array.isArray(node.inputs)) return;
       node.inputs = node.inputs.filter((row) => row.id !== rowId);
-      pushWorkflowHistory('入力変数を削除');
+      markWorkflowConfigEdited();
     }
 
     function onCodeInputVariableChange(row, variable) {
       if (!row) return;
       row.variable = variable;
       row.source = isCodeUpstreamFilesJsonSource(variable) ? 'upstream_files_json' : 'reference';
-      pushWorkflowHistory('入力変数の参照元を変更');
+      markWorkflowConfigEdited();
     }
 
     function formatCodeInputSourceLabel(variable) {
@@ -2831,7 +2908,7 @@ const appOptions = {
         workflowConditionPreviewFlash.value = true;
         setTimeout(() => { workflowConditionPreviewFlash.value = false; }, 1600);
         workflowConditionAiLoading.value = false;
-        pushWorkflowHistory('AI 補助で実行式を生成');
+        markWorkflowConfigEdited();
         ElementPlus.ElMessage.success(isPresetFallback ? 'プリセット既定の実行式を適用しました' : '実行式を生成しました');
       }, 400);
     }
@@ -2892,7 +2969,7 @@ const appOptions = {
         ...(pf.ocrExtract.mergeByType || {}),
         [typeId]: next,
       };
-      pushWorkflowHistory('OCR抽出の統合方式を変更');
+      markWorkflowConfigEdited();
     }
 
     function getOcrTemplateStatus(docType) {
@@ -3090,7 +3167,7 @@ const appOptions = {
       node.ruleConfigVersion = getRuleConfigVersion(node);
       node.ruleCheckedAt = new Date().toISOString();
       node.ruleCheckStatus = 'checked';
-      pushWorkflowHistory('ルール適用性を再チェック');
+      markWorkflowConfigEdited();
     }
 
     const workflowEndFlowPreview = computed(() => {
@@ -3762,7 +3839,7 @@ const appOptions = {
       closeWfNodePlacement();
       layoutWorkflowGraph(wf);
       applyWorkflowEdgeRoutes(wf);
-      pushWorkflowHistory('ノードを整列');
+      markWorkflowEdited('ノードを整列');
       nextTick(() => fitWorkflowToView());
     }
 
@@ -3984,7 +4061,7 @@ const appOptions = {
       getActiveWf().nodes.push(node);
       if (type === 'start') ensureWorkflowStartNode(getActiveWf());
       selectWorkflowNode(id);
-      pushWorkflowHistory('ノードを追加');
+      markWorkflowEdited('ノードを追加');
       return id;
     }
 
@@ -4182,7 +4259,7 @@ const appOptions = {
       if (node.type === 'start') ensureWorkflowStartNode(wf);
       closeWfNodePlacement();
       selectWorkflowNode(node.id);
-      pushWorkflowHistory('ノードを追加');
+      markWorkflowEdited('ノードを追加');
     }
 
     function resolveWfPickerAnchorRect(anchor) {
@@ -4422,7 +4499,7 @@ const appOptions = {
       if (payload.kind === 'terminal' && payload.type === 'start') ensureWorkflowStartNode(wf);
       closeWfNodePicker();
       selectWorkflowNode(newNode.id);
-      pushWorkflowHistory(payload.kind === 'logic' ? '接続線にロジックノードを挿入' : '接続線にノードを挿入');
+      markWorkflowEdited(payload.kind === 'logic' ? '接続線にロジックノードを挿入' : '接続線にノードを挿入');
       nextTick(() => fitWorkflowToView());
       return newNode.id;
     }
@@ -4469,7 +4546,7 @@ const appOptions = {
         ensureWorkflowStartNode(wf);
         closeWfNodePicker();
         selectWorkflowNode(newId);
-        pushWorkflowHistory('開始ノードを挿入');
+        markWorkflowEdited('開始ノードを挿入');
         nextTick(() => fitWorkflowToView());
         return newId;
       }
@@ -4569,7 +4646,7 @@ const appOptions = {
 
       closeWfNodePicker();
       selectWorkflowNode(newId);
-      pushWorkflowHistory(payload.kind === 'logic' ? 'ロジックノードを挿入' : 'ノードを挿入');
+      markWorkflowEdited(payload.kind === 'logic' ? 'ロジックノードを挿入' : 'ノードを挿入');
       nextTick(() => fitWorkflowToView());
       return newId;
     }
@@ -4600,7 +4677,7 @@ const appOptions = {
         if (oldTargetId) wf.edges.push({ from: newId, to: oldTargetId });
         closeWfNodePicker();
         selectWorkflowNode(newId);
-        pushWorkflowHistory('終了ノードを挿入');
+        markWorkflowEdited('終了ノードを挿入');
         nextTick(() => fitWorkflowToView());
         return newId;
       }
@@ -4628,7 +4705,7 @@ const appOptions = {
         ensureWorkflowStartNode(wf);
         closeWfNodePicker();
         selectWorkflowNode(newId);
-        pushWorkflowHistory('開始ノードを挿入');
+        markWorkflowEdited('開始ノードを挿入');
         nextTick(() => fitWorkflowToView());
         return newId;
       }
@@ -4724,7 +4801,7 @@ const appOptions = {
 
       closeWfNodePicker();
       selectWorkflowNode(newId);
-      pushWorkflowHistory(payload.kind === 'logic' ? 'ロジックノードを挿入' : 'ノードを挿入');
+      markWorkflowEdited(payload.kind === 'logic' ? 'ロジックノードを挿入' : 'ノードを挿入');
       nextTick(() => fitWorkflowToView());
       return newId;
     }
@@ -4785,7 +4862,7 @@ const appOptions = {
       if (isHitlGateNode(newNode)) {
         newNode.hitlContext = inferHitlContext(newNode, wf);
       }
-      pushWorkflowHistory(`${match?.label || '分岐'} にノードを接続`);
+      markWorkflowEdited(`${match?.label || '分岐'} にノードを接続`);
       nextTick(() => fitWorkflowToView());
       return newNode.id;
     }
@@ -4880,7 +4957,7 @@ const appOptions = {
       if (!node?.reuseReview) return;
       node.reuseStatus = 'ready';
       node.reuseReview.confirmed = true;
-      pushWorkflowHistory('コピー設定を確認');
+      markWorkflowConfigEdited();
       ElementPlus.ElMessage.success('確認済みにしました');
     }
 
@@ -5118,7 +5195,7 @@ const appOptions = {
           proceedToWorkflowStep();
           return;
         }
-        // Step3/4 → Step2：纯回退不改状态；有画布修改时由 pushWorkflowHistory 回草稿
+        // Step3/4 → Step2：纯回退不改状态；有画布修改时由 markWorkflowEdited 回草稿
         if (currentNode.value === 'output') currentNode.value = 'scene';
         workflowSetupStep.value = 2;
         sceneSetupVisible.value = false;
@@ -5280,19 +5357,10 @@ const appOptions = {
       }).catch(() => {});
     }
 
-    function openSceneHistory(scene) {
-      if (!scene) return;
-      if (scene.id !== currentSceneId.value) {
-        selectScene(scene.id, { skipFinishRename: true, focusScene: true });
-      }
-      wfChangeHistoryVisible.value = true;
-    }
-
     function onSceneMenuCommand(command, scene) {
       if (command === 'copy') copySceneFromMenu(scene);
       if (command === 'edit') editSceneSettings(scene);
       if (command === 'rename') startRenameScene(scene);
-      if (command === 'history') openSceneHistory(scene);
       if (command === 'delete') deleteScene(scene);
     }
 
@@ -5764,7 +5832,7 @@ const appOptions = {
       const node = getActiveWf()?.nodes?.find((n) => n.id === id);
       if (!node) return;
       if (node.type === 'start' || node.isStart) {
-        ElementPlus.ElMessage.warning('開始ノードは個別削除できません。リセットでは画面上のすべてのノードを削除できます。');
+        ElementPlus.ElMessage.warning('開始ノードは削除できません。');
         return;
       }
       const name = getWorkflowNodeDisplayLabel(node);
@@ -5774,7 +5842,7 @@ const appOptions = {
         { confirmButtonText: '削除', cancelButtonText: 'キャンセル', type: 'warning' },
       ).then(() => {
         removeWorkflowNode(id);
-        pushWorkflowHistory('ノードを削除');
+        markWorkflowEdited('ノードを削除');
         ElementPlus.ElMessage.success('ノードを削除しました');
       }).catch(() => {});
     }
@@ -6123,7 +6191,7 @@ const appOptions = {
         wf.edges.push(edge);
         normalizeWorkflowEdgeRoute(wf, edge);
       }
-      pushWorkflowHistory('接続先を変更');
+      markWorkflowEdited('接続先を変更');
     }
 
     function isConnectModeSource(nodeId) {
@@ -6150,7 +6218,7 @@ const appOptions = {
       selectedWorkflowEdgeKey.value = null;
       closeWorkflowInspector();
       syncCurrentNodeFromWorkflow(null);
-      pushWorkflowHistory('接続を削除');
+      markWorkflowEdited('接続を削除');
       ElementPlus.ElMessage.info('接続を削除しました');
     }
 
@@ -6253,7 +6321,7 @@ const appOptions = {
 
         document.body.classList.remove('wf-connecting');
         if (finishWorkflowConnect(ev.clientX, ev.clientY)) {
-          pushWorkflowHistory('接続を追加');
+          markWorkflowEdited('接続を追加');
           ElementPlus.ElMessage.success(connectWorkflowEdge.lastBackflow ? '回流接続しました' : '接続しました');
           wfConnectSuppressClick = true;
           setTimeout(() => { wfConnectSuppressClick = false; }, 0);
@@ -6349,7 +6417,7 @@ const appOptions = {
         document.body.classList.remove('wf-node-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        if (moved) pushWorkflowHistory('ノード位置を移動');
+        if (moved) markWorkflowEdited('ノード位置を移動');
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
@@ -6364,7 +6432,7 @@ const appOptions = {
       if (!node || node.type !== 'decision' || node.conditionType !== 'custom') return;
       node.yesRule = node.yesExpression || '';
       syncDecisionYesRuleToCases(node);
-      pushWorkflowHistory('IF 条件を変更');
+      markWorkflowEdited('IF 条件を変更');
     }
 
     function onDecisionGatewayTypeChange() {
@@ -6375,14 +6443,14 @@ const appOptions = {
         node.noRule = node.noRule || '—';
       }
       syncWorkflowYesExpression(node, sceneDocTypes.value);
-      pushWorkflowHistory('判断タイプを変更');
+      markWorkflowEdited('判断タイプを変更');
     }
 
     function onDecisionThresholdChange() {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'decision') return;
       syncWorkflowYesExpression(node, sceneDocTypes.value);
-      pushWorkflowHistory('閾値を変更');
+      markWorkflowEdited('閾値を変更');
     }
 
     function syncDecisionYesRuleToCases(node) {
@@ -6399,34 +6467,34 @@ const appOptions = {
       if (!node || node.type !== 'decision') return;
       syncWorkflowYesExpression(node, sceneDocTypes.value);
       syncDecisionYesRuleToCases(node);
-      pushWorkflowHistory('YES 判断条件を変更');
+      markWorkflowEdited('YES 判断条件を変更');
     }
 
     function onDecisionNoRuleChange() {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'decision') return;
       node.elseDescription = node.noRule || '';
-      pushWorkflowHistory('NO 結果を変更');
+      markWorkflowEdited('NO 結果を変更');
     }
 
     function onHitlGateYesRuleChange() {
       syncWorkflowYesExpression(selectedWorkflowNode.value, sceneDocTypes.value);
-      pushWorkflowHistory('発生条件を変更');
+      markWorkflowEdited('発生条件を変更');
     }
 
     function onHitlGateNoRuleChange() {
-      pushWorkflowHistory('スキップ結果を変更');
+      markWorkflowEdited('スキップ結果を変更');
     }
 
     function onDecisionConditionLogicChange() {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'decision') return;
       syncWorkflowYesExpression(node, sceneDocTypes.value);
-      pushWorkflowHistory('条件ロジックを変更');
+      markWorkflowEdited('条件ロジックを変更');
     }
 
     function onDecisionGatewayPolicyChange() {
-      pushWorkflowHistory('ゲートウェイ方針を変更');
+      markWorkflowEdited('ゲートウェイ方針を変更');
     }
 
     function decisionReturnTargetOptions(nodeId) {
@@ -6468,7 +6536,7 @@ const appOptions = {
     function addDecisionElifCase(node) {
       if (!node?.cases) return;
       node.cases.push(createDecisionCase('elif'));
-      pushWorkflowHistory('ELIF を追加');
+      markWorkflowEdited('ELIF を追加');
     }
 
     function removeDecisionCase(node, caseId) {
@@ -6484,7 +6552,7 @@ const appOptions = {
       if (wf) {
         wf.edges = wf.edges.filter((e) => !(e.from === node.id && e.branch === caseId));
       }
-      pushWorkflowHistory('分岐 CASE を削除');
+      markWorkflowEdited('分岐 CASE を削除');
     }
 
     const decisionCaseDragId = ref(null);
@@ -6522,7 +6590,7 @@ const appOptions = {
       if (fromIdx < 0 || toIdx < 0 || fromIdx === 0 || toIdx === 0) return;
       const [moved] = node.cases.splice(fromIdx, 1);
       node.cases.splice(toIdx, 0, moved);
-      pushWorkflowHistory('CASE 順序を変更');
+      markWorkflowEdited('CASE 順序を変更');
     }
 
     function onDecisionCaseDrop(node, toCaseId) {
@@ -6535,7 +6603,7 @@ const appOptions = {
       const decisionCase = node?.cases?.find((c) => c.id === caseId);
       if (!decisionCase) return;
       decisionCase.conditions = [];
-      pushWorkflowHistory('CASE の条件を削除');
+      markWorkflowEdited('CASE の条件を削除');
     }
 
     const decisionSceneContext = computed(() => ({
@@ -6694,7 +6762,7 @@ const appOptions = {
     }
 
     function onDecisionConditionFieldChange() {
-      pushWorkflowHistory('IF/ELSE 条件を変更');
+      markWorkflowEdited('IF/ELSE 条件を変更');
     }
 
     function onDecisionConditionVariableChange(condition) {
@@ -6711,7 +6779,7 @@ const appOptions = {
       const decisionCase = node?.cases?.find((c) => c.id === caseId);
       if (!decisionCase) return;
       decisionCase.conditions.push(createDecisionCondition());
-      pushWorkflowHistory('条件を追加');
+      markWorkflowEdited('条件を追加');
     }
 
     function removeDecisionCondition(node, caseId, conditionId) {
@@ -6726,7 +6794,7 @@ const appOptions = {
           if (wf) wf.edges = (wf.edges || []).filter((e) => !(e.from === node.id && e.branch === caseId));
         }
       }
-      pushWorkflowHistory('条件を削除');
+      markWorkflowEdited('条件を削除');
     }
 
     function judgmentAllowsElif(node) {
@@ -6782,7 +6850,7 @@ const appOptions = {
           label: getDecisionBranchEdgeLabel(branch, wf.nodes.find((n) => n.id === nodeId)),
         });
       }
-      pushWorkflowHistory('分岐接続先を変更');
+      markWorkflowEdited('分岐接続先を変更');
     }
 
     function getWorkflowNodeActiveTasks(node) {
@@ -7507,7 +7575,7 @@ const appOptions = {
       if (!node || !['ai_verify', 'verify'].includes(node.type)) return;
       if (!node.moduleEnabled) node.moduleEnabled = {};
       node.moduleEnabled[key] = !isAiVerifyModuleEnabled(node, key);
-      pushWorkflowHistory('AI検証モジュールを変更');
+      markWorkflowConfigEdited();
       nextTick(() => applyUiLanguage());
     }
 
@@ -8582,7 +8650,7 @@ const appOptions = {
         inspectorMode.value = 'node';
         syncCurrentNodeFromWorkflow(form.workflows.case?.nodes?.find((n) => n.id === selectedWorkflowNodeId.value));
       }
-      initWorkflowHistory('案件フローを読み込み');
+      resetWorkflowEditTracking('案件フローを読み込み');
       workflowSetupStep.value = 2;
       sceneSetupVisible.value = false;
       sceneSetupMode.value = 'edit';
@@ -9058,7 +9126,7 @@ const appOptions = {
       if (!form.master.knowledgeSource) {
         form.master.knowledgeSource = normalizeKnowledgeSource(null);
       }
-      initWorkflowHistory('初期状態');
+      resetWorkflowEditTracking('初期状態');
       const _wfCase = form.workflows?.case;
       if (_wfCase && needsCanonicalCaseWorkflowLayout(_wfCase)) {
         applyCanonicalCaseWorkflowLayout(_wfCase);
@@ -9573,14 +9641,6 @@ const appOptions = {
       createNewScene,
       startRenameScene,
       finishRenameScene,
-      canUndoWorkflow,
-      canRedoWorkflow,
-      undoWorkflow,
-      redoWorkflow,
-      wfChangeHistoryVisible,
-      workflowHistoryEntries,
-      wfHistoryIndex,
-      restoreWorkflowHistoryEntry,
       canSwapWorkflowNodeLeft,
       canSwapWorkflowNodeRight,
       swapSelectedWorkflowNode,
@@ -9614,6 +9674,14 @@ const appOptions = {
       resetWorkflowCanvas,
       removeWorkflowNode,
       confirmRemoveSelectedWorkflowNode,
+      canUndoWorkflow,
+      canRedoWorkflow,
+      undoWorkflow,
+      redoWorkflow,
+      wfChangeHistoryVisible,
+      workflowHistoryEntries,
+      wfHistoryIndex,
+      restoreWorkflowHistoryEntry,
       addWorkflowNodeFromLibrary,
       createWorkflowNodeAt,
       wfCanvasViewportRef,
