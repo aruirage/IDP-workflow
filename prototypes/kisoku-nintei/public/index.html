@@ -1957,17 +1957,7 @@
 
           <div class="wf-export-step-page">
             <div class="export-config export-config--step">
-              <div
-                v-if="step3ExportCandidatesEmpty"
-                class="export-config-empty-panel"
-              >
-                <p class="export-config-empty-title">出力可能な項目がありません</p>
-                <p class="export-config-empty-desc">
-                  OCR 抽出が未設定です。Workflow で OCR 抽出ノードを設定してから再度開いてください。
-                </p>
-                <el-button type="primary" plain @click="goToWorkflowSetupStep(2)">ワークフローへ戻る</el-button>
-              </div>
-              <div v-else class="export-config-body">
+              <div class="export-config-body">
                 <aside class="export-config-sidebar">
                   <div class="export-config-sidebar-head">
                     <div class="export-config-sidebar-head-main">
@@ -1977,7 +1967,7 @@
                   </div>
                   <div class="export-preview-tree export-preview-tree--nav">
                     <div
-                      v-for="row in exportPreviewRows"
+                      v-for="row in step3ExportCandidatesEmpty ? [] : exportPreviewRows"
                       :key="row.node.id"
                       class="export-preview-row"
                       :class="[
@@ -2016,7 +2006,7 @@
                 </aside>
 
                 <main class="export-config-detail">
-                  <template v-if="outputSelectedDocType || outputExportFieldMode === 'standard'">
+                  <template v-if="!step3ExportCandidatesEmpty && (outputSelectedDocType || outputExportFieldMode === 'standard')">
                     <div v-if="activeOutputDocFields" class="export-config-detail-head export-config-detail-head--compact">
                       <div class="export-config-detail-title">
                         <strong>{{ activeExportFileLabel }}</strong>
@@ -2169,7 +2159,8 @@
                     >帳票タイプに OCR 抽出フィールドが定義されていません</div>
                   </template>
 
-                  <div v-if="!outputSelectedDocType && outputExportFieldMode !== 'standard'" class="export-config-empty">左側から帳票タイプを選択してください</div>
+                  <div v-if="step3ExportCandidatesEmpty" class="export-config-empty">出力可能な項目がありません</div>
+                  <div v-else-if="!outputSelectedDocType && outputExportFieldMode !== 'standard'" class="export-config-empty">左側から帳票タイプを選択してください</div>
                 </main>
               </div>
             </div>
