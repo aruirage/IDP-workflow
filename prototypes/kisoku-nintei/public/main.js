@@ -255,7 +255,6 @@ const appOptions = {
       ['入力変数がありません', '没有输入变量'],
       ['出力変数がありません', '没有输出变量'],
       ['変数名', '变量名'],
-      ['データ型', '数据类型'],
       ['ソース', '来源'],
       ['参照変数', '参照变量'],
       ['カスタム', '自定义'],
@@ -601,10 +600,8 @@ const appOptions = {
       ['元に戻す', '撤销'],
       ['やり直し', '重做'],
       ['編集履歴はこの画面を開いている間だけ保持されます。', '编辑历史仅在当前页面打开期间保留。'],
-      ['画面に合わせる', '适应画面'],
       ['すべて展開', '全部展开'],
       ['すべて折りたたむ', '全部折叠'],
-      ['ノードを自動整列', '自动整理节点'],
       ['追加できるノードがありません', '没有可添加的节点'],
       ['設定パネルを展開', '展开设定面板'],
       ['パネルを折りたたむ', '折叠面板'],
@@ -2813,6 +2810,9 @@ const appOptions = {
       if (!node || node.type !== 'code') return [];
       return buildCodeVariableOptions(getActiveWf(), node.id, decisionSceneContext.value);
     });
+
+    const codeVariableCascaderOptions = computed(() =>
+      buildDecisionVariableCascaderTree(codeVariableOptions.value));
 
     function resetCodeParamDialogDraft(row = null) {
       const next = row
@@ -9241,7 +9241,6 @@ const appOptions = {
       formatNotifyVariableToken,
       validateNotifyRecipients,
       onNotifyRecipientsBlur,
-      CODE_PARAM_DATA_TYPES,
       CODE_OUTPUT_TYPES,
       CODE_UPSTREAM_FILES_JSON,
       DEFAULT_CODE_PYTHON,
@@ -9251,6 +9250,7 @@ const appOptions = {
       codeParamDialogDraft,
       selectedCodeInputRows,
       codeVariableOptions,
+      codeVariableCascaderOptions,
       openCodeParamDialog,
       saveCodeParamDialog,
       removeCodeInputParam,
@@ -9690,7 +9690,6 @@ const appOptions = {
       wfCanvasStageStyle,
       wfZoomPercent,
       workflowStageSize,
-      fitWorkflowToView,
       zoomWorkflowIn,
       zoomWorkflowOut,
       resetWorkflowZoom,

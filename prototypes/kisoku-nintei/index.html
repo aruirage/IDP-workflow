@@ -1055,7 +1055,7 @@
                   <button
                     type="button"
                     class="wf-canvas-tool-btn"
-                    title="ノードを自動整列"
+                    title="整列して全体表示"
                     @click="organizeWorkflowNodes"
                   >
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.2h3M10 4.2h3M6 4.2c1.2 0 1.8.9 2 2.1.2 1.2.8 2.1 2 2.1M3 11.8h3M10 11.8h3M6 11.8c1.2 0 1.8-.9 2-2.1.2-1.2.8-2.1 2-2.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
@@ -1066,9 +1066,6 @@
                   </button>
                   <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                  </button>
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn wf-zoom-btn--fit" title="画面に合わせる" @click="fitWorkflowToView">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 3H3v2.2M10.8 3H13v2.2M13 10.8V13h-2.2M5.2 13H3v-2.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.2 6.2h3.6v3.6H6.2z" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
               </div>
@@ -1525,7 +1522,6 @@
                         <li v-for="row in selectedCodeInputRows" :key="row.id" class="code-param-list-item">
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}<span v-if="row.required" class="code-param-required">*</span></span>
-                            <span class="code-param-list-tag">{{ row.dataType }}</span>
                             <span class="code-param-source-display">{{ formatCodeInputSourceLabel(row.variable) }}</span>
                           </div>
                           <div class="code-param-list-actions">
@@ -2511,30 +2507,19 @@
           />
         </label>
         <label class="inspector-field">
-          <span class="inspector-field-label">データ型</span>
-          <el-select v-model="codeParamDialogDraft.dataType" placeholder="データ型">
-            <el-option
-              v-for="option in CODE_PARAM_DATA_TYPES"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </label>
-        <label class="inspector-field">
           <span class="inspector-field-label">参照元</span>
-          <el-select
+          <el-cascader
             v-model="codeParamDialogDraft.variable"
+            class="inspector-ifelse-var"
+            :title="codeParamDialogDraft.variable ? formatCodeInputSourceLabel(codeParamDialogDraft.variable) : ''"
+            :options="codeVariableCascaderOptions"
+            :props="{ value: 'id', label: 'text', children: 'items', emitPath: false }"
+            :show-all-levels="false"
+            separator=" › "
             filterable
+            clearable
             placeholder="参照する変数を選択"
-          >
-            <el-option
-              v-for="option in codeVariableOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
+          />
         </label>
         <div class="code-param-required-row">
           <span class="inspector-field-label">必須</span>

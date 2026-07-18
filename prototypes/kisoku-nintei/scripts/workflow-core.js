@@ -84,7 +84,7 @@ const INSPECTOR_HINTS = {
   endTriggers: 'Workflow の終点。設定項目・出力変数はありません。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
   code: 'Python スクリプトで上流変数を加工します。スクリプト戻り値はスクリプト内で完結し、変数プールには入りません。',
-  codeInput: '入力は開始ノードの files[] JSON に固定です。source や個別変数は選択しません。',
+  codeInput: '入力変数は条件ノードと同じ変数選択器から選択します。開始ノードの caseId / files[] も選択できます。',
   codePython: 'def main(inputs: dict) -> dict 形式で記述します。開始ノードのファイル配列は inputs[\'files\'] で参照します。',
   codeOutput: '下流が参照できるのは内置の codeStatus のみです。スクリプト戻り値はログ・デバッグ用で、変数プールには入りません。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
@@ -1129,10 +1129,7 @@ function buildDecisionVariableCascaderTree(options) {
     }
 
     const nodeKey = opt.nodeId || opt.group || 'unknown';
-    const nodeTitle = opt.group || '上流ノード';
-    const varName = String(opt.varName || '').trim();
-    // 一級：日文タイプ名 + ノード識別子（重複ノード区別用）；二級：変数キー（不翻訳）
-    const nodeText = varName ? `${nodeTitle} · ${varName}` : nodeTitle;
+    const nodeText = opt.group || getWorkflowNodeMeta(opt.nodeType)?.title || '上流ノード';
     if (!nodeMap.has(nodeKey)) {
       nodeMap.set(nodeKey, {
         id: `node:${nodeKey}`,
@@ -2601,44 +2598,28 @@ function normalizeCodeNode(node, workflow = null) {
 }
 
 function buildCodeSourceVariableOptions(workflow, nodeId, sceneContext = null) {
-  const options = [{
-    group: '開始ノード',
-    nodeType: 'start',
-    nodeId: 'start',
-    varName: 'start',
-    localId: 'files[]',
-    scope: 'ファイル',
-    dataType: 'dict',
-    description: '開始ノードのファイル一覧 JSON',
-    value: CODE_UPSTREAM_FILES_JSON,
-    label: 'start.files[]',
-    displayName: 'start.files[]',
-    hint: '{start.files[]}',
-    consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
-    consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
-  }];
+  const options = [];
 
   const startNode = getWorkflowStartNode(workflow);
   if (startNode) {
     getWorkflowNodeOutputVarItems(startNode, workflow).forEach((item) => {
-      if (item.id === 'files[]') return;
-      const varName = getWorkflowNodeVarName(startNode, workflow);
-      const variableKey = `${varName}.${item.id}`;
+      const localId = String(item.localId || item.id || '').split('.').pop() || item.id;
       appendDecisionVarOption(options, {
         group: '開始ノード',
         nodeType: 'start',
         nodeId: startNode.id,
-        varName,
-        localId: item.localId || item.id,
+        varName: getWorkflowNodeVarName(startNode, workflow),
+        localId,
         scope: item.scope || '案件',
         dataType: item.type || '',
         description: item.description || item.label,
-        value: item.path,
-        label: variableKey,
-        displayName: variableKey,
+        value: item.id === 'files[]' ? CODE_UPSTREAM_FILES_JSON : item.path,
+        label: localId,
+        displayName: localId,
         hint: item.token || `{${item.path}}`,
-        consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
-        consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
+        consumptionPaths: item.consumptionPaths || [],
+        consumptionPathLabel: item.consumptionPathLabel || '',
+        pickerGroup: 'node',
       });
     });
   }
@@ -2646,12 +2627,8 @@ function buildCodeSourceVariableOptions(workflow, nodeId, sceneContext = null) {
   buildDecisionVariableCatalog(workflow, nodeId, null, sceneContext).forEach((item) => {
     appendDecisionVarOption(options, {
       ...item,
-      label: item.pickerGroup === 'node'
-        ? `${item.varName}.${item.localId || item.displayName || item.value}`
-        : item.label,
-      displayName: item.pickerGroup === 'node'
-        ? `${item.varName}.${item.localId || item.displayName || item.value}`
-        : item.displayName,
+      label: item.label,
+      displayName: item.displayName,
       consumptionPaths: [WORKFLOW_VAR_CONSUMPTION.TODO],
       consumptionPathLabel: formatWorkflowVarConsumptionLabels([WORKFLOW_VAR_CONSUMPTION.TODO]),
     });
@@ -3099,7 +3076,7 @@ function formatDecisionVariableDisplay(value, options = []) {
   if (!opt) return String(value).trim();
   if (opt.pickerGroup === 'standard_field') {
     const fieldKey = opt.pickerStandardFieldId || opt.displayName || opt.label;
-    const nodePart = opt.varName ? `${opt.group} · ${opt.varName}` : opt.group;
+    const nodePart = opt.group || '';
     return [nodePart, '標準フィールド', fieldKey].filter(Boolean).join(' › ');
   }
   if (opt.pickerGroup === 'step1_doc') {
@@ -3109,7 +3086,7 @@ function formatDecisionVariableDisplay(value, options = []) {
       opt.pickerField || opt.displayName,
     ].filter(Boolean).join(' › ');
   }
-  const nodePart = opt.varName ? `${opt.group || ''} · ${opt.varName}` : (opt.group || '');
+  const nodePart = opt.group || '';
   const secondary = getDecisionVariableSecondaryLabel(opt);
   if (nodePart && secondary) return `${nodePart} › ${secondary}`;
   return secondary || String(value).trim();
