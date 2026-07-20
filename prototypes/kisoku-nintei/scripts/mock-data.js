@@ -1951,17 +1951,9 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
   // —— 结构 S2-04～08 ——
   const starts = nodes.filter((n) => n.type === 'start');
   const ends = nodes.filter((n) => n.type === 'end');
-  if (starts.length !== 1) {
-    push('S2-04', '構造', starts.length ? '開始ノードは1件のみにしてください' : '開始ノードがありません', starts[0]?.id || '');
-  }
   if (!ends.length) {
     push('S2-05', '構造', '終了ノードを1件以上配置してください');
   }
-  ends.forEach((end) => {
-    if (edges.some((e) => e.from === end.id)) {
-      push('S2-05', '構造', '終了ノードから出る接続は設定できません', end.id);
-    }
-  });
   const reachable = new Set(getWorkflowTestReachableNodeIds(wf));
   if (starts.length === 1 && ends.length && !ends.some((e) => reachable.has(e.id))) {
     push('S2-06', '構造', '開始ノードから終了ノードへ到達できません', starts[0].id);
@@ -2215,7 +2207,7 @@ function simulateWorkflowTestExecutionPath(workflow, testCase) {
     return {
       pathIds: [],
       branchHits: {},
-      error: { ruleId: 'S2-29', nodeId: '', message: '開始ノードがないため実行順序を決定できません' },
+      error: { ruleId: 'S2-29', nodeId: '', message: '実行順序を決定できません' },
     };
   }
   const pathIds = [];
@@ -2571,7 +2563,7 @@ function workflowTestStepResultText(step, testCase) {
     ai_verify: 'AI 検証をテスト実行しました',
     decision: '用例フィールドで条件分岐を評価しました',
     hitl_gate: '人工確認をテストシナリオで判定し、出口へ進みました',
-    notify: '通知テンプレート変数の置換可否を検査しました（通知・メール送信なし）',
+    notify: '通知ノードは Step2 テスト対象外です（送信なし）',
     end: 'Workflow を終了しました',
     mcp: '外部連携を完了しました',
     code: 'コード実行を完了しました',
@@ -2945,11 +2937,7 @@ function validateWorkflowEndRequirements(workflow) {
   const edges = (wf.edges || []).filter((edge) => !edge.visualHidden);
   const endNodes = (wf.nodes || []).filter((node) => node.type === 'end');
   if (!endNodes.length) return '終了ノードを1件以上配置してください';
-  if (endNodes.some((node) => edges.some((edge) => edge.from === node.id))) {
-    return '終了ノードから出る接続は設定できません';
-  }
   const analysis = analyzeWorkflowTestCanvas(wf);
-  if (analysis.multipleStartNodes) return '開始ノードは1件のみにしてください';
   const branchIssue = Object.values(analysis.branchIssues || {})[0];
   if (branchIssue) return `終了ノード到達要件を満たしていません：${branchIssue}`;
   const reachableIds = typeof getWorkflowTestReachableNodeIds === 'function'

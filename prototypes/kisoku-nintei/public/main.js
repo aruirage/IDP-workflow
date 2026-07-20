@@ -1,5 +1,5 @@
-const MAIN_BUILD = '640-horizontal-first-workflow-layout';
-const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v23';
+const MAIN_BUILD = '644-static-default-workflow-layout';
+const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v27';
 
 const appOptions = {
   setup() {
@@ -793,7 +793,7 @@ const appOptions = {
       ['テストデータを更新しました', '已更新测试数据'],
       ['アップロード', '已上传'],
       ['内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。', '使用内置标准集约済み案件快照（只读）作为测试输入。'],
-      ['内蔵の集約済み案件スナップショットで Workflow をテスト実行します。人工確認タスク作成・通知送信・メール送信は行いません。', '使用内置集约完成案件快照执行 Workflow 测试；不创建人工确认任务，不发送通知，不发送邮件。'],
+      ['内蔵の集約済み案件スナップショットで Workflow をテスト実行します。人工確認タスク作成・通知送信・メール送信は行いません。通知設定はテスト対象外です。', '使用内置集约完成案件快照执行 Workflow 测试；不创建人工确认任务，不发送通知，不发送邮件。通知设置不属于测试对象。'],
       ['読み取り専用', '只读'],
       ['JSON の形式が正しくありません', 'JSON 格式不正确'],
       ['テスト用データを初期値に戻しました', '已恢复检查输入默认值'],
@@ -2199,20 +2199,29 @@ const appOptions = {
     }
 
     function resetWorkflowCanvas() {
-      ElementPlus.ElMessageBox.confirm('ワークフロー画面上のすべてのノードと接続を削除します。続行しますか？', '', {
+      ElementPlus.ElMessageBox.confirm('開始ノード以外のすべてのノードと接続を削除します。続行しますか？', '', {
         confirmButtonText: 'OK',
         cancelButtonText: 'キャンセル',
         type: 'warning',
       }).then(() => {
-        form.workflows.case = {
-          nodes: [],
-          edges: [],
-          startNodeId: '',
-          layoutVersion: 12,
-          templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
-          isTemplate: false,
-          topologyCustomized: true,
-        };
+        form.workflows.case = typeof buildMinimalCaseWorkflow === 'function'
+          ? buildMinimalCaseWorkflow()
+          : {
+            nodes: [{
+              id: 'wf-start',
+              type: 'start',
+              label: '開始',
+              x: 72,
+              y: 144,
+              isStart: true,
+            }],
+            edges: [],
+            startNodeId: 'wf-start',
+            layoutVersion: 12,
+            templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+            isTemplate: false,
+            topologyCustomized: true,
+          };
         form.workflows.case.isTemplate = false;
         form.workflows.case.topologyCustomized = true;
         form.workflowTestStatus = 'untested';
@@ -2220,8 +2229,9 @@ const appOptions = {
         form.outputConfigStatus = 'unsaved';
         selectedWorkflowNodeId.value = '';
         selectedWorkflowEdgeKey.value = null;
-        inspectorMode.value = 'scene';
-        syncCurrentNodeFromWorkflow(null);
+        selectedWorkflowNodeId.value = form.workflows.case.startNodeId || form.workflows.case.nodes[0]?.id || '';
+        inspectorMode.value = 'workflow';
+        syncCurrentNodeFromWorkflow(form.workflows.case.nodes[0] || null);
         resetWorkflowEditTracking('Workflow をクリア');
         savedSnapshot.value = JSON.stringify(form);
         saveStorage(currentSceneId.value, form);

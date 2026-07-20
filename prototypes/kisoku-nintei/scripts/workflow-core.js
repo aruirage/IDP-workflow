@@ -101,11 +101,11 @@ const INSPECTOR_HINTS = {
   sceneMatchingDefaults: '既定動作：補件ファイルは既存案件に紐付け、マスタなしファイルは保留プールへ送ります（本画面では変更できません）。',
 };
 
-const CASE_WORKFLOW_TEMPLATE_VERSION = 27;
-const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 23;
+const CASE_WORKFLOW_TEMPLATE_VERSION = 31;
+const CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION = 27;
 const WF_LAYOUT_PAD = { x: 72, y: 132 };
-const WF_BRANCH_LANE_GAP = 132;
-const WF_LAYOUT_MIN_EDGE_GAP = 132;
+const WF_BRANCH_LANE_GAP = 108;
+const WF_LAYOUT_MIN_EDGE_GAP = 112;
 const STRAIGHT_CASE_WORKFLOW_NODE_IDS = [
   'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
   'wf-map', 'wf-ai', 'wf-d-final', 'wf-hu-pre', 'wf-hu-ocr', 'wf-hu-final', 'wf-end',
@@ -221,7 +221,6 @@ const CASE_FLOW_NODE_GROUPS = [
   {
     category: '端点',
     nodes: [
-      { type: 'start', label: '開始' },
       { type: 'end', label: '終了' },
     ],
   },
@@ -4000,7 +3999,7 @@ function buildDefaultCaseWorkflow() {
   migrateHitlGateEdges(wf);
   sanitizeHitlGateEdges(wf);
   ensureWorkflowStartNode(wf);
-  layoutWorkflowGraph(wf);
+  applyDefaultCaseWorkflowStaticLayout(wf);
 
   return {
     nodes: wf.nodes,
@@ -4009,6 +4008,51 @@ function buildDefaultCaseWorkflow() {
     templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
     startNodeId: wf.startNodeId,
   };
+}
+
+function applyDefaultCaseWorkflowStaticLayout(workflow) {
+  if (!workflow?.nodes?.length) return workflow;
+  const byId = Object.fromEntries(workflow.nodes.map((node) => [node.id, node]));
+  const rowY = 132;
+  const branchY = 372;
+  const positions = {
+    'wf-start': { x: 72, y: rowY + 12 },
+    'wf-pp': { x: 220, y: rowY },
+    'wf-d-pre': { x: 520, y: rowY },
+    'wf-oc': { x: 1050, y: rowY },
+    'wf-d-ocr': { x: 1330, y: rowY },
+    'wf-map': { x: 1860, y: rowY },
+    'wf-ai': { x: 2140, y: rowY },
+    'wf-d-final': { x: 2420, y: rowY },
+    'wf-end': { x: 3100, y: rowY + 6 },
+  };
+  Object.entries(positions).forEach(([id, pos]) => {
+    if (!byId[id]) return;
+    byId[id].x = pos.x;
+    byId[id].y = pos.y;
+  });
+
+  [
+    ['wf-hu-pre', 'wf-d-pre', 'wf-oc'],
+    ['wf-hu-ocr', 'wf-d-ocr', 'wf-map'],
+    ['wf-hu-final', 'wf-d-final', 'wf-end'],
+  ].forEach(([hitlId, fromId, toId]) => {
+    const hitl = byId[hitlId];
+    const from = byId[fromId];
+    const to = byId[toId];
+    if (!hitl || !from || !to) return;
+    const fromSize = getWorkflowNodeLayoutSize(from);
+    const hitlSize = getWorkflowNodeLayoutSize(hitl);
+    const fromRight = from.x + fromSize.w;
+    const toLeft = to.x;
+    hitl.x = Math.round((fromRight + toLeft) / 2 - hitlSize.w / 2);
+    if (hitl.x < fromRight + 24) hitl.x = fromRight + 24;
+    if (hitl.x + hitlSize.w > toLeft - 24) hitl.x = toLeft - hitlSize.w - 24;
+    hitl.y = branchY;
+  });
+
+  workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
+  return workflow;
 }
 
 function workflowHasTemplateNodeIds(workflow, templateIds) {
@@ -4539,6 +4583,7 @@ function workflowHasCycle(workflow) {
 
 function isValidWorkflowConnect(from, to, branch) {
   if (!from || !to || from.id === to.id) return false;
+  if (from.type === 'end') return false;
   if (from.type === 'decision' && !branch) return false;
   if (isHitlGateNode(from) && !branch) return false;
   if (isHitlGateNode(from) && branch && !normalizeHitlGateActions(from.actions).includes(branch)) return false;
@@ -4749,6 +4794,7 @@ function disperseWorkflowNodesForSmoothEdges(workflow, sizes) {
       const to = byId[edge.to];
       if (!from || !to || from.type === 'end' || to.type === 'end') return;
       if (to.x <= from.x) return;
+      if (from.y > to.y + 24) return;
       const fromSize = sizes.get(from.id) || getWorkflowNodeLayoutSize(from);
       const targetX = from.x + fromSize.w + WF_LAYOUT_MIN_EDGE_GAP;
       if (to.x >= targetX) return;
@@ -4813,18 +4859,23 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   const nodes = workflow?.nodes || [];
   if (!isStraightCaseWorkflowLayoutTarget(workflow)) return false;
   ensureCanonicalCaseWorkflowEndNode(workflow);
+  if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) {
+    applyDefaultCaseWorkflowStaticLayout(workflow);
+    return true;
+  }
   const byId = Object.fromEntries(workflow.nodes.map((node) => [node.id, node]));
   const mainIds = [
     'wf-start', 'wf-pp', 'wf-d-pre', 'wf-oc', 'wf-d-ocr',
     'wf-map', 'wf-ai', 'wf-d-final',
   ].filter((id) => byId[id]);
   const hitlAnchors = [
-    ['wf-hu-pre', 'wf-d-pre'],
-    ['wf-hu-ocr', 'wf-d-ocr'],
-    ['wf-hu-final', 'wf-d-final'],
+    ['wf-hu-pre', 'wf-d-pre', 'wf-oc'],
+    ['wf-hu-ocr', 'wf-d-ocr', 'wf-map'],
+    ['wf-hu-final', 'wf-d-final', 'wf-end'],
   ].filter(([hitlId, anchorId]) => byId[hitlId] && byId[anchorId]);
   const notifyIds = ['wf-n-ok', 'wf-n-supp', 'wf-n-error'].filter((id) => byId[id]);
-  const stepGap = 132;
+  const stepGap = 112;
+  const branchStepGap = 288;
   const notifyLaneGap = 28;
   const rowY = WF_LAYOUT_PAD.y;
   let x = WF_LAYOUT_PAD.x;
@@ -4836,16 +4887,23 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
     node.x = x;
     node.y = rowY;
     mainMaxH = Math.max(mainMaxH, size.h);
-    x += size.w + stepGap;
+    const hasHitlBypass = hitlAnchors.some(([, anchorId]) => anchorId === id);
+    x += size.w + (hasHitlBypass ? branchStepGap : stepGap);
   });
 
   let lowerMaxBottom = rowY + mainMaxH;
-  hitlAnchors.forEach(([hitlId, anchorId]) => {
+  hitlAnchors.forEach(([hitlId, anchorId, joinId]) => {
     const hitl = byId[hitlId];
     const anchor = byId[anchorId];
+    const join = byId[joinId];
     const anchorSize = sizes.get(anchor.id) || getWorkflowNodeLayoutSize(anchor);
     const hitlSize = sizes.get(hitl.id) || getWorkflowNodeLayoutSize(hitl);
-    hitl.x = anchor.x + anchorSize.w + Math.round(stepGap * 0.45);
+    const joinLeft = join
+      ? join.x
+      : anchor.x + anchorSize.w + stepGap;
+    const anchorRight = anchor.x + anchorSize.w;
+    hitl.x = Math.round((anchorRight + joinLeft) / 2 - hitlSize.w / 2);
+    if (hitl.x < anchorRight + 24) hitl.x = anchorRight + 24;
     hitl.y = rowY + mainMaxH + WF_BRANCH_LANE_GAP;
     lowerMaxBottom = Math.max(lowerMaxBottom, hitl.y + hitlSize.h);
   });
@@ -4874,7 +4932,13 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   const endNode = workflow.nodes.find((n) => n.type === 'end');
   if (endNode) {
     const endSize = sizes.get(endNode.id) || getWorkflowNodeLayoutSize(endNode);
-    endNode.x = (notifyNodes.length ? maxNotifyRight : x) + stepGap;
+    let maxX = notifyNodes.length ? maxNotifyRight : WF_LAYOUT_PAD.x;
+    workflow.nodes.forEach((node) => {
+      if (node.type === 'end') return;
+      const size = sizes.get(node.id) || getWorkflowNodeLayoutSize(node);
+      maxX = Math.max(maxX, node.x + size.w);
+    });
+    endNode.x = maxX + stepGap;
     const flowHeight = Math.max(mainMaxH, lowerMaxBottom - rowY, stackHeight);
     endNode.y = rowY + Math.max(0, Math.round((flowHeight - endSize.h) / 2));
   }
