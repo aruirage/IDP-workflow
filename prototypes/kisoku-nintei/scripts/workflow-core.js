@@ -1,6 +1,6 @@
 const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount, nextTick } = Vue;
 
-const PROTOTYPE_BUILD = '634-drop-test-status';
+const PROTOTYPE_BUILD = '636-workflow-test-clean-display';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;

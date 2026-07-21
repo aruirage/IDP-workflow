@@ -1732,6 +1732,13 @@ const WORKFLOW_TEST_SAMPLES = {
 
 const WORKFLOW_TEST_START_EVENT_IDS = new Set(['e1', 'e2', 'e3']);
 
+function formatWorkflowTestUserMessage(message) {
+  return String(message || '')
+    .replace(/\bS\d+-\d+\s*/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function normalizeWorkflowTestStartEvent(raw, fallback = 'e1') {
   const value = String(raw || '').trim().toLowerCase();
   const remapped = { e4: 'e3', e3: 'e2', e2: 'e1' }[value] || value;
@@ -1933,7 +1940,13 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
   const tc = normalizeWorkflowTestCase(testCase);
   const errors = [];
   const push = (ruleId, dimension, message, nodeId = '', hint = '') => {
-    errors.push({ ruleId, dimension, message, nodeId, hint });
+    errors.push({
+      ruleId,
+      dimension,
+      message: formatWorkflowTestUserMessage(message),
+      nodeId,
+      hint: formatWorkflowTestUserMessage(hint),
+    });
   };
 
   // —— 用例：仅 S2-03（样例与 Step1 账票漂移）。S2-01/02 本期不作为用户侧门禁 ——
@@ -2342,7 +2355,7 @@ function validateWorkflowTestNotifySimulation(node, workflow, sceneContext = {})
       continue;
     }
     if (allowed.has(bare) || [...allowed].some((v) => v.endsWith(`.${short}`) || v === short)) continue;
-    return `通知テンプレート変数「${token}」を置換できません（S2-31）`;
+    return `通知テンプレート変数「${token}」を置換できません`;
   }
   return '';
 }
@@ -2425,9 +2438,12 @@ function buildWorkflowTestDecisionDetail(step, workflow, testCase = null) {
 
 function appendWorkflowTestDetailIssues(detail, step) {
   if (!detail) return detail;
-  const issues = [...(detail.issues || [])];
-  if (step?.errorReason && !issues.includes(step.errorReason)) {
-    issues.push(step.errorReason);
+  const issues = (detail.issues || [])
+    .map((issue) => formatWorkflowTestUserMessage(issue))
+    .filter(Boolean);
+  const reason = formatWorkflowTestUserMessage(step?.errorReason);
+  if (reason && !issues.includes(reason)) {
+    issues.push(reason);
   }
   return { ...detail, issues };
 }
@@ -2794,7 +2810,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   const formatGateError = (err) => {
     if (!err) return 'テスト前チェックに失敗しました';
     const hint = err.hint ? `（${err.hint}）` : '';
-    return `${err.ruleId} ${err.message}${hint}`;
+    return formatWorkflowTestUserMessage(`${err.message}${hint}`);
   };
 
   // 前层门禁失败：不进入测试执行；错误节点标失败，其余保持未実行
@@ -2843,8 +2859,8 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   if (!pathIds.length) {
     return [makeStep((wf.nodes || [])[0]?.id || 'empty', {
       status: 'error',
-      summary: sim.error?.message || '実行順序を決定できません（S2-29）',
-      errorReason: sim.error?.message || '実行順序を決定できません（S2-29）',
+      summary: formatWorkflowTestUserMessage(sim.error?.message || '実行順序を決定できません'),
+      errorReason: formatWorkflowTestUserMessage(sim.error?.message || '実行順序を決定できません'),
       ruleId: sim.error?.ruleId || 'S2-29',
       dimension: 'テスト実行',
     })];
@@ -2863,7 +2879,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
 
     if (sim.error && sim.error.nodeId === id) {
       status = 'error';
-      errorReason = `${sim.error.ruleId || 'S2-29'} ${sim.error.message}`;
+      errorReason = formatWorkflowTestUserMessage(sim.error.message);
       ruleId = sim.error.ruleId || 'S2-29';
       dimension = 'テスト実行';
     }
@@ -2882,7 +2898,7 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
 
     if (!errorReason && node.type === 'end' && sim.error && !sim.error.nodeId) {
       status = 'error';
-      errorReason = `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`;
+      errorReason = formatWorkflowTestUserMessage(sim.error.message);
       ruleId = sim.error.ruleId || 'S2-32';
       dimension = 'テスト実行';
     }
@@ -2919,8 +2935,8 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
   const last = steps[steps.length - 1];
   if (last && last.type !== 'end' && last.status !== 'error') {
     const msg = sim.error
-      ? `${sim.error.ruleId || 'S2-32'} ${sim.error.message}`
-      : 'S2-32 終了ノードへ到達できませんでした';
+      ? formatWorkflowTestUserMessage(sim.error.message)
+      : '終了ノードへ到達できませんでした';
     last.status = 'error';
     last.errorReason = msg;
     last.ruleId = sim.error?.ruleId || 'S2-32';
@@ -2982,9 +2998,9 @@ function buildWorkflowTestSummary(steps, testCase, workflow, sceneContext = {}) 
   }
   const input = buildWorkflowTestInputContext(testCase);
   const structureMessages = [
-    ...dimensionErrors.map((e) => [e.ruleId, e.message].filter(Boolean).join(' ')).filter(Boolean),
-    ...canvasAnalysis.canvasHighlights.map((item) => item.message),
-  ];
+    ...dimensionErrors.map((e) => formatWorkflowTestUserMessage(e.message)).filter(Boolean),
+    ...canvasAnalysis.canvasHighlights.map((item) => formatWorkflowTestUserMessage(item.message)),
+  ].filter(Boolean);
   const uniqueNotes = [...new Set(structureMessages.filter(Boolean))];
   const failHighlights = errorStep?.id
     ? [{ nodeId: errorStep.id, kind: 'test_error', message: errorStep.errorReason || '' }]

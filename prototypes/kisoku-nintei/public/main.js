@@ -1,4 +1,4 @@
-const MAIN_BUILD = '644-static-default-workflow-layout';
+const MAIN_BUILD = '646-workflow-test-clean-display';
 const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v27';
 
 const appOptions = {
@@ -8919,7 +8919,54 @@ const appOptions = {
       ElementPlus.ElMessage.success('保存しました');
     }
 
-    const workflowTestStepRows = computed(() => workflowTestDraft.steps || []);
+    function formatWorkflowTestDisplayText(text) {
+      return String(text || '')
+        .replace(/\bS\d+-\d+\s*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+
+    function sanitizeWorkflowTestStep(step) {
+      if (!step) return step;
+      const summary = formatWorkflowTestDisplayText(step.summary);
+      const errorReason = formatWorkflowTestDisplayText(step.errorReason);
+      return {
+        ...step,
+        summary,
+        errorReason,
+        dimensionErrors: (step.dimensionErrors || []).map((err) => ({
+          ...err,
+          message: formatWorkflowTestDisplayText(err.message),
+          hint: formatWorkflowTestDisplayText(err.hint),
+        })),
+      };
+    }
+
+    function sanitizeWorkflowTestSummary(summary) {
+      if (!summary) return summary;
+      const structureItems = formatWorkflowTestDisplayText(summary.structureNote)
+        .replace(/^エラー：/, '')
+        .split('、')
+        .map((item) => formatWorkflowTestDisplayText(item))
+        .filter(Boolean);
+      const uniqueItems = [...new Set(structureItems)];
+      return {
+        ...summary,
+        structureNote: uniqueItems.length ? `エラー：${uniqueItems.join('、')}` : '',
+        canvasHighlights: (summary.canvasHighlights || []).map((item) => ({
+          ...item,
+          message: formatWorkflowTestDisplayText(item.message),
+        })),
+        dimensionErrors: (summary.dimensionErrors || []).map((err) => ({
+          ...err,
+          message: formatWorkflowTestDisplayText(err.message),
+          hint: formatWorkflowTestDisplayText(err.hint),
+        })),
+        endRequirementError: formatWorkflowTestDisplayText(summary.endRequirementError),
+      };
+    }
+
+    const workflowTestStepRows = computed(() => (workflowTestDraft.steps || []).map(sanitizeWorkflowTestStep));
     const localizedWorkflowTestStepRows = computed(() => {
       if (uiLanguage.value !== 'zh') return workflowTestStepRows.value;
       return workflowTestStepRows.value.map((step) => ({
@@ -8929,7 +8976,7 @@ const appOptions = {
         errorReason: t(step.errorReason),
       }));
     });
-    const workflowTestSummary = computed(() => workflowTestDraft.summary);
+    const workflowTestSummary = computed(() => sanitizeWorkflowTestSummary(workflowTestDraft.summary));
     const workflowTestLocatableErrorStep = computed(() => {
       const errStep = workflowTestStepRows.value.find((step) => step.status === 'error' || step.errorReason);
       if (errStep) return errStep;
