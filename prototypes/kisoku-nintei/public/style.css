@@ -10607,6 +10607,27 @@ body.idp-inspector-resizing * {
   font-size: 15px;
   cursor: pointer;
 }
+.case-aggregate-field-add {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #175cd3;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.case-aggregate-field-add:hover,
+.case-aggregate-field-add:focus {
+  color: #004eeb;
+  text-decoration: underline;
+}
 .case-aggregate-rule-list {
   display: flex;
   flex-direction: column;
