@@ -83,10 +83,10 @@ const INSPECTOR_HINTS = {
   startTriggers: 'システム固定入口。設定項目はありません。',
   endTriggers: 'Workflow の終点。設定項目・出力変数はありません。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
-  code: 'JavaScript で上流変数を加工します。主な用途は出力ファイル名などの命名ロジック DIY です。戻り値はコード内で完結し、変数プールには入りません。',
+  code: 'JavaScript でファイル名の生成・変更ルールを定義します。帳票フィールド、標準フィールド、開始ノードの caseId / files[] を入力変数として参照できます。',
   codeInput: '入力変数は条件ノードと同じ変数選択器から選択します。開始ノードの caseId / files[] も選択できます。',
   codePython: 'JavaScript の関数本文として記述します。入力変数は inputs.変数名 または inputs["変数名"] で参照します。',
-  codeOutput: '下流が参照できるのは内置の codeStatus のみです。JavaScript の戻り値はログ・デバッグ用で、変数プールには入りません。',
+  codeOutput: '下流が参照できる出力変数は codeStatus のみです。ファイル名の戻り値は実行結果として保存します。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
   output: '自動エクスポート設定です。命名規則・ファイル形式・出力フィールドを指定します。',
   outputFields: 'OCR 抽出フィールドの出力有無と順序を設定します。',
@@ -605,7 +605,7 @@ const WORKFLOW_NODE_META = {
   code: {
     icon: 'fx',
     title: 'カスタム関数',
-    desc: 'JavaScript・ファイル名 DIY・データ加工',
+    desc: 'JavaScript・ファイル名生成',
     tasks: [],
     input: 'Upstream Variables',
     output: 'Result',
@@ -2501,9 +2501,29 @@ function isCodeUpstreamFilesJsonSource(variable) {
   return !variable || variable === CODE_UPSTREAM_FILES_JSON;
 }
 
-const DEFAULT_CODE_PYTHON = `// inputs.変数名: 追加した入力変数
-// 戻り値はログ用です。変数プールには入りません。
-return "ok";
+const DEFAULT_CODE_PYTHON = `// Excel の命名例:
+// timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag.pdf
+const files = inputs.files || [];
+
+const safe = (value, fallback = "") =>
+  String(value ?? fallback).trim().replace(/[\\\\/:*?"<>|\\s]+/g, "_");
+
+const timestamp = new Date().toISOString().slice(2, 19).replace(/[-T:]/g, "");
+const setNo = safe(inputs.setNo, "001");
+const claimNo = safe(inputs.claimNo, inputs.caseId || "00000000-000");
+const requestNo = safe(inputs.requestNo, "00000000-000-000");
+const docId = safe(inputs.docId, "UNKNOWN");
+const branchNo = safe(inputs.branchNo, "00");
+const ocrFlag = safe(inputs.ocrFlag, "1");
+
+return files.map((file, index) => {
+  const seq = safe(file.sequenceNo, String(index + 1).padStart(4, "0"));
+  const ext = file.extension || ".pdf";
+  return {
+    fileId: file.id,
+    fileName: \`\${timestamp}_\${seq}_\${setNo}_\${claimNo}_\${requestNo}_\${docId}_\${branchNo}_\${ocrFlag}\${ext}\`,
+  };
+});
 `;
 
 function createCodeInputRow(index = 0) {
@@ -2512,7 +2532,6 @@ function createCodeInputRow(index = 0) {
     name: `input_${index + 1}`,
     dataType: 'dict',
     source: 'upstream_files_json',
-    required: true,
     variable: CODE_UPSTREAM_FILES_JSON,
   };
 }
@@ -2530,7 +2549,6 @@ function createCodeParamDialogDraft(mode = 'input') {
     name: '',
     dataType: 'dict',
     source: 'upstream_files_json',
-    required: true,
     variable: CODE_UPSTREAM_FILES_JSON,
   };
 }
@@ -2544,7 +2562,6 @@ function normalizeCodeInputRow(row, index = 0) {
     name: (row?.name || '').trim() || `input_${index + 1}`,
     dataType: migrateCodeDataType(row?.dataType || row?.type || (filesJson ? 'dict' : 'string')),
     source: filesJson ? 'upstream_files_json' : 'reference',
-    required: row?.required !== false,
     variable: filesJson ? CODE_UPSTREAM_FILES_JSON : variable,
   };
 }

@@ -2743,10 +2743,6 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
       if (!String(normalized.pythonCode || '').trim()) {
         return 'JavaScript を入力してください';
       }
-      const missingInput = (normalized.inputs || []).some((row) => row.required
-        && row.source === 'reference'
-        && !String(row.variable || '').trim());
-      if (missingInput) return '必須の入力変数を取得できません';
       return '';
     }
     default:

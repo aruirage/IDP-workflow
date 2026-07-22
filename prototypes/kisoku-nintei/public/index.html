@@ -1520,7 +1520,7 @@
                   <inspector-module>
                     <inspector-module-card
                       title="入力変数"
-                      hint="JavaScript で使用する入力名と参照元を定義します。上流変数を複製せず、参照元が変わると無効になります。"
+                      hint="ファイル名生成で使用する入力名と参照元を定義します。上流変数を複製せず、参照元が変わると無効になります。"
                     >
                       <template #action>
                         <el-button type="primary" link @click="openCodeParamDialog()">＋ 追加</el-button>
@@ -1529,7 +1529,7 @@
                       <ul v-else class="code-param-list">
                         <li v-for="row in selectedCodeInputRows" :key="row.id" class="code-param-list-item">
                           <div class="code-param-list-main">
-                            <span class="code-param-list-name">{{ row.name }}<span v-if="row.required" class="code-param-required">*</span></span>
+                            <span class="code-param-list-name">{{ row.name }}</span>
                             <span class="code-param-source-display">{{ formatCodeInputSourceWithType(row.variable) }}</span>
                           </div>
                           <div class="code-param-list-actions">
@@ -2505,7 +2505,6 @@
       class="code-param-dialog"
     >
       <div class="code-param-dialog-body">
-        <p class="code-param-dialog-help">参照元の上流変数を、JavaScript 内で使う変数名に割り当てます。</p>
         <label class="inspector-field">
           <span class="inspector-field-label">変数名 <span class="kr-required">*</span></span>
           <el-input
@@ -2537,11 +2536,6 @@
             </template>
           </el-cascader>
         </label>
-        <div class="code-param-required-row">
-          <span class="inspector-field-label">必須</span>
-          <el-switch v-model="codeParamDialogDraft.required" />
-        </div>
-        <p class="code-param-dialog-help">ON の場合、値がないとスクリプトを実行せずエラーになります。OFF の場合、値がなくても null として渡して実行します。</p>
       </div>
       <template #footer>
         <el-button @click="codeParamDialogVisible = false">キャンセル</el-button>

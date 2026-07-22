@@ -8270,10 +8270,6 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   font-weight: 500;
   color: #344054;
 }
-.code-param-required {
-  color: #f04438;
-  margin-left: 2px;
-}
 .code-param-list-tag {
   display: inline-flex;
   align-items: center;
@@ -8345,11 +8341,6 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
 }
 .code-param-dialog-body .inspector-field + .inspector-field {
   margin-top: 12px;
-}
-.code-param-required-row {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #f2f4f7;
 }
 .code-output-var-preview {
   margin-top: 4px;
