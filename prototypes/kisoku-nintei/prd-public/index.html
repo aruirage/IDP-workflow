@@ -213,7 +213,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/22 15:16:18</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/22 15:39:13</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -520,7 +520,7 @@
 <p>文件命名参考既有连携批处理规则。典型命名由时间戳、连番、集合编号、案件/请求编号、账票 ID、枝番、OCR 要否等片段组成。时间戳通常由 JavaScript 直接生成；如果业务要求使用扫描时间或上传时间，则从 <code>files[]</code> 的文件基础信息读取。</p>
 <table><thead><tr><th>规则来源</th><th>命名结构</th><th>变量来源说明</th></tr></thead><tbody><tr><td>扫描输出文件</td><td><code>timestamp_seq_claimNo_requestNo_docId_branchNo.pdf</code></td><td>时间戳由脚本生成或从文件基础信息读取；连番来自文件基础信息或脚本生成；案件/请求编号、账票 ID、枝番来自文件 JSON、OCR 字段或标准字段</td></tr><tr><td>OCR 输入/输出</td><td><code>timestamp_seq_setNo_claimNo_requestNo_docId_branchNo_ocrFlag.pdf</code></td><td>集合编号、OCR 要否来自文件 JSON、账票配置或脚本入参；其余片段同上</td></tr><tr><td>元数据/检查文件</td><td>与 PDF 主文件同名后追加 <code>_meta.csv</code>、<code>_inspection.csv</code>、<code>_punch.csv</code> 等后缀</td><td>后缀由脚本按输出目标决定；主文件名仍按同一组入参拼接</td></tr></tbody></table>
 <p>配置界面（日语）：</p>
-<table><thead><tr><th>区块/控件</th><th>界面文案（日语）</th><th>说明</th></tr></thead><tbody><tr><td>面板标题</td><td>カスタム関数</td><td>右侧检视面板顶栏</td></tr><tr><td>区块标题</td><td>入力変数</td><td>展示已添加入参；点击「追加」打开入参弹窗；添加后 inspector 只展示绑定结果；支持编辑和删除</td></tr><tr><td>弹窗字段</td><td>変数名</td><td>自定义变量名；脚本通过该名称读取；同节点内唯一</td></tr><tr><td>弹窗字段</td><td>参照元</td><td>使用与条件节点一致的级联变量选择器；额外允许开始节点输出变量</td></tr><tr><td>下拉内提示</td><td>型</td><td>参照元下拉列表中在叶子变量名右侧展示变量类型；仅提示 JavaScript 怎么取值和转换，不允许用户修改</td></tr><tr><td>区块标题</td><td>JavaScript</td><td>代码编辑区；代码通过 <code>inputs.变量名</code> 或 <code>inputs[&quot;变量名&quot;]</code> 使用已添加输入变量</td></tr></tbody></table>
+<table><thead><tr><th>区块/控件</th><th>界面文案（日语）</th><th>说明</th></tr></thead><tbody><tr><td>面板标题</td><td>カスタム関数</td><td>右侧检视面板顶栏</td></tr><tr><td>区块标题</td><td>入力変数</td><td>展示已添加入参；点击「追加」打开入参弹窗；添加后 inspector 只展示绑定结果；支持编辑和删除</td></tr><tr><td>弹窗字段</td><td>変数名</td><td>自定义变量名；脚本通过该名称读取；同节点内唯一</td></tr><tr><td>弹窗字段</td><td>参照元</td><td>使用与条件节点一致的级联变量选择器；额外允许开始节点输出变量</td></tr><tr><td>下拉内提示</td><td>型</td><td>参照元下拉列表中在叶子变量名右侧展示变量类型；仅提示 JavaScript 怎么取值和转换，不允许用户修改</td></tr><tr><td>区块标题</td><td>JavaScript スクリプト</td><td>代码编辑区；代码通过 <code>inputs.变量名</code> 或 <code>inputs[&quot;变量名&quot;]</code> 使用已添加输入变量</td></tr></tbody></table>
 <p>校验规则：</p>
 <table><thead><tr><th>校验项</th><th>规则</th></tr></thead><tbody><tr><td>代码必填</td><td>空代码保存阻断</td></tr><tr><td>入参变量名</td><td>必填；同节点内唯一；只能使用英文字母、数字和下划线，且不能以数字开头</td></tr><tr><td>入参类型</td><td>不在界面配置；JavaScript 自行判断和转换输入值类型</td></tr><tr><td>入参来源</td><td>Source 使用与条件节点一致的变量选择范围，并额外允许开始节点 <code>caseId</code>、<code>files[]</code>；不允许选择后续节点或不可达变量</td></tr><tr><td>入参 Source</td><td>弹窗保存时必须选择参照元；不允许保存空 Source</td></tr><tr><td>入参取值</td><td>运行时按 Source 解析入参值；为空值、缺失值或业务兜底逻辑由 JavaScript 自行处理</td></tr><tr><td>代码输入固定</td><td>JavaScript 用 <code>inputs.变量名</code> 或 <code>inputs[&quot;变量名&quot;]</code> 读取已定义输入变量</td></tr><tr><td>文件名返回值</td><td>文件名变更用途要求返回字符串或 <code>{ fileId, fileName }</code> 数组；缺少必要字段、文件名为空或格式非法时写 <code>codeStatus=failed</code></td></tr><tr><td>失败原因</td><td>编译失败、运行异常、超时、返回格式非法时写执行日志，变量池只写 <code>codeStatus=failed</code></td></tr></tbody></table>
 <p>脚本示例：文件命名规则</p>
