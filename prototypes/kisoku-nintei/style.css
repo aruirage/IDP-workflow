@@ -4985,8 +4985,8 @@ code.export-config-meta-value {
   color: #175cd3;
 }
 .wf-test-case-meta-badge.is-routing {
-  background: #f4f3ff;
-  color: #5925dc;
+  background: #f2f4f7;
+  color: #475467;
 }
 .wf-test-case-meta-badge.is-buffer {
   background: #fffaeb;
@@ -7704,9 +7704,9 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
-  color: #6941c6;
-  background: #f4ebff;
-  border: 1px solid #e9d7fe;
+  color: #93370d;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
 }
 .wf-gateway-threshold {
   padding: 4px 8px;
@@ -8404,8 +8404,8 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   display: inline-block;
   font-size: 11px;
   font-weight: 600;
-  color: #6941c6;
-  background: #f4f3ff;
+  color: #344054;
+  background: #f2f4f7;
   padding: 2px 8px;
   border-radius: 4px;
   margin-bottom: 4px;
@@ -8903,7 +8903,7 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
 }
 .wf-flow-node.is-condition {
   border-style: dashed;
-  background: color-mix(in srgb, var(--wf-node-accent, #9333ea) 8%, #fff);
+  background: color-mix(in srgb, var(--wf-node-accent, #b54708) 8%, #fff);
 }
 .wf-flow-node.is-confirm,
 .wf-flow-node.is-notify {

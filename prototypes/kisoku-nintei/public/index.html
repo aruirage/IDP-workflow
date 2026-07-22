@@ -391,21 +391,6 @@
                       <span class="wf-step-card-index">3</span>
                       <inspector-title title="案件集約ルール" :hint="localizedInspectorHints.docFieldLinks"></inspector-title>
                       <span class="wf-step-card-spacer"></span>
-                      <div class="case-aggregate-policy-inline">
-                        <span class="case-aggregate-policy-label">マッチング戦略</span>
-                        <el-select
-                          v-model="sceneSetupDraft.aggregateCompareStrategy"
-                          class="case-aggregate-policy-select"
-                          size="small"
-                        >
-                          <el-option
-                            v-for="opt in SCENE_AGGREGATE_COMPARE_STRATEGIES"
-                            :key="'global-compare-' + opt.value"
-                            :label="opt.label"
-                            :value="opt.value"
-                          />
-                        </el-select>
-                      </div>
                       <el-button class="wf-section-action-btn" @click="autoMatchDocFieldLinks">AI 自動関連付け</el-button>
                     </div>
                     <div v-if="sceneSetupAggregateRuleGroups.length" class="case-aggregate-rule-list">
@@ -910,25 +895,20 @@
                           v-for="branch in getHitlGateNodeVisibleBranches(node)"
                           :key="branch.key"
                           class="wf-hitl-branch-row"
-                          :class="{ 'is-optional': isHitlGateBranchMarkedOptional(activeWorkflow, node.id, branch.key) }"
                         >
                           <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
-                          <span
-                            v-if="isHitlGateBranchMarkedOptional(activeWorkflow, node.id, branch.key)"
-                            class="wf-hitl-branch-optional"
-                          >不要</span>
                         </div>
                       </div>
                     </div>
                     <button
                       v-for="branch in getHitlGateNodeVisibleBranches(node)"
                       :key="'hitl-port-' + branch.key"
-                      v-show="isWorkflowTopologyEditable"
+                      v-show="isWorkflowTopologyEditable && isHitlGateBranchConnectable(branch.key)"
                       type="button"
                       class="wf-node-add-btn wf-node-add-btn--branch"
                       :class="{ 'is-connected': getHitlGateBranchTargetId(node.id, branch.key) }"
                       :style="getHitlGatePortStyle(node, branch.key)"
-                      :title="getHitlGateBranchCanvasLabel(branch.key) + '：クリックで追加、ドラッグで接続'"
+                      :title="getHitlGateBranchConnectTitle(branch.key)"
                       @mousedown.stop="onWfConnectHandleDown($event, node, branch.key, 'branch')"
                     >+</button>
                   </template>

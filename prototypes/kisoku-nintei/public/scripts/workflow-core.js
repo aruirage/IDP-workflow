@@ -73,7 +73,7 @@ const INSPECTOR_HINTS = {
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
-  hitlGate: '案件レベルの人工確認タスクを生成します。審査ロールを指定し、必要な出口だけ下流へ接続してください（未接続の出口は自動的に不要扱い）。確認対象は上流ノードから自動判定されます。',
+  hitlGate: '案件レベルの人工確認タスクを生成します。完成は後続へ接続し、補件は前述ノードへ回流接続します。案件終止は画面表示のみで接続できません。',
   hitlContext: '前処理・OCR 抽出・AI 検証の要確認分岐に接続すると、確認対象が自動判定されます。条件分岐を挟んだ接続にも対応します。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
@@ -546,7 +546,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['画像補正', '画像回転', '画像分割', '画像並び替え'],
     input: 'Physical Files',
     output: 'Logical Document Set',
-    accent: '#079455',
+    accent: '#00857a',
   },
   ocr: {
     icon: 'OC',
@@ -555,7 +555,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['OCR実行', 'フィールド抽出'],
     input: 'Logical Document',
     output: 'Extracted Fields',
-    accent: '#6941c6',
+    accent: '#2563eb',
   },
   data_mapping: {
     icon: 'MAP',
@@ -564,7 +564,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['標準フィールド', '競合検出', '適用性チェック'],
     input: 'Case · OCR Fields',
     output: 'Standard Fields',
-    accent: '#175cd3',
+    accent: '#4f46e5',
   },
   ai_verify: {
     icon: 'AI',
@@ -573,7 +573,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', 'データマッピング競合検証', '署名・印鑑検証'],
     input: 'Case Data Pool',
     output: 'Validation Result',
-    accent: '#7c3aed',
+    accent: '#0891b2',
   },
   decision: {
     icon: 'IF',
@@ -582,7 +582,7 @@ const WORKFLOW_NODE_META = {
     tasks: [],
     input: 'Node Result',
     output: 'Branch',
-    accent: '#9333ea',
+    accent: '#b54708',
   },
   hitl_gate: {
     icon: '人',
@@ -609,7 +609,7 @@ const WORKFLOW_NODE_META = {
     tasks: [],
     input: 'Upstream Variables',
     output: 'Result',
-    accent: '#079455',
+    accent: '#6f7d1f',
   },
 };
 
@@ -2400,13 +2400,6 @@ function getHitlGateEnabledActions(workflow, node) {
   if (!node?.id) return [...HITL_DEFAULT_ACTIONS];
   const connected = getHitlGateConnectedBranchKeys(workflow, node.id);
   return connected.length ? connected : [...HITL_DEFAULT_ACTIONS];
-}
-
-/** 已有至少一条出口接线后，未接下游的分支标为不要（不需要） */
-function isHitlGateBranchMarkedOptional(workflow, nodeId, branchKey) {
-  const connected = getHitlGateConnectedBranchKeys(workflow, nodeId);
-  if (!connected.length) return false;
-  return !connected.includes(normalizeHitlGateActionValue(branchKey));
 }
 
 function isHitlGateBranchNode(node) {

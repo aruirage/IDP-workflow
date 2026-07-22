@@ -77,17 +77,12 @@ const appOptions = {
       mainKey: '',
       docFieldLinks: [],
       aggregateRuleSettings: {},
-      aggregateCompareStrategy: 'exact',
     });
     const sceneSetupActiveTab = ref('basic');
     const sceneSetupAggregateDetailOpen = reactive({});
     const sceneSetupNetworkViewportRef = ref(null);
     const sceneSetupNetworkViewportSize = reactive({ width: 0, height: 0 });
     let sceneSetupNetworkResizeObserver = null;
-    const SCENE_AGGREGATE_COMPARE_STRATEGIES = [
-      { value: 'exact', label: '精密マッチング' },
-      { value: 'fuzzy', label: '近似マッチング' },
-    ];
     const UI_ZH_REPLACEMENTS = [
       ['次へ', '下一步'],
       ['前へ', '上一步'],
@@ -140,8 +135,6 @@ const appOptions = {
       ['案件集約', '案件集约'],
       ['案件集約ルール', '案件集约规则'],
       ['プレビュー', '预览'],
-      ['精密マッチング', '精准匹配'],
-      ['近似マッチング', '近似匹配'],
       ['エクスポート対象', '导出对象'],
       ['出力可能な項目がありません', '没有可输出的项目'],
       ['OCR 抽出フィールドと標準フィールド（データマッピング）が未設定です。Workflow で OCR 抽出またはデータマッピングを設定してから再度開いてください。', '尚未配置 OCR 抽出字段与标准字段（数据映射）。请在 Workflow 中设置 OCR 抽出或数据映射后再打开。'],
@@ -586,7 +579,6 @@ const appOptions = {
       ['業務シーンの説明を入力してください', '请输入业务场景说明'],
       ['選択済み', '已选择'],
       ['主帳票に設定', '设为主账票'],
-      ['マッチング戦略', '匹配策略'],
       ['AI 自動関連付け', 'AI 自动关联'],
       ['件の関連キー', '个关联 Key'],
       ['詳細を閉じる', '关闭详情'],
@@ -2697,6 +2689,16 @@ const appOptions = {
       return t(getHitlGateActionLabel(branchKey));
     }
 
+    function isHitlGateBranchConnectable(branchKey) {
+      return normalizeHitlGateActionValue(branchKey) !== 'reject';
+    }
+
+    function getHitlGateBranchConnectTitle(branchKey) {
+      const action = normalizeHitlGateActionValue(branchKey);
+      if (action === 'request_supplement') return '補件：前述ノードへドラッグして回流接続';
+      return `${getHitlGateBranchCanvasLabel(branchKey)}：クリックで追加、ドラッグで接続`;
+    }
+
     function applyJudgmentContextToNode(node, contextValue, force = false) {
       const wf = getActiveWf();
       const meta = JUDGMENT_CONTEXT_OPTIONS.find((o) => o.value === contextValue) || JUDGMENT_CONTEXT_OPTIONS[0];
@@ -3301,7 +3303,7 @@ const appOptions = {
         checks.push(createReuseCheck(
           'warn',
           '案件集約キー',
-          '主帳票、主帳票キー、関連キー、マッチング戦略はコピー後も必ず手動確認してください。',
+          '主帳票、主帳票キー、関連キーはコピー後も必ず手動確認してください。',
         ));
         checks.push(createReuseCheck(
           'warn',
@@ -4333,6 +4335,14 @@ const appOptions = {
     }
 
     function openWfNodePickerForBranchNode(node, branchKey, anchor) {
+      if (isHitlGateNode(node)) {
+        const action = normalizeHitlGateActionValue(branchKey);
+        if (action === 'reject') return;
+        if (action === 'request_supplement') {
+          ElementPlus.ElMessage.info('補件は前述ノードへの回流接続のみ可能です。');
+          return;
+        }
+      }
       openWfNodePickerForDecisionBranch(node, branchKey, anchor);
     }
 
@@ -5104,7 +5114,6 @@ const appOptions = {
       sceneSetupDraft.mainKey = '';
       sceneSetupDraft.docFieldLinks = [];
       sceneSetupDraft.aggregateRuleSettings = {};
-      sceneSetupDraft.aggregateCompareStrategy = 'exact';
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -5123,9 +5132,6 @@ const appOptions = {
         sceneSetupDraft.documents,
       );
       sceneSetupDraft.aggregateRuleSettings = {};
-      sceneSetupDraft.aggregateCompareStrategy = SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === data.scene?.aggregateCompareStrategy)
-        ? data.scene.aggregateCompareStrategy
-        : 'exact';
       if (!sceneSetupDraft.docFieldLinks.length && sceneSetupDraft.documents.length >= 2) {
         sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
           sceneSetupDraft.documents,
@@ -5146,9 +5152,6 @@ const appOptions = {
         mainDocType: payload.mainDocType || '',
         mainKey: payload.mainKey || '',
         docFieldLinks: links,
-        aggregateCompareStrategy: SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === payload.aggregateCompareStrategy)
-          ? payload.aggregateCompareStrategy
-          : 'exact',
       });
     }
 
@@ -5160,7 +5163,6 @@ const appOptions = {
         mainDocType: sceneSetupDraft.mainDocType,
         mainKey: sceneSetupDraft.mainKey,
         docFieldLinks: sceneSetupDraft.docFieldLinks,
-        aggregateCompareStrategy: sceneSetupDraft.aggregateCompareStrategy,
       });
     }
 
@@ -5172,7 +5174,6 @@ const appOptions = {
         mainDocType: getSceneMainDocType(data.scene),
         mainKey: data.scene?.primaryKey,
         docFieldLinks: data.scene?.docFieldLinks,
-        aggregateCompareStrategy: data.scene?.aggregateCompareStrategy,
       });
     }
 
@@ -5194,9 +5195,6 @@ const appOptions = {
         sceneSetupDraft.docFieldLinks,
         sceneSetupDraft.documents,
       );
-      data.scene.aggregateCompareStrategy = SCENE_AGGREGATE_COMPARE_STRATEGIES.some((item) => item.value === sceneSetupDraft.aggregateCompareStrategy)
-        ? sceneSetupDraft.aggregateCompareStrategy
-        : 'exact';
       delete data.scene.fileSplit;
       delete data.scene.aggregateMatchPolicy;
       delete data.scene.aggregateRuleSettings;
@@ -6306,6 +6304,7 @@ const appOptions = {
     function onWfConnectHandleDown(event, node, branch, role = 'out') {
       if (!assertWorkflowTopologyEditable()) return;
       if (role === 'in') return;
+      if (isHitlGateNode(node) && !isHitlGateBranchConnectable(branch)) return;
       event.stopPropagation();
 
       const anchorEl = event.currentTarget;
@@ -9384,7 +9383,8 @@ const appOptions = {
       getHitlGateBranchOutletStyle,
       getHitlGateBranchTargetId,
       getHitlGateBranchEdgeLabel,
-      isHitlGateBranchMarkedOptional,
+      isHitlGateBranchConnectable,
+      getHitlGateBranchConnectTitle,
       getHitlGateEnabledActions,
       HITL_GATE_PRESETS,
       CONDITION_NODE_PRESETS,
@@ -9501,7 +9501,6 @@ const appOptions = {
       sceneSetupNetworkInnerStyle,
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
-      SCENE_AGGREGATE_COMPARE_STRATEGIES,
       confirmSceneSetup,
       proceedToWorkflowStep,
       publishWorkflowScene,
