@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
-  <link rel="stylesheet" href="style.css?v=671" />
+  <link rel="stylesheet" href="style.css?v=678" />
 </head>
 <body>
   <div id="app">
@@ -531,11 +531,15 @@
                       :class="sceneSetupLinkCheckSummary.tone === 'warn' ? 'is-warn is-flash' : 'is-ok is-flash'"
                     >{{ sceneSetupLinkCheckSummary.text }}</span>
                   </div>
-                  <div class="wf-network-canvas-wrap">
+                  <div ref="sceneSetupNetworkViewportRef" class="wf-network-canvas-wrap">
                     <template v-if="sceneSetupNetworkLayout.nodes.length">
                       <div
+                        class="wf-network-scale-space"
+                        :style="{ width: sceneSetupNetworkScaledSize.width + 'px', height: sceneSetupNetworkScaledSize.height + 'px' }"
+                      >
+                      <div
                         class="wf-network-inner"
-                        :style="{ width: sceneSetupNetworkLayout.width + 'px', height: sceneSetupNetworkLayout.height + 'px' }"
+                        :style="sceneSetupNetworkInnerStyle"
                       >
                     <svg
                       class="wf-network-edges"
@@ -591,7 +595,8 @@
                               </div>
                         </div>
                       </div>
-                    </div>
+                        </div>
+                      </div>
                       </div>
                     </template>
                     <p v-else class="verify-empty wf-network-empty">関連帳票を追加するとネットワーク図が表示されます</p>
@@ -1510,10 +1515,13 @@
                   </inspector-module>
                 </div>
 
-                <!-- カスタム関数（Python） -->
+                <!-- カスタム関数（JavaScript） -->
                 <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section">
                   <inspector-module>
-                    <inspector-module-card title="入力変数">
+                    <inspector-module-card
+                      title="入力変数"
+                      hint="JavaScript で使用する入力名と参照元を定義します。上流変数を複製せず、参照元が変わると無効になります。"
+                    >
                       <template #action>
                         <el-button type="primary" link @click="openCodeParamDialog()">＋ 追加</el-button>
                       </template>
@@ -1522,7 +1530,7 @@
                         <li v-for="row in selectedCodeInputRows" :key="row.id" class="code-param-list-item">
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}<span v-if="row.required" class="code-param-required">*</span></span>
-                            <span class="code-param-source-display">{{ formatCodeInputSourceLabel(row.variable) }}</span>
+                            <span class="code-param-source-display">{{ formatCodeInputSourceWithType(row.variable) }}</span>
                           </div>
                           <div class="code-param-list-actions">
                             <el-button link @click="openCodeParamDialog(row)">編集</el-button>
@@ -1531,7 +1539,7 @@
                         </li>
                       </ul>
                     </inspector-module-card>
-                    <inspector-module-card title="Python スクリプト">
+                    <inspector-module-card title="JavaScript">
                       <div class="inspector-field">
                         <el-input
                           v-model="selectedWorkflowNode.pythonCode"
@@ -1540,7 +1548,7 @@
                           resize="vertical"
                           spellcheck="false"
                           class="inspector-field-control code-python-textarea"
-                          placeholder="def main(inputs: dict) -> dict: ..."
+                          placeholder="return sanitize(inputs.policyNo) + &quot;_&quot; + sanitize(inputs.caseId) + &quot;.pdf&quot;;"
                           @change="onCodeFieldChange"
                         />
                       </div>
@@ -2497,6 +2505,7 @@
       class="code-param-dialog"
     >
       <div class="code-param-dialog-body">
+        <p class="code-param-dialog-help">参照元の上流変数を、JavaScript 内で使う変数名に割り当てます。</p>
         <label class="inspector-field">
           <span class="inspector-field-label">変数名 <span class="kr-required">*</span></span>
           <el-input
@@ -2511,7 +2520,7 @@
           <el-cascader
             v-model="codeParamDialogDraft.variable"
             class="inspector-ifelse-var"
-            :title="codeParamDialogDraft.variable ? formatCodeInputSourceLabel(codeParamDialogDraft.variable) : ''"
+            :title="codeParamDialogDraft.variable ? formatCodeInputSourceWithType(codeParamDialogDraft.variable) : ''"
             :options="codeVariableCascaderOptions"
             :props="{ value: 'id', label: 'text', children: 'items', emitPath: false }"
             :show-all-levels="false"
@@ -2519,12 +2528,20 @@
             filterable
             clearable
             placeholder="参照する変数を選択"
-          />
+          >
+            <template #default="{ node, data }">
+              <span class="code-param-cascader-option">
+                <span class="code-param-cascader-label">{{ data.text }}</span>
+                <span v-if="node.isLeaf" class="code-param-cascader-type">{{ data.dataType || 'Unknown' }}</span>
+              </span>
+            </template>
+          </el-cascader>
         </label>
         <div class="code-param-required-row">
           <span class="inspector-field-label">必須</span>
           <el-switch v-model="codeParamDialogDraft.required" />
         </div>
+        <p class="code-param-dialog-help">ON の場合、値がないとスクリプトを実行せずエラーになります。OFF の場合、値がなくても null として渡して実行します。</p>
       </div>
       <template #footer>
         <el-button @click="codeParamDialogVisible = false">キャンセル</el-button>
@@ -2677,9 +2694,9 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
-  <script src="scripts/workflow-core.js?v=669"></script>
-  <script src="scripts/mock-data.js?v=669"></script>
-  <script src="scripts/scene-config.js?v=665"></script>
-  <script src="main.js?v=669"></script>
+  <script src="scripts/workflow-core.js?v=675"></script>
+  <script src="scripts/mock-data.js?v=675"></script>
+  <script src="scripts/scene-config.js?v=673"></script>
+  <script src="main.js?v=676"></script>
 </body>
 </html>

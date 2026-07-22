@@ -8223,6 +8223,18 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   font-size: 12px;
   line-height: 1.5;
 }
+.code-param-help,
+.code-param-dialog-help {
+  margin: 0 0 10px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.code-param-dialog-help {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f9fafb;
+}
 .code-script-insert-field {
   margin-bottom: 10px;
 }
@@ -8290,6 +8302,35 @@ body.wf-connecting .wf-node-shell.wf-node--connect-target .wf-node-port--in {
   color: #344054;
   font-size: 13px;
   line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+}
+.code-param-cascader-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 180px;
+}
+.code-param-cascader-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.code-param-cascader-type,
+.code-param-type-hint {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+  flex-shrink: 0;
 }
 .code-param-list-actions {
   display: flex;
@@ -10248,8 +10289,9 @@ body.idp-inspector-resizing * {
   box-sizing: border-box;
 }
 .wf-setup-step1-preview-panel .wf-network-canvas-wrap {
-  min-height: 520px;
-  max-height: calc(100vh - 260px);
+  min-height: 420px;
+  height: calc(100vh - 260px);
+  max-height: none;
 }
 @media (max-width: 1239px) {
   .wf-setup-step1-shell,
@@ -10272,7 +10314,8 @@ body.idp-inspector-resizing * {
   }
   .wf-setup-step1-preview-panel .wf-network-canvas-wrap {
     min-height: 320px;
-    max-height: 520px;
+    height: min(680px, calc(100vh - 260px));
+    max-height: none;
   }
 }
 .wf-setup-scene-meta {
@@ -10483,15 +10526,19 @@ body.idp-inspector-resizing * {
   position: relative;
   margin-top: 12px;
   min-height: 260px;
-  max-height: 360px;
   border: 1px solid #eaecf0;
   border-radius: 8px;
   background: #fcfcfd;
   overflow: auto;
 }
+.wf-network-scale-space {
+  position: relative;
+  margin: 0 auto;
+}
 .wf-network-inner {
   position: relative;
   margin: 0 auto;
+  transform-origin: top left;
 }
 .wf-network-stage {
   position: relative;

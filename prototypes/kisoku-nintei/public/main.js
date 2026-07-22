@@ -81,6 +81,9 @@ const appOptions = {
     });
     const sceneSetupActiveTab = ref('basic');
     const sceneSetupAggregateDetailOpen = reactive({});
+    const sceneSetupNetworkViewportRef = ref(null);
+    const sceneSetupNetworkViewportSize = reactive({ width: 0, height: 0 });
+    let sceneSetupNetworkResizeObserver = null;
     const SCENE_AGGREGATE_COMPARE_STRATEGIES = [
       { value: 'exact', label: '精密マッチング' },
       { value: 'fuzzy', label: '近似マッチング' },
@@ -245,11 +248,12 @@ const appOptions = {
       ['参照変数', '参照变量'],
       ['入力変数', '输入变量'],
       ['固定入力変数', '固定输入变量'],
-      ['Python スクリプト', 'Python 脚本'],
+      ['JavaScript', 'JavaScript'],
+      ['JavaScript で使用する入力名と参照元を定義します。上流変数を複製せず、参照元が変わると無効になります。', '定义 JavaScript 中使用的输入名和引用源。不会复制上游变量，引用源变化时会失效。'],
       ['出力変数', '输出变量'],
       ['スクリプトへ渡す引数を定義します。上流ノードの出力変数を選択できます。', '定义传给脚本的参数。可选择上游节点输出变量。'],
-      ['上流ノードの出力変数を JSON として Python 関数へ渡します。', '将上游节点输出变量作为 JSON 传给 Python 函数。'],
-      ['追加した入力変数は Python スクリプト内で変数名として参照します。', '添加的输入变量可在 Python 脚本内用变量名参照。'],
+      ['上流ノードの出力変数を JavaScript へ渡します。', '将上游节点输出变量传给 JavaScript。'],
+      ['追加した入力変数は JavaScript 内で変数名として参照します。', '添加的输入变量可在 JavaScript 中用变量名参照。'],
       ['main(inputs) 関数を実装します。', '实现 main(inputs) 函数。'],
       ['戻り値は実行ログで確認できます。変数プールには入りません。', '返回值可在执行日志查看，不进入变量池。'],
       ['入力変数がありません', '没有输入变量'],
@@ -736,8 +740,9 @@ const appOptions = {
       ['審査ロールを選択してください', '请选择审查角色'],
       ['送信先を設定してください', '请配置通知收件人'],
       ['通知先を選択してください', '请选择通知对象'],
-      ['Python スクリプトを入力してください', '请输入 Python 脚本'],
+      ['JavaScript を入力してください', '请输入 JavaScript'],
       ['入力変数が未設定です', '存在未配置的输入变量'],
+      ['必須の入力変数を取得できません', '无法取得必填输入变量'],
       ['エラー箇所へ移動', '定位错误位置'],
       ['構造エラー：', '结构错误：'],
       ['変数参照・分岐型不一致', '变量引用・分支类型不一致'],
@@ -1009,7 +1014,6 @@ const appOptions = {
       ['実行時に書き込む ISO 8601 日時', '运行时写入，ISO 8601 日期时间'],
       ['キー集合は実行時に生成。固定列挙なし', '键集合运行时生成，无固定枚举'],
       ['要素構造は実行時結果で決まる', '元素结构由运行时结果决定'],
-      ['標準フィールドのオブジェクト配列。要素はフィールドキーと値を含み、構造は実行時に決まる', '标准字段对象数组；元素含字段键与取值，结构运行时决定'],
       ['Step1 の案件一意識別子', 'Step1 案件唯一标识'],
       ['本ノードの実行進捗。対象ファイルなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。', '本节点执行进度。无适用文件或配置关闭时记为成功，不另写 skip。业务是否通过看「处理结果」。'],
       ['本ノードの実行進捗。対象ルールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。', '本节点执行进度。无适用规则或配置关闭时记为成功，不另写 skip。业务是否通过看「处理结果」。'],
@@ -1018,7 +1022,6 @@ const appOptions = {
       ['業務結論。通過は主フローへ進み、要確認（低信頼など）は人工確認へ進む。', '业务结论。通过→主流程；要确认（如低置信）→人工确认。'],
       ['業務結論。通過は主フローへ進み、要確認（競合など）は人工確認へ進む。', '业务结论。通过→主流程；要确认（如冲突）→人工确认。'],
       ['業務結論。通過は主フローへ進み、要確認（不足書類など）は人工確認または補件へ進む。', '业务结论。通过→主流程；要确认（如缺件）→人工确认或补件。'],
-      ['標準フィールドのオブジェクト配列。条件では葉項目のみ選択でき、容器自体は選択できない。', '标准字段对象数组；条件只能选择叶子字段，不能选择容器本身。'],
       ['人工確認の処理状態。待機中または提出中は processing、提出と書き戻し成功は success、作成・提出・書き戻し・ルーティング失敗は failed。', '人工确认处理状态。等待中或提交中为 processing，提交并写回成功为 success，创建/提交/写回/路由失败为 failed。'],
       ['案件ID', '案件ID'],
       ['ファイル一覧', '文件列表'],
@@ -2619,6 +2622,31 @@ const appOptions = {
         sceneSetupDraft.mainKey,
       )
     );
+    const sceneSetupNetworkScale = computed(() => {
+      const layout = sceneSetupNetworkLayout.value || {};
+      const viewportW = Math.max(0, sceneSetupNetworkViewportSize.width - 28);
+      const viewportH = Math.max(0, sceneSetupNetworkViewportSize.height - 28);
+      if (!layout.width || !layout.height || !viewportW || !viewportH) return 1;
+      const fit = Math.min(viewportW / layout.width, viewportH / layout.height, 1);
+      return Math.max(0.48, Math.min(1, fit));
+    });
+    const sceneSetupNetworkScaledSize = computed(() => {
+      const layout = sceneSetupNetworkLayout.value || {};
+      const scale = sceneSetupNetworkScale.value;
+      return {
+        width: Math.max(0, Math.ceil((layout.width || 0) * scale)),
+        height: Math.max(0, Math.ceil((layout.height || 0) * scale)),
+      };
+    });
+    const sceneSetupNetworkInnerStyle = computed(() => {
+      const layout = sceneSetupNetworkLayout.value || {};
+      const scale = sceneSetupNetworkScale.value;
+      return {
+        width: `${layout.width || 0}px`,
+        height: `${layout.height || 0}px`,
+        transform: `scale(${scale})`,
+      };
+    });
     const sceneSetupAggregateRuleGroups = computed(() => {
       const links = sceneSetupDraft.docFieldLinks || [];
       const pairMap = new Map();
@@ -2889,6 +2917,17 @@ const appOptions = {
     function formatCodeInputSourceLabel(variable) {
       const option = codeVariableOptions.value.find((item) => item.value === variable);
       return option?.label || formatCodeInputRowDisplay({ variable });
+    }
+
+    function formatCodeInputSourceType(variable) {
+      const option = codeVariableOptions.value.find((item) => item.value === variable);
+      const type = option?.dataType || option?.type || '';
+      return type ? String(type) : 'Unknown';
+    }
+
+    function formatCodeInputSourceWithType(variable) {
+      if (!variable) return '';
+      return `${formatCodeInputSourceLabel(variable)} · ${formatCodeInputSourceType(variable)}`;
     }
 
     const workflowConditionAiLoading = ref(false);
@@ -5935,7 +5974,7 @@ const appOptions = {
       const wf = getActiveWf();
       const from = wf?.nodes?.find((n) => n.id === fromId);
       const to = wf?.nodes?.find((n) => n.id === candidateId);
-      return isValidWorkflowConnect(from, to, branch) ? candidateId : null;
+      return isValidWorkflowConnect(from, to, branch, wf) ? candidateId : null;
     }
 
     function getWorkflowConnectBranch() {
@@ -6227,7 +6266,7 @@ const appOptions = {
       const wf = getActiveWf();
       const from = wf.nodes.find((n) => n.id === fromId);
       const to = wf.nodes.find((n) => n.id === toId);
-      if (!isValidWorkflowConnect(from, to, branch)) return false;
+      if (!isValidWorkflowConnect(from, to, branch, wf)) return false;
       const isBackflow = isWorkflowBackflowEdge(wf, fromId, toId);
       let edge;
       if (from.type === 'decision' || isHitlGateNode(from)) {
@@ -9187,6 +9226,22 @@ const appOptions = {
         fitWorkflowToView();
         flashWorkflowTemplateHint();
         applyUiLanguage();
+        const updateSceneSetupNetworkViewport = () => {
+          const el = sceneSetupNetworkViewportRef.value;
+          if (!el) return;
+          sceneSetupNetworkViewportSize.width = el.clientWidth || 0;
+          sceneSetupNetworkViewportSize.height = el.clientHeight || 0;
+        };
+        updateSceneSetupNetworkViewport();
+        if (typeof ResizeObserver !== 'undefined') {
+          sceneSetupNetworkResizeObserver = new ResizeObserver(updateSceneSetupNetworkViewport);
+          if (sceneSetupNetworkViewportRef.value) {
+            sceneSetupNetworkResizeObserver.observe(sceneSetupNetworkViewportRef.value);
+          }
+        } else {
+          window.addEventListener('resize', updateSceneSetupNetworkViewport);
+          sceneSetupNetworkResizeObserver = { disconnect: () => window.removeEventListener('resize', updateSceneSetupNetworkViewport) };
+        }
       });
       uiTranslationObserver = new MutationObserver(() => {
         if (uiLanguage.value === 'zh') scheduleApplyUiLanguage();
@@ -9200,6 +9255,7 @@ const appOptions = {
     });
     onBeforeUnmount(() => {
       if (wfTemplateHintTimer) clearTimeout(wfTemplateHintTimer);
+      if (sceneSetupNetworkResizeObserver) sceneSetupNetworkResizeObserver.disconnect();
       if (uiTranslationObserver) uiTranslationObserver.disconnect();
       clearSceneSetupLinkCheckDisplay();
       closeWfNodePlacement();
@@ -9305,6 +9361,8 @@ const appOptions = {
       onCodeInputVariableChange,
       formatCodeInputRowDisplay,
       formatCodeInputSourceLabel,
+      formatCodeInputSourceType,
+      formatCodeInputSourceWithType,
       normalizeCodeNode,
       getHitlGateBranchCanvasLabel,
       judgmentAllowsElif,
@@ -9439,6 +9497,9 @@ const appOptions = {
       sceneSetupLinkCheckVisible,
       checkSceneDocLinks,
       sceneSetupNetworkLayout,
+      sceneSetupNetworkViewportRef,
+      sceneSetupNetworkScaledSize,
+      sceneSetupNetworkInnerStyle,
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
       SCENE_AGGREGATE_COMPARE_STRATEGIES,

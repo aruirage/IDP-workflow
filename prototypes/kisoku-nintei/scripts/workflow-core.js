@@ -4,7 +4,7 @@ const PROTOTYPE_BUILD = '636-workflow-test-clean-display';
 
 const WF_ZOOM_MIN = 0.25;
 const WF_ZOOM_MAX = 2;
-const WF_ZOOM_STEP = 1.12;
+const WF_ZOOM_STEP = 1.25;
 
 const NODE_ORDER = ['scene', 'input', 'image', 'ocr', 'master', 'verify', 'hitl', 'output'];
 
@@ -57,7 +57,7 @@ const INSPECTOR_HINTS = {
   nodeOutputStart: '案件 ID（caseId）とファイル一覧（files[]）のみ。帳票タイプは条件ノードで Step1 から直接選択。',
   nodeOutputEnd: '終了ノードは出力変数なし。設定項目なし。',
   nodeOutputHitl: '人工確認の処理状態（hitlStatus）のみ。分岐は画布三出口で直接接続。',
-  dataMappingOutput: '処理状態・処理結果・standardFields（オブジェクト配列）。条件では標準フィールドの葉項目のみ選択可。',
+  dataMappingOutput: '処理状態・処理結果を出力します。標準フィールドは条件選択時に葉項目として参照し、容器変数は出力しません。',
   externalApiIo: '前工程から自動連携される入力です。',
   knowledgeSelect: 'ナレッジデータソースを選択します。+ ボタンから新規作成（文書アップロード / Web Site API）ができます。',
   knowledgeRetrieval: 'Vector Search の類似度・Top N・参照文字数上限を設定します（Dify Knowledge Retrieval 相当）。',
@@ -83,10 +83,10 @@ const INSPECTOR_HINTS = {
   startTriggers: 'システム固定入口。設定項目はありません。',
   endTriggers: 'Workflow の終点。設定項目・出力変数はありません。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
-  code: 'Python スクリプトで上流変数を加工します。スクリプト戻り値はスクリプト内で完結し、変数プールには入りません。',
+  code: 'JavaScript で上流変数を加工します。主な用途は出力ファイル名などの命名ロジック DIY です。戻り値はコード内で完結し、変数プールには入りません。',
   codeInput: '入力変数は条件ノードと同じ変数選択器から選択します。開始ノードの caseId / files[] も選択できます。',
-  codePython: 'def main(inputs: dict) -> dict 形式で記述します。開始ノードのファイル配列は inputs[\'files\'] で参照します。',
-  codeOutput: '下流が参照できるのは内置の codeStatus のみです。スクリプト戻り値はログ・デバッグ用で、変数プールには入りません。',
+  codePython: 'JavaScript の関数本文として記述します。入力変数は inputs.変数名 または inputs["変数名"] で参照します。',
+  codeOutput: '下流が参照できるのは内置の codeStatus のみです。JavaScript の戻り値はログ・デバッグ用で、変数プールには入りません。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
   output: '自動エクスポート設定です。命名規則・ファイル形式・出力フィールドを指定します。',
   outputFields: 'OCR 抽出フィールドの出力有無と順序を設定します。',
@@ -605,7 +605,7 @@ const WORKFLOW_NODE_META = {
   code: {
     icon: 'fx',
     title: 'カスタム関数',
-    desc: 'Python・データ加工・API 呼び出し',
+    desc: 'JavaScript・ファイル名 DIY・データ加工',
     tasks: [],
     input: 'Upstream Variables',
     output: 'Result',
@@ -712,7 +712,6 @@ const WORKFLOW_OUTPUT_VALUE_SPECS = {
   codeStatus: WORKFLOW_PROCESS_RUN_STATUS,
   dynamicObjectKeys: 'キー集合は実行時に生成。固定列挙なし',
   dynamicArrayItems: '要素構造は実行時結果で決まる',
-  standardFieldsArray: '標準フィールドのオブジェクト配列。要素はフィールドキーと値を含み、構造は実行時に決まる',
   fileEntryStatus: 'Processed / Processing / Pending / Failed',
 };
 
@@ -766,7 +765,6 @@ const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
   'case.ocrResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.mappingResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.standardFields': [WORKFLOW_VAR_CONSUMPTION.CONDITION, WORKFLOW_VAR_CONSUMPTION.TODO],
   'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.verifyResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
   'case.hitlStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
@@ -939,11 +937,6 @@ function getWorkflowOutputVarExample(item) {
   return JSON.stringify([{ id: 'item_1', value: 'example' }], null, 2);
 }
 
-const WORKFLOW_STANDARD_FIELDS_ARRAY_EXAMPLE = [
-  { fieldId: 'claimNo', label: 'Claim Number', value: 'CLM-2026-001' },
-  { fieldId: 'policyNo', label: 'Policy Number', value: 'P-77881' },
-];
-
 const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   start: [
     ...WORKFLOW_STEP1_CASE_FIELDS,
@@ -961,15 +954,6 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   data_mapping: [
     { id: 'case.mappingStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。対象ルールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
     { id: 'case.mappingResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認（競合など）は人工確認へ進む。' },
-    {
-      id: 'case.standardFields',
-      label: '標準フィールド',
-      scope: '案件',
-      type: 'Array',
-      valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.standardFieldsArray,
-      description: '標準フィールドのオブジェクト配列。条件では葉項目のみ選択でき、容器自体は選択できない。',
-      example: WORKFLOW_STANDARD_FIELDS_ARRAY_EXAMPLE,
-    },
   ],
   decision: [],
   ai_verify: [
@@ -980,7 +964,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
     { id: 'case.hitlStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '人工確認の処理状態。待機中または提出中は processing、提出と書き戻し成功は success、作成・提出・書き戻し・ルーティング失敗は failed。' },
   ],
   code: [
-    { id: 'case.codeStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'Python スクリプトの処理状態。実行中 processing、正常終了 success、異常/タイムアウト/戻り値不正 failed。' },
+    { id: 'case.codeStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.codeStatus, description: 'JavaScript の処理状態。実行中 processing、正常終了 success、異常/タイムアウト/戻り値不正 failed。' },
   ],
 };
 
@@ -2517,12 +2501,9 @@ function isCodeUpstreamFilesJsonSource(variable) {
   return !variable || variable === CODE_UPSTREAM_FILES_JSON;
 }
 
-const DEFAULT_CODE_PYTHON = `def main(inputs: dict) -> dict:
-    """
-    inputs['変数名']: 追加した入力変数
-    戻り値はログ用です。変数プールには入りません。
-    """
-    return {"result": "ok"}
+const DEFAULT_CODE_PYTHON = `// inputs.変数名: 追加した入力変数
+// 戻り値はログ用です。変数プールには入りません。
+return "ok";
 `;
 
 function createCodeInputRow(index = 0) {
@@ -2744,9 +2725,15 @@ function sanitizeHitlGateEdges(workflow) {
   const nodeMap = Object.fromEntries((workflow.nodes || []).map((n) => [n.id, n]));
   workflow.edges = workflow.edges.filter((edge) => {
     const from = nodeMap[edge.from];
+    const to = nodeMap[edge.to];
     if (!isHitlGateNode(from)) return true;
     if (!edge.branch) return false;
-    return normalizeHitlGateActions(from.actions).includes(edge.branch);
+    if (!normalizeHitlGateActions(from.actions).includes(edge.branch)) return false;
+    if (edge.branch === 'reject') return false;
+    if (edge.branch === 'request_supplement') {
+      return !!to && workflowCanReach(workflow, to.id, from.id, edge);
+    }
+    return true;
   });
   const seen = new Set();
   workflow.edges = workflow.edges.filter((edge) => {
@@ -3973,14 +3960,11 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-d-final', to: 'wf-end', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
     { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完成' },
-    { from: 'wf-hu-pre', to: 'wf-end', branch: 'request_supplement', label: '補件' },
-    { from: 'wf-hu-pre', to: 'wf-end', branch: 'reject', label: '案件終止' },
+    { from: 'wf-hu-pre', to: 'wf-pp', branch: 'request_supplement', label: '補件' },
     { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完成' },
-    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'request_supplement', label: '補件' },
-    { from: 'wf-hu-ocr', to: 'wf-end', branch: 'reject', label: '案件終止' },
+    { from: 'wf-hu-ocr', to: 'wf-oc', branch: 'request_supplement', label: '補件' },
     { from: 'wf-hu-final', to: 'wf-end', branch: 'approve', label: '完成' },
-    { from: 'wf-hu-final', to: 'wf-end', branch: 'request_supplement', label: '補件' },
-    { from: 'wf-hu-final', to: 'wf-end', branch: 'reject', label: '案件終止' },
+    { from: 'wf-hu-final', to: 'wf-ai', branch: 'request_supplement', label: '補件' },
   );
 
   wf.nodes = wf.nodes.map((n) => {
@@ -4587,6 +4571,12 @@ function isValidWorkflowConnect(from, to, branch) {
   if (from.type === 'decision' && !branch) return false;
   if (isHitlGateNode(from) && !branch) return false;
   if (isHitlGateNode(from) && branch && !normalizeHitlGateActions(from.actions).includes(branch)) return false;
+  if (isHitlGateNode(from) && branch === 'reject') return false;
+  if (isHitlGateNode(from) && branch === 'request_supplement') {
+    const workflow = arguments[3] || null;
+    if (!workflow) return false;
+    return workflowCanReach(workflow, to.id, from.id);
+  }
   return true;
 }
 

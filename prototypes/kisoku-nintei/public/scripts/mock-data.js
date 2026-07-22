@@ -2741,12 +2741,12 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
       if (typeof normalizeCodeNode !== 'function') return '';
       const normalized = normalizeCodeNode(node, wf);
       if (!String(normalized.pythonCode || '').trim()) {
-        return 'Python スクリプトを入力してください';
+        return 'JavaScript を入力してください';
       }
       const missingInput = (normalized.inputs || []).some((row) => row.required
         && row.source === 'reference'
         && !String(row.variable || '').trim());
-      if (missingInput) return '入力変数が未設定です';
+      if (missingInput) return '必須の入力変数を取得できません';
       return '';
     }
     default:

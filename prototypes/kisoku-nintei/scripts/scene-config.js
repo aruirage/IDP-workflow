@@ -318,6 +318,28 @@ function buildNetEdgePath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
 }
 
+function buildNetBusEdgePath(x1, y1, x2, y2, side) {
+  const dir = side === 'left' ? -1 : 1;
+  const gap = Math.abs(x2 - x1);
+  const branch = Math.min(28, Math.max(16, gap * 0.28));
+  const trunkX = x1 + dir * Math.max(branch, gap * 0.5);
+  const startX = x1 + dir * branch;
+  const endX = x2 - dir * branch;
+  const c1 = x1 + dir * Math.max(10, branch * 0.62);
+  const c2 = trunkX - dir * Math.max(8, branch * 0.34);
+  const c3 = trunkX + dir * Math.max(8, branch * 0.34);
+  const c4 = x2 - dir * Math.max(10, branch * 0.62);
+
+  return [
+    `M ${x1} ${y1}`,
+    `C ${c1} ${y1}, ${c2} ${y1}, ${startX} ${y1}`,
+    `L ${trunkX} ${y1}`,
+    `L ${trunkX} ${y2}`,
+    `L ${endX} ${y2}`,
+    `C ${c3} ${y2}, ${c4} ${y2}, ${x2} ${y2}`,
+  ].join(' ');
+}
+
 function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFields, mainKey = '') {
   if (!docs.length) {
     return { width: 720, height: 320, nodes: [], edges: [] };
@@ -435,9 +457,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       } else {
         return null;
       }
+      const side = srcNode.side === 'left' || tgtNode.side === 'left' ? 'left' : 'right';
       return {
         id: link.id || `edge-${index}`,
-        path: buildNetEdgePath(x1, y1, x2, y2),
+        path: buildNetBusEdgePath(x1, y1, x2, y2, side),
         label: `${link.sourceField} → ${link.targetField}`,
       };
     }
@@ -470,7 +493,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
 
     return {
       id: link.id || `edge-${index}`,
-      path: buildNetEdgePath(x1, y1, x2, y2),
+      path: buildNetBusEdgePath(x1, y1, x2, y2, satNode.side),
       label: `${mainField} → ${satField}`,
     };
   }).filter(Boolean);
