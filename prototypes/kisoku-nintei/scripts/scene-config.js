@@ -568,9 +568,7 @@ function applySceneAggregate(scene, documents, legacyOutput) {
   delete scene.groupRules;
   scene.supplementPolicy = SCENE_MATCHING_DEFAULTS.supplementPolicy;
   delete scene.matchingPriority;
-  scene.aggregateCompareStrategy = ['exact', 'fuzzy'].includes(scene.aggregateCompareStrategy)
-    ? scene.aggregateCompareStrategy
-    : 'exact';
+  delete scene.aggregateCompareStrategy;
   delete scene.aggregateMatchPolicy;
   delete scene.aggregateRuleSettings;
 }
@@ -590,6 +588,191 @@ function normalizeDocFieldLinks(links, documents) {
     targetDocType: link.targetDocType,
     targetField: link.targetField,
   }));
+}
+
+const AI_DOC_FIELD_LINK_PROMPT_TEMPLATE = `# 任务
+你是案件集约关系推荐AI。
+根据业务场景、主账票、主键、关联账票和各账票字段，推荐账票间字段关联关系。
+
+# 推荐规则
+- 优先推荐「主账票 → 关联账票」。
+- 左侧 sourceDocType 优先为主账票，右侧 targetDocType 优先为关联账票。
+- sourceField 必须属于 sourceDocType；targetField 必须属于 targetDocType。
+- 如果关联账票无法与主账票可靠关联，才允许推荐「关联账票 → 关联账票」。
+- 每个关联账票至少尝试接入关系网络。
+- 禁止推荐未选择账票、自身关系和不存在字段。
+- 每 2 个账票之间的关联关系不允许重复；已输出 A → B，则禁止 B → A。
+
+# 字段优先级
+优先：主键同语义字段、同名字段、强语义等价字段（氏名、被保険者氏名、患者氏名）、可组合判断同一对象的字段（氏名 + 生年月日）。
+忽略：单独的金额、单独的日期、单独的医院名、单独的诊断名、地址等弱区分字段。
+
+# 输入
+<scene_name>{scene_name}</scene_name>
+<main_document>{main_document}</main_document>
+<related_documents>{related_documents}</related_documents>
+<existing_relations>{existing_relations}</existing_relations>
+
+# 输出
+严格输出 JSON：
+{"relations":[{"sourceDocType":"","sourceField":"","targetDocType":"","targetField":"","confidence":0,"reason":""}],"warnings":[{"docType":"","message":""}]}
+
+要求：仅输出 JSON；日语；字段名和账票名必须从输入中原样复制；禁止解释；禁止输出 Schema 外字段。`;
+
+const AI_FIELD_EQUIVALENCE_GROUPS = [
+  ['氏名', '被保険者氏名', '患者氏名', '請求者氏名', '契約者氏名', 'ご契約者氏名'],
+  ['氏名（カナ）', '被保険者氏名（カナ）', 'ご契約者氏名（カナ）'],
+  ['生年月日', '被保険者生年月日', '患者生年月日'],
+  ['証券番号', '契約番号', '保険証券番号'],
+  ['請求番号', '請求No', '請求ID', '案件番号'],
+];
+
+const AI_WEAK_RELATION_FIELD_PATTERNS = [
+  /金額$/,
+  /合計/,
+  /日$/,
+  /日付/,
+  /医療機関名/,
+  /病院名/,
+  /診断名/,
+  /傷病名/,
+  /住所/,
+];
+
+function buildAiDocFieldLinkPromptInput({ sceneName, documents, mainDocType, mainKey, existingRelations }) {
+  const docTypes = (documents || []).map((doc) => doc.type).filter(Boolean);
+  const mainDocument = {
+    docType: mainDocType || docTypes[0] || '',
+    mainKey: mainKey || '',
+    fields: getDocSchema(mainDocType || docTypes[0])?.fields || [],
+  };
+  const relatedDocuments = docTypes
+    .filter((docType) => docType !== mainDocument.docType)
+    .map((docType) => ({
+      docType,
+      fields: getDocSchema(docType)?.fields || [],
+    }));
+  return {
+    prompt: AI_DOC_FIELD_LINK_PROMPT_TEMPLATE,
+    input: {
+      scene_name: sceneName || '',
+      main_document: mainDocument,
+      related_documents: relatedDocuments,
+      existing_relations: normalizeDocFieldLinks(existingRelations, documents),
+    },
+  };
+}
+
+function getFieldEquivalenceGroup(field) {
+  return AI_FIELD_EQUIVALENCE_GROUPS.find((group) => group.includes(field)) || null;
+}
+
+function areFieldsSemanticallyEquivalent(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const group = getFieldEquivalenceGroup(a);
+  return !!group && group.includes(b);
+}
+
+function isWeakRelationField(field) {
+  return AI_WEAK_RELATION_FIELD_PATTERNS.some((pattern) => pattern.test(field || ''));
+}
+
+function unorderedDocPairKey(a, b) {
+  return [a, b].sort().join('|');
+}
+
+function findRecommendedFieldPair(sourceFields, targetFields, mainKey) {
+  const targetSet = new Set(targetFields);
+  if (mainKey && sourceFields.includes(mainKey)) {
+    const exactTarget = targetFields.find((field) => field === mainKey);
+    if (exactTarget && !isWeakRelationField(exactTarget)) {
+      return { sourceField: mainKey, targetField: exactTarget, confidence: 0.95, reason: '主キーと同名フィールド' };
+    }
+    const equivalentTarget = targetFields.find((field) => areFieldsSemanticallyEquivalent(mainKey, field) && !isWeakRelationField(field));
+    if (equivalentTarget) {
+      return { sourceField: mainKey, targetField: equivalentTarget, confidence: 0.9, reason: '主キーと同じ意味のフィールド' };
+    }
+  }
+  const sameName = sourceFields.find((field) => targetSet.has(field) && !isWeakRelationField(field));
+  if (sameName) {
+    return { sourceField: sameName, targetField: sameName, confidence: 0.86, reason: '同名フィールド' };
+  }
+  for (const sourceField of sourceFields) {
+    if (isWeakRelationField(sourceField)) continue;
+    const targetField = targetFields.find((field) => areFieldsSemanticallyEquivalent(sourceField, field) && !isWeakRelationField(field));
+    if (targetField) {
+      return { sourceField, targetField, confidence: 0.78, reason: '同じ意味のフィールド' };
+    }
+  }
+  return null;
+}
+
+function recommendDocFieldLinksByAiRules({ sceneName, documents, mainDocType, mainKey, existingRelations }) {
+  const docTypes = (documents || []).map((doc) => doc.type).filter(Boolean);
+  const mainType = docTypes.includes(mainDocType) ? mainDocType : docTypes[0];
+  const relatedTypes = docTypes.filter((docType) => docType !== mainType);
+  const result = {
+    ...buildAiDocFieldLinkPromptInput({ sceneName, documents, mainDocType: mainType, mainKey, existingRelations }),
+    relations: [],
+    warnings: [],
+  };
+  if (!mainType || relatedTypes.length < 1) return result;
+
+  const seenPairs = new Set();
+  const addRelation = (sourceDocType, targetDocType, fieldPair) => {
+    if (!sourceDocType || !targetDocType || sourceDocType === targetDocType || !fieldPair) return false;
+    const unorderedKey = unorderedDocPairKey(sourceDocType, targetDocType);
+    if (seenPairs.has(unorderedKey)) return false;
+    seenPairs.add(unorderedKey);
+    result.relations.push({
+      id: `link-ai-${Date.now()}-${result.relations.length}`,
+      sourceDocType,
+      sourceField: fieldPair.sourceField,
+      targetDocType,
+      targetField: fieldPair.targetField,
+      confidence: fieldPair.confidence,
+      reason: fieldPair.reason,
+    });
+    return true;
+  };
+
+  const connected = new Set([mainType]);
+  const unresolved = [];
+  const mainFields = getDocSchema(mainType).fields || [];
+  relatedTypes.forEach((targetDocType) => {
+    const targetFields = getDocSchema(targetDocType).fields || [];
+    const pair = findRecommendedFieldPair(mainFields, targetFields, mainKey);
+    if (addRelation(mainType, targetDocType, pair)) {
+      connected.add(targetDocType);
+    } else {
+      unresolved.push(targetDocType);
+    }
+  });
+
+  unresolved.forEach((targetDocType) => {
+    const targetFields = getDocSchema(targetDocType).fields || [];
+    const sourceDocType = [...connected].find((candidateDocType) => {
+      if (candidateDocType === targetDocType || seenPairs.has(unorderedDocPairKey(candidateDocType, targetDocType))) return false;
+      const sourceFields = getDocSchema(candidateDocType).fields || [];
+      return !!findRecommendedFieldPair(sourceFields, targetFields, '');
+    });
+    if (sourceDocType) {
+      const sourceFields = getDocSchema(sourceDocType).fields || [];
+      const pair = findRecommendedFieldPair(sourceFields, targetFields, '');
+      if (addRelation(sourceDocType, targetDocType, pair)) {
+        connected.add(targetDocType);
+        return;
+      }
+    }
+    result.warnings.push({
+      docType: targetDocType,
+      message: '信頼できる関連フィールドを推薦できませんでした。手動で設定してください。',
+    });
+  });
+
+  result.relations = normalizeDocFieldLinks(result.relations, documents);
+  return result;
 }
 
 function buildDefaultDocFieldLinks(documents, mainDocTypes) {

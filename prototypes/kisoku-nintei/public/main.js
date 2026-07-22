@@ -5709,12 +5709,22 @@ const appOptions = {
         return;
       }
       applySceneSetupAggregate();
-      sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
-        sceneSetupDraft.documents,
-        sceneSetupDraft.mainDocType ? [sceneSetupDraft.mainDocType] : [],
-      );
+      const recommendation = recommendDocFieldLinksByAiRules({
+        sceneName: sceneSetupDraft.name,
+        documents: sceneSetupDraft.documents,
+        mainDocType: sceneSetupDraft.mainDocType,
+        mainKey: sceneSetupDraft.mainKey,
+        existingRelations: sceneSetupDraft.docFieldLinks,
+      });
+      window.__neosAiDocFieldLinkPrompt = recommendation;
+      sceneSetupDraft.docFieldLinks = recommendation.relations;
       ensureSceneSetupAggregateRuleSettings();
-      ElementPlus.ElMessage.success('同名フィールドを自動関連付けしました');
+      clearSceneSetupLinkCheckDisplay();
+      if (recommendation.warnings.length) {
+        ElementPlus.ElMessage.warning(`AI 推薦を適用しました（${recommendation.relations.length} 件）。未推薦 ${recommendation.warnings.length} 件は手動で設定してください`);
+        return;
+      }
+      ElementPlus.ElMessage.success(`AI 推薦ルールで関連付けしました（${recommendation.relations.length} 件）`);
     }
 
     function normalizeSceneSetupAggregateRuleSettings(raw) {
