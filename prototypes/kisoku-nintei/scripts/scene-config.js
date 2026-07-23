@@ -521,7 +521,7 @@ function getSceneLinkValidationError(documents, mainDocType, docFieldLinks, getD
   );
   if (stats.unlinkedCount > 0) {
     const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-    return `主帳票に未関連の帳票があります：${names}`;
+    return `主帳票へ到達できない帳票があります：${names}`;
   }
   return '';
 }

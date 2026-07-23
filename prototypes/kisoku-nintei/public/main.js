@@ -2199,24 +2199,36 @@ const appOptions = {
         cancelButtonText: 'キャンセル',
         type: 'warning',
       }).then(() => {
-        form.workflows.case = typeof buildMinimalCaseWorkflow === 'function'
+        const currentWorkflow = getActiveWf();
+        const currentStart = (currentWorkflow?.nodes || []).find((node) =>
+          node.type === 'start' || node.isStart || node.id === currentWorkflow?.startNodeId);
+        const minimalWorkflow = typeof buildMinimalCaseWorkflow === 'function'
           ? buildMinimalCaseWorkflow()
-          : {
-            nodes: [{
-              id: 'wf-start',
-              type: 'start',
-              label: '開始',
-              x: 72,
-              y: 144,
-              isStart: true,
-            }],
-            edges: [],
-            startNodeId: 'wf-start',
-            layoutVersion: 12,
-            templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
-            isTemplate: false,
-            topologyCustomized: true,
-          };
+          : null;
+        const fallbackStart = minimalWorkflow?.nodes?.[0] || {
+          id: 'wf-start',
+          type: 'start',
+          label: '開始',
+          x: 72,
+          y: 144,
+          isStart: true,
+        };
+        const startNode = {
+          ...fallbackStart,
+          ...(currentStart || {}),
+          type: 'start',
+          isStart: true,
+        };
+        form.workflows.case = {
+          ...(minimalWorkflow || {}),
+          nodes: [startNode],
+          edges: [],
+          startNodeId: startNode.id,
+          layoutVersion: 12,
+          templateVersion: CASE_WORKFLOW_TEMPLATE_VERSION,
+          isTemplate: false,
+          topologyCustomized: true,
+        };
         form.workflows.case.isTemplate = false;
         form.workflows.case.topologyCustomized = true;
         form.workflowTestStatus = 'untested';
@@ -2224,9 +2236,9 @@ const appOptions = {
         form.outputConfigStatus = 'unsaved';
         selectedWorkflowNodeId.value = '';
         selectedWorkflowEdgeKey.value = null;
-        selectedWorkflowNodeId.value = form.workflows.case.startNodeId || form.workflows.case.nodes[0]?.id || '';
+        selectedWorkflowNodeId.value = startNode.id;
         inspectorMode.value = 'workflow';
-        syncCurrentNodeFromWorkflow(form.workflows.case.nodes[0] || null);
+        syncCurrentNodeFromWorkflow(startNode);
         resetWorkflowEditTracking('Workflow をクリア');
         savedSnapshot.value = JSON.stringify(form);
         saveStorage(currentSceneId.value, form);
@@ -2597,7 +2609,7 @@ const appOptions = {
       const stats = sceneSetupLinkStats.value;
       if (stats.unlinkedCount > 0) {
         const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-        return { tone: 'warn', text: `主帳票に未関連の帳票があります：${names}` };
+        return { tone: 'warn', text: `主帳票へ到達できない帳票があります：${names}` };
       }
       if (stats.total <= stats.mainDocCount) {
         return { tone: 'ok', text: '主帳票のみの構成です' };
@@ -5438,9 +5450,15 @@ const appOptions = {
       if (!draft.mainKey) return '業務キーを選択してください';
       const invalidGroups = sceneSetupAggregateInvalidGroups.value;
       if (invalidGroups.length) {
-        const names = invalidGroups.map((group) => getDocDisplayLabel(group.docType)).join('、');
-        return `主帳票に未関連の帳票があります：${names}`;
+        return 'この帳票間関連のフィールドを追加してください';
       }
+      const linkError = getSceneLinkValidationError(
+        draft.documents,
+        draft.mainDocType,
+        draft.docFieldLinks,
+        getDocDisplayLabel,
+      );
+      if (linkError) return linkError;
       return '';
     }
 
