@@ -16,8 +16,8 @@
 <body>
   <div id="app">
     <div class="app-shell">
-      <div class="body-row idp-body" :class="{ 'is-editor-surface': inspectorExpanded && currentModule === 'case-workflow' }">
-        <div v-show="currentModule === 'case-workflow'" class="scene-list-col" :class="{ 'is-collapsed': sceneSidebarCollapsed }">
+      <div class="body-row idp-body" :class="{ 'is-editor-surface': inspectorExpanded && currentModule === 'case-workflow', 'is-workflow-setup-fullscreen': workflowSetupFullscreen && currentModule === 'case-workflow' }">
+        <div v-show="currentModule === 'case-workflow' && !workflowSetupFullscreen" class="scene-list-col" :class="{ 'is-collapsed': sceneSidebarCollapsed }">
           <div v-show="sceneSidebarCollapsed" class="scene-tags-row">
             <button type="button" class="scene-collapse-btn" :title="sceneSidebarCollapsed ? '展開' : '折りたたむ'" @click="toggleSceneSidebar">
               {{ sceneSidebarCollapsed ? '›' : '‹' }}
@@ -262,6 +262,15 @@
               <span class="wf-setup-step-index">4</span>
               <span class="wf-setup-step-label">エクスポート設定</span>
             </button>
+            <button
+              type="button"
+              class="wf-setup-fullscreen-btn"
+              :class="{ 'is-active': workflowSetupFullscreen }"
+              :title="workflowSetupFullscreen ? '全画面を解除' : '全画面'"
+              @click="toggleWorkflowSetupFullscreen"
+            >
+              <span class="wf-setup-fullscreen-icon" aria-hidden="true"></span>
+            </button>
             <button type="button" class="language-toggle-btn wf-setup-language-btn" @click="toggleUiLanguage">
               {{ uiLanguage === 'zh' ? '日本語' : '中文' }}
             </button>
@@ -402,98 +411,142 @@
                       >
                         <div class="case-aggregate-rule-head">
                           <div class="case-aggregate-rule-main">
-                            <div class="case-aggregate-rule-title case-aggregate-rule-title-edit">
-                              <el-select
-                                :model-value="group.sourceDocType"
-                                class="case-aggregate-title-select"
-                                size="small"
-                                @change="updateSceneSetupAggregateGroupDoc(group, 'source', $event)"
-                              >
-                                <el-option
-                                  v-for="doc in sceneSetupDraft.documents"
-                                  :key="'agg-src-' + group.pairKey + '-' + doc.type"
-                                  :label="getDocDisplayLabel(doc.type)"
-                                  :value="doc.type"
-                                  :disabled="doc.type === group.targetDocType"
-                                />
-                              </el-select>
-                              <span class="case-aggregate-title-arrow">→</span>
-                              <el-select
-                                :model-value="group.targetDocType"
-                                class="case-aggregate-title-select"
-                                size="small"
-                                @change="updateSceneSetupAggregateGroupDoc(group, 'target', $event)"
-                              >
-                                <el-option
-                                  v-for="doc in sceneSetupDraft.documents"
-                                  :key="'agg-tgt-' + group.pairKey + '-' + doc.type"
-                                  :label="getDocDisplayLabel(doc.type)"
-                                  :value="doc.type"
-                                  :disabled="doc.type === group.sourceDocType"
-                                />
-                              </el-select>
+                            <div class="case-aggregate-pair-row">
+                              <div class="case-aggregate-rule-title case-aggregate-pair-matrix">
+                                <el-select
+                                  :model-value="group.sourceDocType"
+                                  class="case-aggregate-title-select"
+                                  placeholder="左側帳票"
+                                  @change="updateSceneSetupAggregateGroupDoc(group, 'source', $event)"
+                                >
+                                  <el-option
+                                    v-for="doc in sceneSetupDraft.documents"
+                                    :key="'agg-src-' + group.pairKey + '-' + doc.type"
+                                    :label="getDocDisplayLabel(doc.type)"
+                                    :value="doc.type"
+                                    :disabled="doc.type === group.targetDocType"
+                                  />
+                                </el-select>
+                                <span class="case-aggregate-title-arrow" aria-hidden="true">⇄</span>
+                                <el-select
+                                  :model-value="group.targetDocType"
+                                  class="case-aggregate-title-select"
+                                  placeholder="右側帳票"
+                                  @change="updateSceneSetupAggregateGroupDoc(group, 'target', $event)"
+                                >
+                                  <el-option
+                                    v-for="doc in sceneSetupDraft.documents"
+                                    :key="'agg-tgt-' + group.pairKey + '-' + doc.type"
+                                    :label="getDocDisplayLabel(doc.type)"
+                                    :value="doc.type"
+                                    :disabled="doc.type === group.sourceDocType"
+                                  />
+                                </el-select>
+                              </div>
+                              <div class="case-aggregate-rule-actions">
+                                <el-button
+                                  type="primary"
+                                  link
+                                  class="case-aggregate-detail-toggle"
+                                  @click="toggleSceneSetupAggregateDetail(group.pairKey)"
+                                >
+                                  {{ isSceneSetupAggregateDetailOpen(group) ? '閉じる' : '詳細' }}
+                                </el-button>
+                                <el-button
+                                  type="danger"
+                                  link
+                                  class="case-aggregate-delete"
+                                  @click="removeSceneSetupAggregateGroup(group)"
+                                >
+                                  削除
+                                </el-button>
+                              </div>
                             </div>
-                            <div class="case-aggregate-rule-meta">
-                              <span>{{ group.links.length }} 件の関連フィールド</span>
-                              <span v-if="group.status === 'missing'" class="case-aggregate-rule-warn">未設定</span>
-                            </div>
-                          </div>
-                          <div class="case-aggregate-rule-actions">
-                            <button
-                              type="button"
-                              class="case-aggregate-detail-toggle"
-                              @click="toggleSceneSetupAggregateDetail(group.pairKey)"
-                            >
-                              {{ isSceneSetupAggregateDetailOpen(group) ? '詳細を閉じる' : '詳細' }}
-                            </button>
                           </div>
                         </div>
 
                         <template v-if="isSceneSetupAggregateDetailOpen(group)">
-                          <div v-if="group.links.length" class="case-aggregate-link-table">
-                            <div class="case-aggregate-link-row case-aggregate-link-row--head">
-                              <span>フィールド</span>
-                              <span></span>
-                              <span>フィールド</span>
-                              <span></span>
-                            </div>
-                            <div
-                              v-for="(link, i) in group.links"
-                              :key="link.id || group.pairKey + '-' + i"
-                              class="case-aggregate-link-row"
+                          <div v-if="group.conditionGroups?.length" class="case-aggregate-condition-list">
+                            <template
+                              v-for="(conditionGroup, groupIndex) in group.conditionGroups"
+                              :key="conditionGroup.id"
                             >
-                              <el-select
-                                :model-value="link.sourceField"
-                                class="case-aggregate-field-select"
-                                placeholder="フィールド"
-                                @change="updateSceneSetupAggregateLink(link, group, 'source', $event)"
-                              >
-                                <el-option
-                                  v-for="f in getSceneSetupFieldOptions(group.sourceDocType)"
-                                  :key="'src-' + group.pairKey + '-' + f"
-                                  :label="f"
-                                  :value="f"
+                              <div v-if="groupIndex > 0" class="case-aggregate-group-operator-row">
+                                <el-segmented
+                                  :model-value="group.groupOperator || 'or'"
+                                  :options="[
+                                    { label: 'OR', value: 'or' },
+                                    { label: 'AND', value: 'and' }
+                                  ]"
+                                  size="small"
+                                  @change="updateSceneSetupAggregateGroupOperator(group, $event)"
                                 />
-                              </el-select>
-                              <span class="case-aggregate-link-arrow" aria-hidden="true">↔</span>
-                              <el-select
-                                :model-value="link.targetField"
-                                class="case-aggregate-field-select"
-                                placeholder="フィールド"
-                                @change="updateSceneSetupAggregateLink(link, group, 'target', $event)"
-                              >
-                                <el-option
-                                  v-for="f in getSceneSetupFieldOptions(group.targetDocType)"
-                                  :key="'tgt-' + group.pairKey + '-' + f"
-                                  :label="f"
-                                  :value="f"
-                                />
-                              </el-select>
-                              <button type="button" class="wf-doc-link-remove" title="削除" @click="removeSceneSetupAggregateLink(link)">×</button>
-                            </div>
+                              </div>
+                              <div class="case-aggregate-condition-group">
+                                <div class="case-aggregate-condition-body">
+                                  <div class="case-aggregate-condition-head">
+                                    <div class="case-aggregate-condition-title">
+                                      <span class="case-aggregate-condition-badge">{{ getSceneSetupConditionGroupLabel(groupIndex) }}</span>
+                                      <span>グループ</span>
+                                    </div>
+                                    <button
+                                      v-if="group.conditionGroups.length > 1"
+                                      type="button"
+                                      class="case-aggregate-group-remove"
+                                      title="削除"
+                                      @click="removeSceneSetupAggregateConditionGroup(group, conditionGroup)"
+                                    >×</button>
+                                  </div>
+                                  <div class="case-aggregate-link-table">
+                                    <div
+                                      v-for="(link, i) in conditionGroup.links"
+                                      :key="link.id || conditionGroup.id + '-' + i"
+                                      class="case-aggregate-link-row"
+                                    >
+                                      <el-select
+                                        :model-value="link.sourceField"
+                                        class="case-aggregate-field-select"
+                                        placeholder="左フィールド"
+                                        @change="updateSceneSetupAggregateLink(link, group, 'source', $event)"
+                                      >
+                                        <el-option
+                                          v-for="f in getSceneSetupFieldOptions(group.sourceDocType)"
+                                          :key="'src-' + conditionGroup.id + '-' + f"
+                                          :label="f"
+                                          :value="f"
+                                        />
+                                      </el-select>
+                                      <span class="case-aggregate-link-arrow" aria-hidden="true">↔</span>
+                                      <el-select
+                                        :model-value="link.targetField"
+                                        class="case-aggregate-field-select"
+                                        placeholder="右フィールド"
+                                        @change="updateSceneSetupAggregateLink(link, group, 'target', $event)"
+                                      >
+                                        <el-option
+                                          v-for="f in getSceneSetupFieldOptions(group.targetDocType)"
+                                          :key="'tgt-' + conditionGroup.id + '-' + f"
+                                          :label="f"
+                                          :value="f"
+                                        />
+                                      </el-select>
+                                      <button type="button" class="wf-doc-link-remove" title="削除" @click="removeSceneSetupAggregateLink(link)">×</button>
+                                    </div>
+                                  </div>
+                                  <el-button type="primary" link class="case-aggregate-field-add" @click="addSceneSetupAggregateLink(group, conditionGroup)">+ 追加</el-button>
+                                </div>
+                              </div>
+                            </template>
                           </div>
                           <p v-else class="verify-empty">この帳票間関連のフィールドを追加してください</p>
-                          <button type="button" class="case-aggregate-field-add" @click="addSceneSetupAggregateLink(group)">+ 関連フィールドを追加</button>
+                          <div class="case-aggregate-condition-actions">
+                            <el-button
+                              type="primary"
+                              link
+                              class="case-aggregate-field-add"
+                              @click="addSceneSetupAggregateConditionGroup(group)"
+                            >+ グループ追加</el-button>
+                          </div>
                         </template>
                       </div>
                       <button type="button" class="wf-doc-link-add case-aggregate-pair-add" @click="addSceneSetupAggregateGroup">+ 帳票間関連を追加</button>

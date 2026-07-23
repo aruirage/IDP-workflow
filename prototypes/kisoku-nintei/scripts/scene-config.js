@@ -460,7 +460,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       const side = srcNode.side === 'left' || tgtNode.side === 'left' ? 'left' : 'right';
       return {
         id: link.id || `edge-${index}`,
-        path: buildNetBusEdgePath(x1, y1, x2, y2, side),
+        path: buildNetEdgePath(x1, y1, x2, y2),
         label: `${link.sourceField} → ${link.targetField}`,
       };
     }
@@ -493,7 +493,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
 
     return {
       id: link.id || `edge-${index}`,
-      path: buildNetBusEdgePath(x1, y1, x2, y2, satNode.side),
+      path: buildNetEdgePath(x1, y1, x2, y2),
       label: `${mainField} → ${satField}`,
     };
   }).filter(Boolean);
@@ -587,6 +587,10 @@ function normalizeDocFieldLinks(links, documents) {
     sourceField: link.sourceField,
     targetDocType: link.targetDocType,
     targetField: link.targetField,
+    conditionGroupId: link.conditionGroupId || `group-${link.sourceDocType}-${link.targetDocType}-1`,
+    groupOperator: ['and', 'or'].includes(link.groupOperator) ? link.groupOperator : 'or',
+    confidence: link.confidence,
+    reason: link.reason,
   }));
 }
 
@@ -731,6 +735,8 @@ function recommendDocFieldLinksByAiRules({ sceneName, documents, mainDocType, ma
       sourceField: fieldPair.sourceField,
       targetDocType,
       targetField: fieldPair.targetField,
+      conditionGroupId: `group-${sourceDocType}-${targetDocType}-1`,
+      groupOperator: 'or',
       confidence: fieldPair.confidence,
       reason: fieldPair.reason,
     });
@@ -799,6 +805,8 @@ function buildDefaultDocFieldLinks(documents, mainDocTypes) {
           sourceField: field,
           targetDocType: other,
           targetField: field,
+          conditionGroupId: `group-${hub}-${other}-1`,
+          groupOperator: 'or',
         });
       });
     });

@@ -1309,6 +1309,7 @@ const appOptions = {
     const wfCanvasViewportRef = ref(null);
     const wfViewport = reactive({ x: 0, y: 0, scale: 1 });
     const wfCanvasMaximized = ref(false);
+    const workflowSetupFullscreen = ref(false);
     const wfCanvasNodesCollapsed = ref(false);
     const wfPanDrag = reactive({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
 
@@ -2651,9 +2652,22 @@ const appOptions = {
             sourceDocType: link.sourceDocType,
             targetDocType: link.targetDocType,
             links: [],
+            conditionGroups: [],
+            groupOperator: ['and', 'or'].includes(link.groupOperator) ? link.groupOperator : 'or',
           });
         }
-        pairMap.get(pairKey).links.push(link);
+        const pair = pairMap.get(pairKey);
+        const groupId = link.conditionGroupId || `${pairKey}|group-1`;
+        let conditionGroup = pair.conditionGroups.find((item) => item.id === groupId);
+        if (!conditionGroup) {
+          conditionGroup = {
+            id: groupId,
+            links: [],
+          };
+          pair.conditionGroups.push(conditionGroup);
+        }
+        conditionGroup.links.push(link);
+        pair.links.push(link);
       });
       return [...pairMap.values()].map((group) => ({
         ...group,
@@ -3888,6 +3902,15 @@ const appOptions = {
       wfCanvasMaximized.value = !wfCanvasMaximized.value;
       closeWfNodePicker();
       nextTick(() => fitWorkflowToView());
+    }
+
+    function toggleWorkflowSetupFullscreen() {
+      workflowSetupFullscreen.value = !workflowSetupFullscreen.value;
+      closeWfNodePicker();
+      closeWfNodePlacement();
+      nextTick(() => {
+        if (workflowSetupStep.value === 2) fitWorkflowToView();
+      });
     }
 
     function collapseWorkflowNodes() {
@@ -5752,7 +5775,18 @@ const appOptions = {
       if (!group?.pairKey) return false;
       if (sceneSetupAggregateDetailOpen[group.pairKey] === true) return true;
       if (sceneSetupAggregateDetailOpen[group.pairKey] === false) return false;
-      return group.status === 'missing';
+      return true;
+    }
+
+    function getSceneSetupConditionGroupLabel(index) {
+      let value = Math.max(0, Number(index) || 0) + 1;
+      let label = '';
+      while (value > 0) {
+        value -= 1;
+        label = String.fromCharCode(65 + (value % 26)) + label;
+        value = Math.floor(value / 26);
+      }
+      return label;
     }
 
     function toggleSceneSetupAggregateDetail(pairKey) {
@@ -5772,6 +5806,8 @@ const appOptions = {
         if (link.sourceDocType !== group.sourceDocType || link.targetDocType !== group.targetDocType) return;
         link.sourceDocType = sourceDocType;
         link.targetDocType = targetDocType;
+        link.groupOperator = group.groupOperator || link.groupOperator || 'or';
+        if (!link.conditionGroupId) link.conditionGroupId = `${sourceDocType}|${targetDocType}|group-1`;
         if (!sourceFields.includes(link.sourceField)) {
           link.sourceField = sourceFields.includes(link.targetField) ? link.targetField : (sourceFields[0] || '');
         }
@@ -5785,6 +5821,15 @@ const appOptions = {
         sceneSetupAggregateDetailOpen[newKey] = sceneSetupAggregateDetailOpen[oldKey];
         delete sceneSetupAggregateDetailOpen[oldKey];
       }
+      clearSceneSetupLinkCheckDisplay();
+    }
+
+    function updateSceneSetupAggregateGroupOperator(group, value) {
+      if (!group || !['and', 'or'].includes(value)) return;
+      (sceneSetupDraft.docFieldLinks || []).forEach((link) => {
+        if (link.sourceDocType !== group.sourceDocType || link.targetDocType !== group.targetDocType) return;
+        link.groupOperator = value;
+      });
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -5807,6 +5852,8 @@ const appOptions = {
             sourceDocType,
             targetDocType,
             links: [],
+            conditionGroups: [],
+            groupOperator: 'or',
           });
           return;
         }
@@ -5814,11 +5861,36 @@ const appOptions = {
       ElementPlus.ElMessage.info('登録可能な帳票間関連はすべて追加済みです');
     }
 
-    function addSceneSetupAggregateLink(group) {
+    function getDefaultSceneSetupConditionGroupId(group) {
+      return group?.conditionGroups?.[0]?.id || `group-${group?.sourceDocType || 'source'}-${group?.targetDocType || 'target'}-1`;
+    }
+
+    function addSceneSetupAggregateConditionGroup(group) {
+      if (!group?.sourceDocType || !group?.targetDocType) return;
+      const index = (group.conditionGroups?.length || 0) + 1;
+      addSceneSetupAggregateLink(group, `group-${group.sourceDocType}-${group.targetDocType}-${Date.now()}-${index}`);
+    }
+
+    function removeSceneSetupAggregateConditionGroup(group, conditionGroup) {
+      if (!group || !conditionGroup) return;
+      sceneSetupDraft.docFieldLinks = (sceneSetupDraft.docFieldLinks || []).filter((link) =>
+        !(link.sourceDocType === group.sourceDocType
+          && link.targetDocType === group.targetDocType
+          && (link.conditionGroupId || getDefaultSceneSetupConditionGroupId(group)) === conditionGroup.id)
+      );
+      clearSceneSetupLinkCheckDisplay();
+    }
+
+    function addSceneSetupAggregateLink(group, conditionGroup = null) {
       if (!group?.sourceDocType || !group?.targetDocType) return;
       const sourceFields = getSceneSetupFieldOptions(group.sourceDocType);
       const targetFields = getSceneSetupFieldOptions(group.targetDocType);
       const shared = sourceFields.find((field) => targetFields.includes(field));
+      const requestedGroupId = typeof conditionGroup === 'string' ? conditionGroup : conditionGroup?.id;
+      const isExistingConditionGroup = group.conditionGroups?.some((item) => item.id === requestedGroupId);
+      const conditionGroupId = typeof conditionGroup === 'string' || isExistingConditionGroup
+        ? requestedGroupId
+        : getDefaultSceneSetupConditionGroupId(group);
       sceneSetupAggregateDetailOpen[group.pairKey] = true;
       sceneSetupDraft.docFieldLinks.push({
         id: `link-${group.sourceDocType}-${group.targetDocType}-${Date.now()}`,
@@ -5826,6 +5898,8 @@ const appOptions = {
         sourceField: shared || sourceFields[0] || '',
         targetDocType: group.targetDocType,
         targetField: shared || targetFields[0] || '',
+        conditionGroupId,
+        groupOperator: group.groupOperator || 'or',
       });
       clearSceneSetupLinkCheckDisplay();
     }
@@ -5834,6 +5908,8 @@ const appOptions = {
       if (!link || !group) return;
       link.sourceDocType = group.sourceDocType;
       link.targetDocType = group.targetDocType;
+      link.groupOperator = group.groupOperator || link.groupOperator || 'or';
+      if (!link.conditionGroupId) link.conditionGroupId = getDefaultSceneSetupConditionGroupId(group);
       if (side === 'source') link.sourceField = value;
       if (side === 'target') link.targetField = value;
       clearSceneSetupLinkCheckDisplay();
@@ -5842,6 +5918,15 @@ const appOptions = {
     function removeSceneSetupAggregateLink(link) {
       const idx = sceneSetupDraft.docFieldLinks.findIndex((item) => item === link || item.id === link?.id);
       if (idx >= 0) sceneSetupDraft.docFieldLinks.splice(idx, 1);
+      clearSceneSetupLinkCheckDisplay();
+    }
+
+    function removeSceneSetupAggregateGroup(group) {
+      if (!group?.sourceDocType || !group?.targetDocType) return;
+      sceneSetupDraft.docFieldLinks = (sceneSetupDraft.docFieldLinks || []).filter((link) =>
+        !(link.sourceDocType === group.sourceDocType && link.targetDocType === group.targetDocType)
+      );
+      if (group.pairKey) delete sceneSetupAggregateDetailOpen[group.pairKey];
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -9543,10 +9628,15 @@ const appOptions = {
       autoMatchDocFieldLinks,
       updateSceneSetupAggregateLink,
       updateSceneSetupAggregateGroupDoc,
+      updateSceneSetupAggregateGroupOperator,
       addSceneSetupAggregateGroup,
       addSceneSetupAggregateLink,
+      addSceneSetupAggregateConditionGroup,
       removeSceneSetupAggregateLink,
+      removeSceneSetupAggregateConditionGroup,
+      removeSceneSetupAggregateGroup,
       isSceneSetupAggregateDetailOpen,
+      getSceneSetupConditionGroupLabel,
       toggleSceneSetupAggregateDetail,
       getSceneSetupFieldOptions,
       getReuseStatusTone,
@@ -9803,6 +9893,7 @@ const appOptions = {
       createWorkflowNodeAt,
       wfCanvasViewportRef,
       wfCanvasMaximized,
+      workflowSetupFullscreen,
       wfCanvasNodesCollapsed,
       wfCanvasStageStyle,
       wfZoomPercent,
@@ -9812,6 +9903,7 @@ const appOptions = {
       resetWorkflowZoom,
       organizeWorkflowNodes,
       toggleWorkflowCanvasMaximized,
+      toggleWorkflowSetupFullscreen,
       toggleWorkflowNodesCollapsed,
       onWfViewportWheel,
       onWfViewportPointerDown,
