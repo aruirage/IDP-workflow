@@ -1258,7 +1258,7 @@ body {
   box-shadow: inset 0 0 0 2px #12b76a;
 }
 .rule-editor-preview-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: #067647;
   margin-bottom: 6px;
@@ -10946,20 +10946,18 @@ body.idp-inspector-resizing * {
   justify-content: center;
   position: relative;
   min-height: 20px;
-  width: 44px;
-  margin-left: 0;
+  width: 56px;
+  margin-left: -18px;
 }
 .case-aggregate-group-operator-row > span {
   position: relative;
   z-index: 1;
   background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 4px;
-  padding: 1px 8px;
-  color: #475467;
+  padding: 0 5px;
+  color: #175cd3;
   font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
+  font-weight: 700;
+  line-height: 16px;
 }
 .case-aggregate-condition-group {
   position: relative;
