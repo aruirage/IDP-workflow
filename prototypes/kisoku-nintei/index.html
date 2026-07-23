@@ -444,14 +444,17 @@
                                 </el-select>
                               </div>
                               <div class="case-aggregate-rule-actions">
-                                <el-button
-                                  type="primary"
-                                  link
+                                <button
+                                  type="button"
                                   class="case-aggregate-detail-toggle"
+                                  :class="{ 'is-open': isSceneSetupAggregateDetailOpen(group) }"
+                                  :title="isSceneSetupAggregateDetailOpen(group) ? '折りたたむ' : '展開'"
+                                  :aria-label="isSceneSetupAggregateDetailOpen(group) ? '折りたたむ' : '展開'"
+                                  :aria-expanded="isSceneSetupAggregateDetailOpen(group)"
                                   @click="toggleSceneSetupAggregateDetail(group.pairKey)"
                                 >
-                                  {{ isSceneSetupAggregateDetailOpen(group) ? '閉じる' : '詳細' }}
-                                </el-button>
+                                  <span class="case-aggregate-detail-chevron" aria-hidden="true"></span>
+                                </button>
                                 <el-button
                                   type="danger"
                                   link
@@ -472,15 +475,7 @@
                               :key="conditionGroup.id"
                             >
                               <div v-if="groupIndex > 0" class="case-aggregate-group-operator-row">
-                                <el-segmented
-                                  :model-value="group.groupOperator || 'or'"
-                                  :options="[
-                                    { label: 'OR', value: 'or' },
-                                    { label: 'AND', value: 'and' }
-                                  ]"
-                                  size="small"
-                                  @change="updateSceneSetupAggregateGroupOperator(group, $event)"
-                                />
+                                <span>OR</span>
                               </div>
                               <div class="case-aggregate-condition-group">
                                 <div class="case-aggregate-condition-body">
@@ -488,6 +483,7 @@
                                     <div class="case-aggregate-condition-title">
                                       <span class="case-aggregate-condition-badge">{{ getSceneSetupConditionGroupLabel(groupIndex) }}</span>
                                       <span>グループ</span>
+                                      <span class="case-aggregate-condition-logic">グループ内：AND</span>
                                     </div>
                                     <button
                                       v-if="group.conditionGroups.length > 1"

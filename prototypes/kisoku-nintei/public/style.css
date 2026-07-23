@@ -10868,10 +10868,33 @@ body.idp-inspector-resizing * {
   min-height: 32px;
 }
 .case-aggregate-detail-toggle {
-  padding: 0 6px;
-  font-size: 14px;
-  font-weight: 400;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #175cd3;
+  cursor: pointer;
+  transition: color var(--transition-time-02), background var(--transition-time-02);
+}
+.case-aggregate-detail-toggle:hover {
+  background: #eff8ff;
+  color: #1849a9;
+}
+.case-aggregate-detail-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--transition-time-02);
+}
+.case-aggregate-detail-toggle.is-open .case-aggregate-detail-chevron {
+  transform: translateY(2px) rotate(225deg);
 }
 .case-aggregate-delete {
   padding: 0 6px;
@@ -10922,32 +10945,21 @@ body.idp-inspector-resizing * {
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 28px;
-  width: 78px;
+  min-height: 20px;
+  width: 44px;
   margin-left: 0;
 }
-.case-aggregate-group-operator-row .el-segmented {
+.case-aggregate-group-operator-row > span {
   position: relative;
   z-index: 1;
   background: #fff;
   border: 1px solid #d0d5dd;
-  border-radius: 5px;
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
-  flex: 0 0 auto;
-}
-.case-aggregate-group-operator-row .el-segmented__item {
-  border-radius: 0;
-}
-.case-aggregate-group-operator-row .el-segmented__item:first-of-type {
-  border-radius: 4px 0 0 4px;
-}
-.case-aggregate-group-operator-row .el-segmented__item:last-of-type {
-  border-radius: 0 4px 4px 0;
-}
-.case-aggregate-group-operator-row .el-segmented__item-selected {
-  border-radius: inherit;
+  border-radius: 4px;
+  padding: 1px 8px;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
 }
 .case-aggregate-condition-group {
   position: relative;
@@ -10986,6 +10998,11 @@ body.idp-inspector-resizing * {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+.case-aggregate-condition-logic {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 400;
 }
 .case-aggregate-condition-badge {
   display: inline-flex;
@@ -11044,10 +11061,6 @@ body.idp-inspector-resizing * {
   align-items: center;
   padding: 6px 0;
   background: transparent;
-  border-top: 1px solid #eaecf0;
-}
-.case-aggregate-link-row:first-child {
-  border-top: none;
 }
 .case-aggregate-field-select {
   width: 100%;

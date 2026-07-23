@@ -588,7 +588,7 @@ function normalizeDocFieldLinks(links, documents) {
     targetDocType: link.targetDocType,
     targetField: link.targetField,
     conditionGroupId: link.conditionGroupId || `group-${link.sourceDocType}-${link.targetDocType}-1`,
-    groupOperator: ['and', 'or'].includes(link.groupOperator) ? link.groupOperator : 'or',
+    groupOperator: 'or',
     confidence: link.confidence,
     reason: link.reason,
   }));

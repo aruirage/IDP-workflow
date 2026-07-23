@@ -2665,7 +2665,7 @@ const appOptions = {
             targetDocType: link.targetDocType,
             links: [],
             conditionGroups: [],
-            groupOperator: ['and', 'or'].includes(link.groupOperator) ? link.groupOperator : 'or',
+            groupOperator: 'or',
           });
         }
         const pair = pairMap.get(pairKey);
@@ -5824,7 +5824,7 @@ const appOptions = {
         if (link.sourceDocType !== group.sourceDocType || link.targetDocType !== group.targetDocType) return;
         link.sourceDocType = sourceDocType;
         link.targetDocType = targetDocType;
-        link.groupOperator = group.groupOperator || link.groupOperator || 'or';
+        link.groupOperator = 'or';
         if (!link.conditionGroupId) link.conditionGroupId = `${sourceDocType}|${targetDocType}|group-1`;
         if (!sourceFields.includes(link.sourceField)) {
           link.sourceField = sourceFields.includes(link.targetField) ? link.targetField : (sourceFields[0] || '');
@@ -5839,15 +5839,6 @@ const appOptions = {
         sceneSetupAggregateDetailOpen[newKey] = sceneSetupAggregateDetailOpen[oldKey];
         delete sceneSetupAggregateDetailOpen[oldKey];
       }
-      clearSceneSetupLinkCheckDisplay();
-    }
-
-    function updateSceneSetupAggregateGroupOperator(group, value) {
-      if (!group || !['and', 'or'].includes(value)) return;
-      (sceneSetupDraft.docFieldLinks || []).forEach((link) => {
-        if (link.sourceDocType !== group.sourceDocType || link.targetDocType !== group.targetDocType) return;
-        link.groupOperator = value;
-      });
       clearSceneSetupLinkCheckDisplay();
     }
 
@@ -5917,7 +5908,7 @@ const appOptions = {
         targetDocType: group.targetDocType,
         targetField: shared || targetFields[0] || '',
         conditionGroupId,
-        groupOperator: group.groupOperator || 'or',
+        groupOperator: 'or',
       });
       clearSceneSetupLinkCheckDisplay();
     }
@@ -5926,7 +5917,7 @@ const appOptions = {
       if (!link || !group) return;
       link.sourceDocType = group.sourceDocType;
       link.targetDocType = group.targetDocType;
-      link.groupOperator = group.groupOperator || link.groupOperator || 'or';
+      link.groupOperator = 'or';
       if (!link.conditionGroupId) link.conditionGroupId = getDefaultSceneSetupConditionGroupId(group);
       if (side === 'source') link.sourceField = value;
       if (side === 'target') link.targetField = value;
@@ -9646,7 +9637,6 @@ const appOptions = {
       autoMatchDocFieldLinks,
       updateSceneSetupAggregateLink,
       updateSceneSetupAggregateGroupDoc,
-      updateSceneSetupAggregateGroupOperator,
       addSceneSetupAggregateGroup,
       addSceneSetupAggregateLink,
       addSceneSetupAggregateConditionGroup,
