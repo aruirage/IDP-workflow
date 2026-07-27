@@ -49,7 +49,7 @@ const appOptions = {
     const docPickerSelectedIds = ref([]);
     const docPickerMode = ref('setup');
     const sceneSetupVisible = ref(false);
-    const workflowSetupStep = ref(2);
+    const workflowSetupStep = ref(1);
     const workflowTestDialogVisible = ref(false);
     const workflowTestRunning = ref(false);
     const workflowTestTimelineRef = ref(null);
@@ -9336,6 +9336,11 @@ const appOptions = {
     onMounted(() => {
       if (!form.master.knowledgeSource) {
         form.master.knowledgeSource = normalizeKnowledgeSource(null);
+      }
+      if (workflowSetupStep.value === 1 && currentScene.value) {
+        loadSceneSetupDraftFromData(form, currentScene.value.id, currentScene.value.name);
+        sceneSetupMode.value = 'edit';
+        sceneSetupVisible.value = true;
       }
       resetWorkflowEditTracking('初期状態');
       const _wfCase = form.workflows?.case;

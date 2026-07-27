@@ -3131,15 +3131,33 @@ code.export-config-meta-value {
 }
 
 .workflow-notification-builder,
-.workflow-notification-rules {
+.workflow-notification-rule-list {
   background: #fff;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
   padding: 16px;
 }
 
-.workflow-notification-rules {
-  margin-top: 16px;
+.workflow-notification-rule-list {
+  margin-top: 20px;
+}
+
+.workflow-notification-rule-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.workflow-notification-rule-list-head .workflow-notification-section-title {
+  margin-bottom: 0;
+}
+
+.workflow-notification-rule-list-head > span {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .workflow-notification-section-title {
