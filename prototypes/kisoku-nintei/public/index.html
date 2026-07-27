@@ -1898,17 +1898,26 @@
                 <div class="workflow-notification-builder-content">
                   <label class="workflow-notification-field">
                     <span>件名 <em>必須</em></span>
-                    <el-input v-model="notificationRuleDraft.subject" size="small" placeholder="件名を入力" />
+                    <div class="workflow-notification-token-editor is-single-line">
+                      <div class="workflow-notification-token-backdrop" v-html="renderNotificationTemplateHighlight(notificationRuleDraft.subject)"></div>
+                      <input
+                        v-model="notificationRuleDraft.subject"
+                        type="text"
+                        placeholder="件名を入力"
+                        @scroll="syncNotificationTokenEditorScroll"
+                      />
+                    </div>
                   </label>
                   <label class="workflow-notification-field">
                     <span>内容 <em>必須</em></span>
-                    <el-input
+                    <div class="workflow-notification-token-editor is-multiline">
+                      <div class="workflow-notification-token-backdrop" v-html="renderNotificationTemplateHighlight(notificationRuleDraft.body)"></div>
+                      <textarea
                       v-model="notificationRuleDraft.body"
-                      type="textarea"
-                      :rows="5"
-                      resize="vertical"
                       placeholder="内容を入力"
-                    />
+                      @scroll="syncNotificationTokenEditorScroll"
+                      ></textarea>
+                    </div>
                   </label>
                   <div class="workflow-notification-builder-actions">
                     <el-button @click="resetNotificationRuleDraft">クリア</el-button>
@@ -2239,7 +2248,7 @@
               <div class="wf-test-sample-default">
                 <div class="wf-test-sample-default-head">
                   <strong>{{ t(workflowTestDraft.testCase.label) }}</strong>
-                  <span class="wf-test-sample-badge is-readonly">{{ t('読み取り専用') }}</span>
+                  <span class="wf-test-sample-badge is-readonly">ファイル固定</span>
                 </div>
                 <p class="wf-test-sample-meta">
                   {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
@@ -2461,17 +2470,26 @@
         <div class="workflow-notification-builder-content">
           <label class="workflow-notification-field">
             <span>件名 <em>必須</em></span>
-            <el-input v-model="notificationRuleEditDraft.subject" size="small" placeholder="件名を入力" />
+            <div class="workflow-notification-token-editor is-single-line">
+              <div class="workflow-notification-token-backdrop" v-html="renderNotificationTemplateHighlight(notificationRuleEditDraft.subject)"></div>
+              <input
+                v-model="notificationRuleEditDraft.subject"
+                type="text"
+                placeholder="件名を入力"
+                @scroll="syncNotificationTokenEditorScroll"
+              />
+            </div>
           </label>
           <label class="workflow-notification-field">
             <span>内容 <em>必須</em></span>
-            <el-input
+            <div class="workflow-notification-token-editor is-multiline">
+              <div class="workflow-notification-token-backdrop" v-html="renderNotificationTemplateHighlight(notificationRuleEditDraft.body)"></div>
+              <textarea
               v-model="notificationRuleEditDraft.body"
-              type="textarea"
-              :rows="6"
-              resize="vertical"
               placeholder="内容を入力"
-            />
+              @scroll="syncNotificationTokenEditorScroll"
+              ></textarea>
+            </div>
           </label>
         </div>
       </div>

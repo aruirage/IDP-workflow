@@ -2193,6 +2193,27 @@ const appOptions = {
       notificationRuleEditDraft[key] = insertNotifyVariableText(notificationRuleEditDraft[key] || '', varPath);
     }
 
+    function escapeNotificationTemplateHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderNotificationTemplateHighlight(value) {
+      const escaped = escapeNotificationTemplateHtml(value) || ' ';
+      return escaped.replace(/(\{\{?[^{}\r\n]+\}\}?)/g, '<mark>$1</mark>');
+    }
+
+    function syncNotificationTokenEditorScroll(event) {
+      const backdrop = event.currentTarget?.previousElementSibling;
+      if (!backdrop) return;
+      backdrop.scrollTop = event.currentTarget.scrollTop;
+      backdrop.scrollLeft = event.currentTarget.scrollLeft;
+    }
+
     function resetWorkflowCanvas() {
       ElementPlus.ElMessageBox.confirm('開始ノード以外のすべてのノードと接続を削除します。続行しますか？', '', {
         confirmButtonText: 'OK',
@@ -9138,7 +9159,7 @@ const appOptions = {
 
     function canLocateWorkflowTestStep(step) {
       if (!step?.id) return false;
-      return getActiveWf()?.nodes?.some((node) => node.id === step.id);
+      return getActiveWf()?.nodes?.some((node) => node.id === (step.nodeId || step.id));
     }
 
     function locateWorkflowTestError(stepOrNodeId) {
@@ -9148,9 +9169,10 @@ const appOptions = {
       if (!canLocateWorkflowTestStep(step)) return;
       workflowTestDialogVisible.value = false;
       nextTick(() => {
-        selectWorkflowNode(step.id);
-        workflowTestHighlightNodeId.value = step.id;
-        focusWorkflowNodeOnCanvas(step.id);
+        const nodeId = step.nodeId || step.id;
+        selectWorkflowNode(nodeId);
+        workflowTestHighlightNodeId.value = nodeId;
+        focusWorkflowNodeOnCanvas(nodeId);
         if (workflowTestHighlightTimer) window.clearTimeout(workflowTestHighlightTimer);
         workflowTestHighlightTimer = window.setTimeout(() => {
           clearWorkflowTestHighlight();
@@ -9620,6 +9642,8 @@ const appOptions = {
       workflowNotificationVariableOptions,
       insertWorkflowNotificationText,
       insertWorkflowNotificationEditText,
+      renderNotificationTemplateHighlight,
+      syncNotificationTokenEditorScroll,
       resetNotificationRuleDraft,
       saveWorkflowNotificationRuleDraft,
       saveWorkflowNotificationRuleEdit,

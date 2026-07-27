@@ -3175,10 +3175,17 @@ code.export-config-meta-value {
 }
 
 .workflow-notification-field em {
-  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff1f3;
   color: #e11d48;
   font-style: normal;
   font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .workflow-notification-builder .workflow-notification-field {
@@ -3475,6 +3482,88 @@ code.export-config-meta-value {
 .workflow-notification-var-option span {
   color: #667085;
   font-size: 11px;
+}
+
+.workflow-notification-token-editor {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #d0d5dd;
+  border-radius: 4px;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.workflow-notification-token-editor:focus-within {
+  border-color: #155eef;
+  box-shadow: 0 0 0 1px #155eef;
+}
+
+.workflow-notification-token-editor.is-single-line {
+  height: 32px;
+}
+
+.workflow-notification-token-editor.is-multiline {
+  min-height: 118px;
+}
+
+.workflow-notification-token-editor input,
+.workflow-notification-token-editor textarea,
+.workflow-notification-token-backdrop {
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.workflow-notification-token-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: #344054;
+  pointer-events: none;
+}
+
+.workflow-notification-token-backdrop mark {
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #eaf2ff;
+  color: #175cd3;
+  font-weight: 600;
+}
+
+.workflow-notification-token-editor input,
+.workflow-notification-token-editor textarea {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  color: transparent;
+  caret-color: #101828;
+}
+
+.workflow-notification-token-editor input::placeholder,
+.workflow-notification-token-editor textarea::placeholder {
+  color: #98a2b3;
+}
+
+.workflow-notification-token-editor input {
+  white-space: nowrap;
+  resize: none;
+}
+
+.workflow-notification-token-editor textarea {
+  min-height: 118px;
 }
 
 .idp-workflow-notification-select-popper.el-popper {
