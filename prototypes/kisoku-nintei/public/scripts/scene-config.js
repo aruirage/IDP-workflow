@@ -289,10 +289,13 @@ function computeSceneLinkStats(documents, mainDocTypes, docFieldLinks) {
   }
   const nonMainDocs = docTypes.filter((t) => !mainSet.has(t));
   const linkedCount = nonMainDocs.filter((t) => reachable.has(t)).length;
+  const noRelationDocs = docTypes.filter((t) => !adj[t]?.size);
   const unlinkedDocs = nonMainDocs.filter((t) => !reachable.has(t));
   return {
     mainDocCount: mainSet.size,
     linkedCount,
+    noRelationCount: noRelationDocs.length,
+    noRelationDocs,
     unlinkedCount: unlinkedDocs.length,
     unlinkedDocs,
     total: docTypes.length,
@@ -519,9 +522,10 @@ function getSceneLinkValidationError(documents, mainDocType, docFieldLinks, getD
     [mainDocType],
     docFieldLinks,
   );
-  if (stats.unlinkedCount > 0) {
-    const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-    return `主帳票へ到達できない帳票があります：${names}`;
+  if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
+    const unlinkedTypes = [...new Set([...stats.noRelationDocs, ...stats.unlinkedDocs])];
+    const names = unlinkedTypes.map((type) => getDocDisplayLabel(type)).join('、');
+    return `関連関係が設定されていない帳票があります：${names}`;
   }
   return '';
 }
@@ -575,12 +579,26 @@ function applySceneAggregate(scene, documents, legacyOutput) {
 
 function normalizeDocFieldLinks(links, documents) {
   const docTypes = new Set((documents || []).map((d) => d.type));
-  return (links || []).filter((link) => {
+  const excludedFieldPattern = /(住所|所在地|発行日|記入日|請求日|証明年月日|作成日|届出日)/;
+  const localIdentifierFieldPattern = /(患者番号|カルテ番号|明細管理番号|収納管理番号|医療機関番号)/;
+  const institutionFieldPattern = /(医療機関|診療機関|病院|薬局)/;
+  const getCoreFieldType = (field) => {
+    const value = String(field || '');
+    if (/請求番号/.test(value)) return 'case-id';
+    if (/(個人番号|住民コード)/.test(value)) return 'person-id';
+    if (!/生年月日/.test(value) && /(氏名|被保険者|患者名|受取人|世帯主)/.test(value)) return 'person-name';
+    return '';
+  };
+  const normalized = (links || []).filter((link) => {
     if (!link?.sourceDocType || !link?.targetDocType) return false;
     if (!docTypes.has(link.sourceDocType) || !docTypes.has(link.targetDocType)) return false;
     const sourceFields = getDocSchema(link.sourceDocType).fields || [];
     const targetFields = getDocSchema(link.targetDocType).fields || [];
-    return sourceFields.includes(link.sourceField) && targetFields.includes(link.targetField);
+    if (!sourceFields.includes(link.sourceField) || !targetFields.includes(link.targetField)) return false;
+    return !excludedFieldPattern.test(link.sourceField)
+      && !excludedFieldPattern.test(link.targetField)
+      && !localIdentifierFieldPattern.test(link.sourceField)
+      && !localIdentifierFieldPattern.test(link.targetField);
   }).map((link, index) => ({
     id: link.id || `link-${index}-${Date.now()}`,
     sourceDocType: link.sourceDocType,
@@ -592,6 +610,16 @@ function normalizeDocFieldLinks(links, documents) {
     confidence: link.confidence,
     reason: link.reason,
   }));
+  const coreGroups = new Set(normalized.filter((link) => {
+    const sourceType = getCoreFieldType(link.sourceField);
+    return sourceType && sourceType === getCoreFieldType(link.targetField);
+  }).map((link) => `${link.sourceDocType}|${link.targetDocType}|${link.conditionGroupId}`));
+  return normalized.filter((link) => {
+    const usesInstitution = institutionFieldPattern.test(link.sourceField)
+      || institutionFieldPattern.test(link.targetField);
+    if (!usesInstitution) return true;
+    return coreGroups.has(`${link.sourceDocType}|${link.targetDocType}|${link.conditionGroupId}`);
+  });
 }
 
 const AI_DOC_FIELD_LINK_PROMPT_TEMPLATE = `# 任务
@@ -815,10 +843,7 @@ function buildDefaultDocFieldLinks(documents, mainDocTypes) {
 }
 
 function applySceneDocFieldLinks(scene, documents) {
-  const normalized = normalizeDocFieldLinks(scene.docFieldLinks, documents);
-  scene.docFieldLinks = normalized.length
-    ? normalized
-    : buildDefaultDocFieldLinks(documents, getSceneMainDocTypes(scene));
+  scene.docFieldLinks = normalizeDocFieldLinks(scene.docFieldLinks, documents);
 }
 
 function normalizeOutputConfig(output, documents, masterMappings, knowledgeSource) {
@@ -1063,9 +1088,14 @@ const SCENE_TEMPLATES = {
   },
 };
 
+const AGGREGATE_RULE_DATA_VERSION = 'ten-documents-clean-links-v2';
+
 function normalizeSceneDocuments(documents) {
+  const seen = new Set();
   return (documents || []).map((doc) => {
     const type = migrateDocTypeId(doc.type);
+    if (!DOC_TYPE_MAP[type] || seen.has(type)) return null;
+    seen.add(type);
     const fieldOptions = getDocFieldOptions(type);
     const existingRequired = Array.isArray(doc.requiredFields)
       ? doc.requiredFields.filter((field) => fieldOptions.includes(field))
@@ -1078,7 +1108,25 @@ function normalizeSceneDocuments(documents) {
       group: '',
       linkField: doc.linkField || '',
     };
+  }).filter(Boolean);
+}
+
+function ensureInitialSceneDocuments(documents) {
+  const normalized = normalizeSceneDocuments(documents);
+  const byType = new Map(normalized.map((doc) => [doc.type, doc]));
+  return INITIAL_SCENE_DOCUMENT_TYPES.map((type, index) => byType.get(type) || {
+    type,
+    submission: index < 2 ? '必須' : '任意',
+    requiredFields: getDefaultRequiredFieldsForDocType(type),
+    group: '',
+    linkField: '',
   });
+}
+
+function migrateInitialAggregateRules(scene) {
+  if (scene.aggregateRuleDataVersion === AGGREGATE_RULE_DATA_VERSION) return;
+  scene.docFieldLinks = [];
+  scene.aggregateRuleDataVersion = AGGREGATE_RULE_DATA_VERSION;
 }
 
 const SCENE_FILE_SPLIT_DEFAULT = {
@@ -1138,7 +1186,8 @@ function sceneForm(sceneOrId) {
   }
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
-  data.scene.documents = normalizeSceneDocuments(data.scene.documents);
+  data.scene.documents = ensureInitialSceneDocuments(data.scene.documents);
+  migrateInitialAggregateRules(data.scene);
   delete data.scene.fileSplit;
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
@@ -1169,7 +1218,8 @@ function sceneFormByScene(scene) {
   }
   data.scene.deficiencyAction = normalizeDeficiencyAction();
   delete data.scene.notificationEmail;
-  data.scene.documents = normalizeSceneDocuments(data.scene.documents);
+  data.scene.documents = ensureInitialSceneDocuments(data.scene.documents);
+  migrateInitialAggregateRules(data.scene);
   delete data.scene.fileSplit;
   applySceneAggregate(data.scene, data.scene.documents, data.output);
   applySceneDocFieldLinks(data.scene, data.scene.documents);
@@ -1193,7 +1243,8 @@ function sceneFormByScene(scene) {
 function normalizeLoadedForm(form) {
   if (!form) return null;
   form.scene = form.scene || {};
-  form.scene.documents = normalizeSceneDocuments(form.scene.documents || []);
+  form.scene.documents = ensureInitialSceneDocuments(form.scene.documents || []);
+  migrateInitialAggregateRules(form.scene);
   if (form.scene.deficiencyAction === '外部システムへイベント送信') {
     form.scene.deficiencyAction = DEFICIENCY_ACTION;
   }

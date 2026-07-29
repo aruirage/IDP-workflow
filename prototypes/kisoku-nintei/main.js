@@ -2629,14 +2629,12 @@ const appOptions = {
     );
     const sceneSetupLinkCheckSummary = computed(() => {
       const stats = sceneSetupLinkStats.value;
-      if (stats.unlinkedCount > 0) {
-        const names = stats.unlinkedDocs.map((t) => getDocDisplayLabel(t)).join('、');
-        return { tone: 'warn', text: `主帳票へ到達できない帳票があります：${names}` };
+      if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
+        const unlinkedTypes = [...new Set([...stats.noRelationDocs, ...stats.unlinkedDocs])];
+        const names = unlinkedTypes.map((type) => getDocDisplayLabel(type)).join('、');
+        return { tone: 'warn', text: `関連関係が設定されていない帳票があります：${names}` };
       }
-      if (stats.total <= stats.mainDocCount) {
-        return { tone: 'ok', text: '主帳票のみの構成です' };
-      }
-      return { tone: 'ok', text: `${stats.linkedCount} 件の帳票が主帳票に関連付け済み` };
+      return { tone: 'ok', text: 'すべての帳票に関連関係が設定されています' };
     });
     const sceneSetupNetworkLayout = computed(() =>
       buildSceneSetupNetworkLayout(
@@ -5189,12 +5187,6 @@ const appOptions = {
         sceneSetupDraft.documents,
       );
       sceneSetupDraft.aggregateRuleSettings = {};
-      if (!sceneSetupDraft.docFieldLinks.length && sceneSetupDraft.documents.length >= 2) {
-        sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
-          sceneSetupDraft.documents,
-          sceneSetupDraft.mainDocType ? [sceneSetupDraft.mainDocType] : [],
-        );
-      }
       ensureSceneSetupAggregateRuleSettings();
       clearSceneSetupLinkCheckDisplay();
     }
@@ -8024,7 +8016,7 @@ const appOptions = {
 
     function openDocPicker() {
       if (sceneSetupDraft.documents.length >= MAX_DOCS) {
-        ElementPlus.ElMessage.warning('帳票は最大20件までです');
+        ElementPlus.ElMessage.warning(`帳票は最大${MAX_DOCS}件までです`);
         return;
       }
       docPickerMode.value = 'setup';
@@ -8043,7 +8035,7 @@ const appOptions = {
       const remaining = MAX_DOCS - targetDocs.length;
       const toAdd = ids.slice(0, remaining);
       if (toAdd.length < ids.length) {
-        ElementPlus.ElMessage.warning(`帳票は最大20件までです。${toAdd.length} 件を追加しました`);
+        ElementPlus.ElMessage.warning(`帳票は最大${MAX_DOCS}件までです。${toAdd.length} 件を追加しました`);
       }
       toAdd.forEach((typeId) => {
         targetDocs.push({ type: typeId, submission: '必須', group: '', linkField: '' });
@@ -8051,12 +8043,6 @@ const appOptions = {
       applySceneSetupAggregate();
       docPickerSelectedIds.value = [];
       docPickerVisible.value = false;
-      if (!sceneSetupDraft.docFieldLinks.length && sceneSetupDraft.documents.length >= 2) {
-        sceneSetupDraft.docFieldLinks = buildDefaultDocFieldLinks(
-          sceneSetupDraft.documents,
-          sceneSetupDraft.mainDocType ? [sceneSetupDraft.mainDocType] : [],
-        );
-      }
       if (toAdd.length) ElementPlus.ElMessage.success(`${toAdd.length} 件の帳票を追加しました`);
     }
 
