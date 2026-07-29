@@ -79,6 +79,7 @@ const appOptions = {
       aggregateRuleSettings: {},
     });
     const sceneSetupActiveTab = ref('basic');
+    const sceneSetupAiMatching = ref(false);
     const sceneSetupAggregateDetailOpen = reactive({});
     const sceneSetupNetworkViewportRef = ref(null);
     const sceneSetupNetworkViewportSize = reactive({ width: 0, height: 0 });
@@ -5450,10 +5451,25 @@ const appOptions = {
       }).catch(() => {});
     }
 
+    function openSceneHistory(scene) {
+      if (!scene) return;
+      if (scene.id !== currentSceneId.value) {
+        selectScene(scene.id, { skipFinishRename: true, focusScene: true });
+      }
+      workflowSetupStep.value = 2;
+      sceneSetupVisible.value = false;
+      enterWorkflowCanvasView();
+      nextTick(() => {
+        fitWorkflowToView();
+        wfChangeHistoryVisible.value = true;
+      });
+    }
+
     function onSceneMenuCommand(command, scene) {
       if (command === 'copy') copySceneFromMenu(scene);
       if (command === 'edit') editSceneSettings(scene);
       if (command === 'rename') startRenameScene(scene);
+      if (command === 'history') openSceneHistory(scene);
       if (command === 'delete') deleteScene(scene);
     }
 
@@ -5765,28 +5781,52 @@ const appOptions = {
       sceneSetupDraft.docFieldLinks.splice(index, 1);
     }
 
-    function autoMatchDocFieldLinks() {
+    async function autoMatchDocFieldLinks() {
       if (sceneSetupDraft.documents.length < 2) {
         ElementPlus.ElMessage.warning('関連帳票を2件以上追加してください');
         return;
       }
       applySceneSetupAggregate();
-      const recommendation = recommendDocFieldLinksByAiRules({
-        sceneName: sceneSetupDraft.name,
-        documents: sceneSetupDraft.documents,
-        mainDocType: sceneSetupDraft.mainDocType,
-        mainKey: sceneSetupDraft.mainKey,
-        existingRelations: sceneSetupDraft.docFieldLinks,
-      });
-      window.__neosAiDocFieldLinkPrompt = recommendation;
-      sceneSetupDraft.docFieldLinks = recommendation.relations;
-      ensureSceneSetupAggregateRuleSettings();
-      clearSceneSetupLinkCheckDisplay();
-      if (recommendation.warnings.length) {
-        ElementPlus.ElMessage.warning(`AI 推薦を適用しました（${recommendation.relations.length} 件）。未推薦 ${recommendation.warnings.length} 件は手動で設定してください`);
-        return;
+      const mainDocType = sceneSetupDraft.mainDocType || sceneSetupDraft.documents[0]?.type || '';
+      const requestInput = {
+        businessScene: sceneSetupDraft.name,
+        mainDocument: {
+          docType: mainDocType,
+          primaryKey: sceneSetupDraft.mainKey || '',
+          fields: getSceneSetupFieldOptions(mainDocType),
+        },
+        relatedDocuments: sceneSetupDraft.documents
+          .filter((doc) => doc.type !== mainDocType)
+          .map((doc) => ({
+            docType: doc.type,
+            fields: getSceneSetupFieldOptions(doc.type),
+          })),
+      };
+      window.__neosAiDocFieldLinkPromptInput = cloneJson(requestInput);
+      sceneSetupAiMatching.value = true;
+      try {
+        const response = await fetch('/api/aggregate-rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestInput),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'AI関連ルールの生成に失敗しました');
+        const relations = normalizeDocFieldLinks(result.relations, sceneSetupDraft.documents);
+        if (!relations.length) throw new Error('AIから関連ルールが返されませんでした');
+        sceneSetupDraft.docFieldLinks = relations;
+        Object.keys(sceneSetupAggregateDetailOpen).forEach((key) => delete sceneSetupAggregateDetailOpen[key]);
+        relations.forEach((relation) => {
+          sceneSetupAggregateDetailOpen[`${relation.sourceDocType}|${relation.targetDocType}`] = true;
+        });
+        ensureSceneSetupAggregateRuleSettings();
+        clearSceneSetupLinkCheckDisplay();
+        ElementPlus.ElMessage.success(`AIが関連ルールを生成しました（${relations.length}件）`);
+      } catch (error) {
+        ElementPlus.ElMessage.error(error?.message || 'AI関連ルールの生成に失敗しました');
+      } finally {
+        sceneSetupAiMatching.value = false;
       }
-      ElementPlus.ElMessage.success(`AI 推薦ルールで関連付けしました（${recommendation.relations.length} 件）`);
     }
 
     function normalizeSceneSetupAggregateRuleSettings(raw) {
@@ -9664,6 +9704,7 @@ const appOptions = {
       addDocFieldLink,
       removeDocFieldLink,
       autoMatchDocFieldLinks,
+      sceneSetupAiMatching,
       updateSceneSetupAggregateLink,
       updateSceneSetupAggregateGroupDoc,
       addSceneSetupAggregateGroup,
