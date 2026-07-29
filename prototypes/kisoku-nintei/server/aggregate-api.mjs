@@ -11,6 +11,7 @@ export async function handleAggregateRuleRequest(input, options = {}) {
     businessScene: String(input.businessScene || ''),
     mainDocument,
     relatedDocuments,
+    existingRules: Array.isArray(input.existingRules) ? input.existingRules : [],
   }, options);
   return { relations };
 }

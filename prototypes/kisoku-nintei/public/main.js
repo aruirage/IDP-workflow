@@ -5801,6 +5801,22 @@ const appOptions = {
             docType: doc.type,
             fields: getSceneSetupFieldOptions(doc.type),
           })),
+        existingRules: Object.values((sceneSetupDraft.docFieldLinks || []).reduce((rules, link) => {
+          const pairKey = `${link.sourceDocType}|${link.targetDocType}`;
+          const groupKey = `${pairKey}|${link.conditionGroupId || 'default'}`;
+          if (!rules[groupKey]) {
+            rules[groupKey] = {
+              leftDocType: link.sourceDocType,
+              rightDocType: link.targetDocType,
+              group: { relations: [] },
+            };
+          }
+          rules[groupKey].group.relations.push({
+            leftField: link.sourceField,
+            rightField: link.targetField,
+          });
+          return rules;
+        }, {})),
       };
       window.__neosAiDocFieldLinkPromptInput = cloneJson(requestInput);
       sceneSetupAiMatching.value = true;
