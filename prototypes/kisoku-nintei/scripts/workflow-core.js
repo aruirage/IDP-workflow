@@ -4116,6 +4116,11 @@ function shouldMigrateCaseWorkflowToDefault(workflow) {
   return false;
 }
 
+function shouldRestorePublishedWorkflow(form) {
+  return form?.scene?.publishStatus === 'published'
+    && isMinimalPlaceholderCaseWorkflow(form?.workflows?.case);
+}
+
 function getWorkflowGraphEntryNode(workflow) {
   const nodes = workflow?.nodes || [];
   const edges = workflow?.edges || [];
@@ -4141,21 +4146,25 @@ function ensureFormWorkflows(form, { force = false } = {}) {
     };
     delete form.workflow;
     if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-      form.workflows.case = buildMinimalCaseWorkflow();
+      form.workflows.case = buildDefaultCaseWorkflow();
     }
     return;
   }
   if (form.workflows?.case) {
+    if (shouldRestorePublishedWorkflow(form)) {
+      form.workflows.case = buildDefaultCaseWorkflow();
+      return;
+    }
     if (!force) {
       if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-        form.workflows.case = buildMinimalCaseWorkflow();
+        form.workflows.case = buildDefaultCaseWorkflow();
       } else if (needsCanonicalCaseWorkflowLayout(form.workflows.case)) {
         applyCanonicalCaseWorkflowLayout(form.workflows.case);
       }
       return;
     }
     if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-      form.workflows.case = buildMinimalCaseWorkflow();
+      form.workflows.case = buildDefaultCaseWorkflow();
       return;
     }
     form.workflows.case = normalizeWorkflow(form.workflows.case, 'case');

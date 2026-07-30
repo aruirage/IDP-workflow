@@ -23,7 +23,7 @@ const appOptions = {
     ensureFormWorkflows(initialForm);
     const wfCase = initialForm.workflows?.case;
     if (wfCase && shouldMigrateCaseWorkflowToDefault(wfCase)) {
-      initialForm.workflows.case = buildMinimalCaseWorkflow();
+      initialForm.workflows.case = buildDefaultCaseWorkflow();
       if (typeof saveStorage === 'function') {
         saveStorage(currentSceneId.value, initialForm);
       }

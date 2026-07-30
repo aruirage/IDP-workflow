@@ -8,17 +8,19 @@ test('initializes the workflow canvas with only the fixed start node', async () 
 
   assert.doesNotMatch(sceneConfig, /case: buildDefaultCaseWorkflow\(\)/);
   assert.equal((sceneConfig.match(/case: buildMinimalCaseWorkflow\(\)/g) || []).length, 2);
-  assert.doesNotMatch(main, /initialForm\.workflows\.case = buildDefaultCaseWorkflow\(\)/);
-  assert.match(main, /initialForm\.workflows\.case = buildMinimalCaseWorkflow\(\)/);
+  assert.match(main, /initialForm\.workflows\.case = buildDefaultCaseWorkflow\(\)/);
+  assert.doesNotMatch(main, /initialForm\.workflows\.case = buildMinimalCaseWorkflow\(\)/);
 });
 
-test('does not replace the minimal start-only canvas with the default template', async () => {
+test('keeps new drafts minimal and restores accidentally cleared published workflows', async () => {
   const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
 
   assert.match(workflowCore, /if \(isMinimalPlaceholderCaseWorkflow\(workflow\)\) return false;/);
   assert.match(workflowCore, /if \(isDefaultCaseWorkflowTemplate\(workflow\)\) return true;/);
-  assert.doesNotMatch(workflowCore, /form\.workflows\.case = buildDefaultCaseWorkflow\(\)/);
-  assert.match(workflowCore, /form\.workflows\.case = buildMinimalCaseWorkflow\(\)/);
+  assert.match(workflowCore, /function shouldRestorePublishedWorkflow\(form\)/);
+  assert.match(workflowCore, /form\?\.scene\?\.publishStatus === 'published'/);
+  assert.match(workflowCore, /if \(shouldRestorePublishedWorkflow\(form\)\) \{\s*form\.workflows\.case = buildDefaultCaseWorkflow\(\);/s);
+  assert.doesNotMatch(workflowCore, /shouldMigrateCaseWorkflowToDefault\(form\.workflows\.case\)\) \{\s*form\.workflows\.case = buildMinimalCaseWorkflow\(\);/s);
 });
 
 test('labels the built-in workflow test fixture as mock data', async () => {
