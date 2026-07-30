@@ -1761,7 +1761,9 @@ function getWorkflowTestSampleList() {
 }
 
 function buildWorkflowTestInputContext(testCase) {
-  const tc = normalizeWorkflowTestCase(testCase);
+  const tc = options.skipTestInput
+    ? { files: [], standardFields: {} }
+    : normalizeWorkflowTestCase(testCase);
   return {
     ...tc,
     fileCount: tc.files.length,
@@ -1885,7 +1887,7 @@ function getSceneDocumentTypeSet(sceneContext = {}) {
 /**
  * 按 PRD 维度收集门禁错误（用例→结构→连线→节点配置…）。前层有错时仍收集同层全部，供错误列表；调用方决定是否进入测试执行。
  */
-function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {}) {
+function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {}, options = {}) {
   const wf = workflow || { nodes: [], edges: [] };
   const nodes = wf.nodes || [];
   const edges = (wf.edges || []).filter((e) => !e.visualHidden);
@@ -1901,9 +1903,9 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     });
   };
 
-  // —— 用例：仅 S2-03（样例与 Step1 账票漂移）。S2-01/02 本期不作为用户侧门禁 ——
+  // —— 用例：仅完整测试检查样例与 Step1 账票漂移；Step2 保存静态校验不读取样例 ——
   const step1Types = getSceneDocumentTypeSet(sceneContext);
-  if (step1Types.size) {
+  if (!options.skipTestInput && step1Types.size) {
     tc.files.forEach((f) => {
       if (f.role === '参考資料' || f.docType === 'その他') return;
       if (f.docType && !step1Types.has(f.docType)) {

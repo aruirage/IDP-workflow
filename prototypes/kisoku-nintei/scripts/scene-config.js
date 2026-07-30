@@ -1281,11 +1281,22 @@ function normalizeLoadedForm(form) {
     if (!['draft', 'ready', 'published'].includes(form.scene.publishStatus)) {
       form.scene.publishStatus = 'draft';
     }
-    // 公開可能 仅当 Step2 测试成功（终了结构/到达已并入测试）；清掉旧版「Step3 保存即 ready」残留
-    if (form.scene.publishStatus !== 'published') {
-      form.scene.publishStatus = form.workflowTestStatus === 'success' ? 'ready' : 'draft';
-    }
   }
+  if (!Array.isArray(form.publishedVersions)) form.publishedVersions = [];
+  if (form.publishedVersions.length > 1) {
+    form.publishedVersions = [form.publishedVersions[form.publishedVersions.length - 1]];
+  }
+  if (form.scene?.publishStatus === 'published' && !form.publishedVersions.length) {
+    const snapshot = form.publishedSnapshot
+      ? createPublishedSnapshot(form.publishedSnapshot)
+      : createPublishedSnapshot(form);
+    form.publishedVersions = [{
+      id: 'v1',
+      publishedAt: form.scene.publishedAt || new Date().toISOString(),
+      snapshot,
+    }];
+  }
+  delete form.publishedSnapshot;
   if (!['unsaved', 'valid', 'invalid'].includes(form.outputConfigStatus)) {
     form.outputConfigStatus = form.outputTestStatus === 'success'
       ? 'valid'
@@ -1953,4 +1964,11 @@ function loadSceneFromStorage(sceneId) {
   const store = loadStorage();
   if (!store || !store[sceneId]) return null;
   return store[sceneId];
+}
+
+function createPublishedSnapshot(formData) {
+  const snapshot = cloneJson(formData);
+  delete snapshot.publishedSnapshot;
+  delete snapshot.publishedVersions;
+  return snapshot;
 }

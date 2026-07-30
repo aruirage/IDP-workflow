@@ -7032,6 +7032,71 @@ code.export-config-meta-value {
   flex: 1;
   min-width: 0;
 }
+.wf-version-history-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+  transition: border-color var(--transition-time-02), color var(--transition-time-02), background var(--transition-time-02);
+}
+.wf-version-history-btn:hover,
+.wf-version-history-btn:focus-visible {
+  border-color: #84adff;
+  background: #f9fafb;
+  color: #175cd3;
+  outline: none;
+}
+.wf-version-history-icon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+}
+.wf-version-history-popper .el-dropdown-menu {
+  min-width: 260px;
+  padding: 6px;
+}
+.wf-version-history-popper .el-dropdown-menu__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 36px;
+  border-radius: 4px;
+  color: #344054;
+}
+.wf-version-history-popper .el-dropdown-menu__item.is-selected {
+  background: #eff4ff;
+  color: #175cd3;
+}
+.wf-version-row-main {
+  white-space: nowrap;
+}
+.wf-version-latest {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 11px;
+  font-weight: 600;
+}
+.idp-workflow-module.is-applied-view .wf-setup-page,
+.idp-workflow-module.is-applied-view .idp-workspace,
+.idp-workflow-module.is-applied-view .wf-notification-step-page,
+.idp-workflow-module.is-applied-view .wf-export-step-page {
+  pointer-events: none;
+}
+.idp-workflow-module.is-applied-view .wf-toolbar::after {
+  content: '適用中の設定（閲覧のみ）';
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
 .wf-canvas-toolbar--top {
   position: static;
   transform: none;
@@ -7154,6 +7219,16 @@ code.export-config-meta-value {
 .wf-canvas-toolbar--bottom .wf-canvas-tool-btn svg {
   width: 16px;
   height: 16px;
+}
+.wf-canvas-toolbar--bottom .wf-canvas-tool-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--neutral-line);
+}
+.wf-canvas-toolbar--bottom .wf-canvas-tool-btn--danger:hover:not(:disabled) {
+  background: #fef3f2;
+  color: #d92d20;
 }
 .wf-canvas-tool-btn {
   width: 32px;
@@ -10188,9 +10263,6 @@ body.idp-inspector-resizing * {
   padding: 16px 20px;
   border-bottom: 1px solid #eaecf0;
   background: #fff;
-}
-.wf-setup-language-btn {
-  flex-shrink: 0;
 }
 .wf-setup-fullscreen-btn {
   display: inline-flex;

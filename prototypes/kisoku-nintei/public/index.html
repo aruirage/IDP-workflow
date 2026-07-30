@@ -223,7 +223,11 @@
             </div>
           </div>
 
-          <div v-show="currentModule === 'case-workflow'" class="idp-workflow-module">
+          <div
+            v-show="currentModule === 'case-workflow'"
+            class="idp-workflow-module"
+            :class="{ 'is-applied-view': workflowVersionView === 'published' }"
+          >
           <div class="wf-setup-stepper" role="navigation" aria-label="ワークフロー設定ステップ">
             <button
               type="button"
@@ -273,9 +277,31 @@
             >
               <span class="wf-setup-fullscreen-icon" aria-hidden="true"></span>
             </button>
-            <button type="button" class="language-toggle-btn wf-setup-language-btn" @click="toggleUiLanguage">
-              {{ uiLanguage === 'zh' ? '日本語' : '中文' }}
-            </button>
+            <el-dropdown
+              v-if="hasPublishedVersions"
+              trigger="click"
+              popper-class="wf-version-history-popper"
+              @command="switchWorkflowVersionView"
+            >
+              <button type="button" class="wf-version-history-btn" title="バージョン履歴" aria-label="バージョン履歴">
+                <el-icon class="wf-version-history-icon"><clock /></el-icon>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="draft" :class="{ 'is-selected': workflowVersionView === 'draft' }">
+                    <span class="wf-version-row-main">現在の下書き</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="latestPublishedVersion"
+                    :command="latestPublishedVersion.id"
+                    :class="{ 'is-selected': selectedPublishedVersionId === latestPublishedVersion.id }"
+                  >
+                    <span class="wf-version-row-main">{{ latestPublishedVersion.label }} · {{ latestPublishedVersion.publishedAtLabel }}</span>
+                    <span class="wf-version-latest">適用中</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
 
           <template v-if="workflowSetupStep === 1">
@@ -291,7 +317,7 @@
               >{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
-            <div class="wf-toolbar-right">
+            <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
               <el-button
                 type="warning"
                 class="wf-check-links-btn"
@@ -657,12 +683,10 @@
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
-            <div class="wf-toolbar-right">
-              <el-button @click="resetWorkflowCanvas">リセット</el-button>
+            <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(1)">前へ</el-button>
-              <el-button @click="goToWorkflowSetupStep(3)">次へ</el-button>
-              <el-button type="warning" class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト</el-button>
-              <el-button type="primary" @click="handleSave">保存</el-button>
+              <el-button @click="goToWorkflowStep3">次へ</el-button>
+              <el-button type="primary" @click="saveWorkflowStep2">保存</el-button>
             </div>
           </div>
 
@@ -1078,6 +1102,16 @@
                     </div>
                     <p class="wf-history-hint wf-history-hint--popover">編集履歴はこの画面を開いている間だけ保持されます。</p>
                   </el-popover>
+                  <span v-if="isWorkflowTopologyEditable" class="wf-canvas-tool-divider" aria-hidden="true"></span>
+                  <button
+                    v-if="isWorkflowTopologyEditable"
+                    type="button"
+                    class="wf-canvas-tool-btn wf-canvas-tool-btn--danger"
+                    title="リセット"
+                    @click="resetWorkflowCanvas"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 5.2h9.6M6.1 5.2V3.7h3.8v1.5M5 7.2v4.2m3-4.2v4.2m3-4.2v4.2M4.2 5.2l.6 7.3h6.4l.6-7.3" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
                 </div>
               </div>
 
@@ -1824,7 +1858,7 @@
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
-            <div class="wf-toolbar-right">
+            <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(2)">前へ</el-button>
               <el-button @click="goToWorkflowStep4FromNotifications">次へ</el-button>
               <el-button type="primary" @click="saveWorkflowNotificationConfig">保存</el-button>
@@ -2015,7 +2049,7 @@
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
             </div>
             <div class="wf-toolbar-center"></div>
-            <div class="wf-toolbar-right">
+            <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(3)">前へ</el-button>
               <el-button @click="saveOutputConfigFromStep3">保存</el-button>
               <el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開</el-button>
@@ -2246,6 +2280,9 @@
       align-center
       class="wf-test-dialog"
       destroy-on-close
+      :close-on-click-modal="!workflowTestRunning"
+      :close-on-press-escape="!workflowTestRunning"
+      :show-close="!workflowTestRunning"
     >
       <div class="wf-test-toolbar">
         <el-button type="primary" :loading="workflowTestRunning" @click="runWorkflowTest">
@@ -2761,6 +2798,7 @@
   </script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
   <script src="scripts/workflow-core.js?v=675"></script>
   <script src="scripts/mock-data.js?v=677"></script>
   <script src="scripts/scene-config.js?v=675"></script>

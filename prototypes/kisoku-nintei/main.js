@@ -50,6 +50,9 @@ const appOptions = {
     const docPickerMode = ref('setup');
     const sceneSetupVisible = ref(false);
     const workflowSetupStep = ref(1);
+    const workflowVersionView = ref('draft');
+    const selectedPublishedVersionId = ref('');
+    let draftVersionBuffer = null;
     const workflowTestDialogVisible = ref(false);
     const workflowTestRunning = ref(false);
     const workflowTestTimelineRef = ref(null);
@@ -1386,7 +1389,7 @@ const appOptions = {
     });
     const wfTemplateHintVisible = ref(false);
     let wfTemplateHintTimer = null;
-    const isWorkflowTopologyEditable = computed(() => true);
+    const isWorkflowTopologyEditable = computed(() => workflowVersionView.value === 'draft');
 
     function flashWorkflowTemplateHint() {
       if (wfTemplateHintTimer) clearTimeout(wfTemplateHintTimer);
@@ -1780,10 +1783,7 @@ const appOptions = {
 
     const scenePublishStatusKey = computed(() => {
       const raw = normalizeScenePublishStatus(form.scene.publishStatus);
-      if (raw === 'published') return 'published';
-      // 显示态与门禁对齐：未测通不得显示公開可能（避免旧缓存误导）
-      // 终了结构/到达已并入 Step2 测试；成功即可发布，不再另做一层终了校验
-      return form.workflowTestStatus === 'success' ? 'ready' : 'draft';
+      return raw;
     });
     const scenePublishBadge = computed(() => {
       const labels = {
@@ -1793,10 +1793,88 @@ const appOptions = {
       };
       return labels[scenePublishStatusKey.value] || labels.draft;
     });
+    const latestPublishedVersion = computed(() => {
+      const versions = Array.isArray(form.publishedVersions) ? form.publishedVersions : [];
+      const version = versions[versions.length - 1];
+      if (!version) return null;
+      return {
+        ...version,
+        label: '公開済み',
+        publishedAtLabel: formatPublishedVersionTime(version.publishedAt),
+      };
+    });
+    const hasPublishedVersions = computed(() => Boolean(latestPublishedVersion.value));
+
+    function formatPublishedVersionTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '日時不明';
+      const parts = new Intl.DateTimeFormat('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).formatToParts(date);
+      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${values.year}/${values.month}/${values.day} ${values.hour}:${values.minute}`;
+    }
+
+    function replaceWorkflowVersionForm(nextForm) {
+      Object.keys(form).forEach((key) => delete form[key]);
+      Object.assign(form, cloneJson(nextForm));
+      ensureFormWorkflows(form, { force: true });
+      const scene = currentScene.value;
+      if (scene) loadSceneSetupDraftFromData(form, scene.id, scene.name);
+      selectedWorkflowNodeId.value = null;
+      selectedWorkflowEdgeKey.value = null;
+      inspectorMode.value = 'scene';
+      resetWorkflowEditTracking('バージョン表示を切替');
+      nextTick(() => {
+        if (workflowSetupStep.value === 2) fitWorkflowToView();
+      });
+    }
+
+    function switchWorkflowVersionView(versionId = '') {
+      if (!versionId || versionId === 'draft') {
+        if (workflowVersionView.value === 'draft') return;
+        if (!draftVersionBuffer) {
+          draftVersionBuffer = cloneJson(form);
+          draftVersionBuffer.scene.publishStatus = 'draft';
+        }
+        replaceWorkflowVersionForm(draftVersionBuffer);
+        draftVersionBuffer = null;
+        workflowVersionView.value = 'draft';
+        selectedPublishedVersionId.value = '';
+        return;
+      }
+      const versions = Array.isArray(form.publishedVersions) ? form.publishedVersions : [];
+      const version = versions.find((item) => item.id === versionId);
+      if (!version || selectedPublishedVersionId.value === versionId) return;
+      if (workflowVersionView.value === 'draft') draftVersionBuffer = cloneJson(form);
+      const published = cloneJson(version.snapshot);
+      published.publishedVersions = cloneJson(draftVersionBuffer?.publishedVersions || versions);
+      replaceWorkflowVersionForm(published);
+      workflowVersionView.value = 'published';
+      selectedPublishedVersionId.value = versionId;
+    }
+
+    function showLatestPublishedVersionIfNeeded() {
+      if (form.scene.publishStatus !== 'published') return;
+      const versions = Array.isArray(form.publishedVersions) ? form.publishedVersions : [];
+      const latestVersion = versions[versions.length - 1];
+      if (!latestVersion?.snapshot) return;
+      draftVersionBuffer = cloneJson(form);
+      draftVersionBuffer.scene.publishStatus = 'draft';
+      const published = cloneJson(latestVersion.snapshot);
+      published.publishedVersions = cloneJson(versions);
+      replaceWorkflowVersionForm(published);
+      workflowVersionView.value = 'published';
+      selectedPublishedVersionId.value = latestVersion.id;
+    }
     function updateSceneReadyState() {
       if (form.scene.publishStatus === 'published') return;
-      // Step2 测试仅作为参考检查，不再决定是否可进入下一步
-      form.scene.publishStatus = form.workflowTestStatus === 'success' ? 'ready' : 'draft';
+      form.scene.publishStatus = normalizeScenePublishStatus(form.scene.publishStatus);
     }
 
     const sceneStats = computed(() => {
@@ -1873,7 +1951,7 @@ const appOptions = {
       return !(ocrNode && enabled.length > 0);
     });
 
-    // 公开：只由 Step2 Workflow テスト成功决定；Step3/Step4 保存不作为发布门禁
+    // 公开：Step2 静态校验通过并保存后开放；Step3/Step4 保存不作为发布门禁
     const canPublishWorkflowScene = computed(() => scenePublishStatusKey.value === 'ready');
 
     const outputExportFieldMode = computed({
@@ -5260,7 +5338,7 @@ const appOptions = {
       workflowSetupStep.value = 2;
     }
 
-    function goToWorkflowSetupStep(step) {
+    function goToWorkflowSetupStep(step, options = {}) {
       if (step === 1) {
         if (workflowSetupStep.value === 1) return;
         const scene = currentScene.value;
@@ -5291,6 +5369,9 @@ const appOptions = {
           proceedToWorkflowStep();
           if (workflowSetupStep.value !== 2) return;
         }
+        if (workflowSetupStep.value === 2
+          && !options.skipWorkflowStaticValidation
+          && !validateWorkflowStaticConfiguration()) return;
         updateSceneReadyState();
         currentNode.value = 'scene';
         selectedWorkflowEdgeKey.value = null;
@@ -5621,11 +5702,22 @@ const appOptions = {
     }
 
     function validateWorkflowPublish() {
-      if (form.workflowTestStatus !== 'success') return 'Workflow テストを完了してください';
+      if (scenePublishStatusKey.value !== 'ready') return 'Step2 の設定を保存してください';
       return '';
     }
 
     function publishWorkflowScene() {
+      if (!applyCurrentSceneSetupDraftIfNeeded()) return;
+      syncOutputDocFieldsBySceneDocs();
+      const err = validateWorkflowPublish();
+      if (err) {
+        ElementPlus.ElMessage.warning(err);
+        return;
+      }
+      confirmPublishWorkflowScene();
+    }
+
+    function confirmPublishWorkflowScene() {
       ElementPlus.ElMessageBox.confirm(
         'Step1〜Step4の現在の設定を公開します。公開後、この業務シーンの新しい案件処理に反映されます。',
         '業務シーンを公開しますか？',
@@ -5635,8 +5727,6 @@ const appOptions = {
           type: 'warning',
         },
       ).then(() => {
-        if (!applyCurrentSceneSetupDraftIfNeeded()) return;
-        syncOutputDocFieldsBySceneDocs();
         const err = validateWorkflowPublish();
         if (err) {
           ElementPlus.ElMessage.warning(err);
@@ -5644,6 +5734,17 @@ const appOptions = {
         }
         form.scene.publishStatus = 'published';
         form.scene.publishedAt = new Date().toISOString();
+        if (!Array.isArray(form.publishedVersions)) form.publishedVersions = [];
+        const publishedVersion = {
+          id: `v${form.publishedVersions.length + 1}`,
+          publishedAt: form.scene.publishedAt,
+          snapshot: createPublishedSnapshot(form),
+        };
+        form.publishedVersions = [publishedVersion];
+        draftVersionBuffer = cloneJson(form);
+        draftVersionBuffer.scene.publishStatus = 'draft';
+        workflowVersionView.value = 'published';
+        selectedPublishedVersionId.value = publishedVersion.id;
         savedSnapshot.value = JSON.stringify(form);
         saveStorage(currentSceneId.value, form);
         ElementPlus.ElMessage.success('公開しました');
@@ -8784,6 +8885,9 @@ const appOptions = {
         if (renaming) finishRenameScene(renaming);
       }
       currentSceneId.value = id;
+      workflowVersionView.value = 'draft';
+      selectedPublishedVersionId.value = '';
+      draftVersionBuffer = null;
       const scene = scenes.value.find((s) => s.id === id);
       if (!scene) return;
       const stored = loadSceneFromStorage(id);
@@ -8792,6 +8896,7 @@ const appOptions = {
       Object.assign(form, next);
       ensureFormWorkflows(form);
       updateSceneReadyState();
+      showLatestPublishedVersionIfNeeded();
       savedSnapshot.value = JSON.stringify(form);
       if (options.focusScene) {
         selectedWorkflowNodeId.value = null;
@@ -8829,7 +8934,7 @@ const appOptions = {
     function markSceneConfigChanged(scope = 'workflow') {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
       if (scope === 'output') {
-        // Step4 勾选变更：只回退输出配置有效，不影响 Step2 测试结论和可发布状态
+        // Step4 勾选变更只影响输出配置，不影响可发布状态
         form.outputConfigStatus = 'unsaved';
         return;
       }
@@ -8847,6 +8952,9 @@ const appOptions = {
     }
 
     function handleSave(options = {}) {
+      if (workflowSetupStep.value === 2
+        && !options.skipWorkflowStaticValidation
+        && !validateWorkflowStaticConfiguration()) return false;
       if (currentNode.value === 'scene') {
         const err = validateSceneAggregate();
         if (err) {
@@ -8859,6 +8967,50 @@ const appOptions = {
       saveStorage(currentSceneId.value, form);
       if (!options.silent) ElementPlus.ElMessage.success('下書きを保存しました');
       return true;
+    }
+
+    function validateWorkflowStaticConfiguration() {
+      const result = collectWorkflowTestDimensionErrors(
+        getActiveWf(),
+        {},
+        getWorkflowTestSceneContext(),
+        { skipTestInput: true },
+      );
+      const firstError = result?.errors?.[0];
+      if (!firstError) return true;
+      ElementPlus.ElMessage.warning(firstError.message || 'Workflow の設定を確認してください');
+      if (firstError.nodeId) {
+        selectWorkflowNode(firstError.nodeId);
+        workflowTestHighlightNodeId.value = firstError.nodeId;
+        focusWorkflowNodeOnCanvas(firstError.nodeId);
+        if (workflowTestHighlightTimer) window.clearTimeout(workflowTestHighlightTimer);
+        workflowTestHighlightTimer = window.setTimeout(() => {
+          clearWorkflowTestHighlight();
+        }, 4200);
+      }
+      return false;
+    }
+
+    function saveWorkflowStep2() {
+      if (!validateWorkflowStaticConfiguration()) return false;
+      if (!handleSave({ silent: true, skipWorkflowStaticValidation: true })) return false;
+      markWorkflowReadyAfterStaticValidation();
+      ElementPlus.ElMessage.success('保存しました');
+      return true;
+    }
+
+    function goToWorkflowStep3() {
+      if (!validateWorkflowStaticConfiguration()) return false;
+      if (!handleSave({ silent: true, skipWorkflowStaticValidation: true })) return false;
+      markWorkflowReadyAfterStaticValidation();
+      goToWorkflowSetupStep(3, { skipWorkflowStaticValidation: true });
+      return true;
+    }
+
+    function markWorkflowReadyAfterStaticValidation() {
+      if (form.scene.publishStatus !== 'published') form.scene.publishStatus = 'ready';
+      savedSnapshot.value = JSON.stringify(form);
+      saveStorage(currentSceneId.value, form);
     }
 
 
@@ -8962,7 +9114,7 @@ const appOptions = {
       }, 4200);
     }
 
-    function runWorkflowTest(options = {}) {
+    function runWorkflowTest() {
       const err = validateWorkflowTestCase(workflowTestDraft.testCase);
       if (err) {
         ElementPlus.ElMessage.warning(err);
@@ -8996,13 +9148,6 @@ const appOptions = {
           sceneContext,
         );
         applyWorkflowTestCanvasHighlights(workflowTestDraft.summary);
-        if (options.updateSceneStatus !== false) {
-          const testOk = workflowTestDraft.summary?.overallStatus === 'success';
-          form.workflowTestStatus = testOk ? 'success' : 'failed';
-          updateSceneReadyState();
-          savedSnapshot.value = JSON.stringify(form);
-          saveStorage(currentSceneId.value, form);
-        }
         const failedStep = workflowTestDraft.steps.find((step) => step.status === 'error');
         workflowTestDraft.selectedStepId = stopAtStepId
           || failedStep?.id
@@ -9323,6 +9468,7 @@ const appOptions = {
     }
 
     onMounted(() => {
+      showLatestPublishedVersionIfNeeded();
       if (!form.master.knowledgeSource) {
         form.master.knowledgeSource = normalizeKnowledgeSource(null);
       }
@@ -9590,6 +9736,13 @@ const appOptions = {
       docPickerMode,
       sceneSetupVisible,
       workflowSetupStep,
+      saveWorkflowStep2,
+      goToWorkflowStep3,
+      workflowVersionView,
+      selectedPublishedVersionId,
+      latestPublishedVersion,
+      hasPublishedVersions,
+      switchWorkflowVersionView,
       sceneSetupActiveTab,
       sceneSetupMode,
       sceneSetupDraft,
@@ -10286,6 +10439,7 @@ async function bootstrapApp() {
   app.component('InspectorModuleCard', InspectorModuleCard);
   app.component('InspectorFieldLabel', InspectorFieldLabel);
   app.component('InspectorTitle', InspectorTitle);
+  app.component('Clock', ElementPlusIconsVue.Clock);
   app.use(ElementPlus);
   try {
     app.mount('#app');

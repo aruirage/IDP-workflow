@@ -100,3 +100,83 @@ test('uses type-aware condition value controls', async () => {
   assert.match(main, /return \{ value, label: value \};/);
   assert.match(workflowCore, /valueSpec: spec\.valueSpec \|\| ''/);
 });
+
+test('keeps draft and published workflow history separate', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
+
+  assert.match(sceneConfig, /function createPublishedSnapshot\(formData\)/);
+  assert.match(sceneConfig, /delete snapshot\.publishedSnapshot;/);
+  assert.match(sceneConfig, /delete snapshot\.publishedVersions;/);
+  assert.match(sceneConfig, /form\.publishedVersions = \[\{/);
+  assert.match(sceneConfig, /form\.publishedVersions = \[form\.publishedVersions\[form\.publishedVersions\.length - 1\]\];/);
+  assert.match(main, /const workflowVersionView = ref\('draft'\);/);
+  assert.match(main, /const selectedPublishedVersionId = ref\(''\);/);
+  assert.match(main, /const latestPublishedVersion = computed/);
+  assert.match(main, /form\.publishedVersions = \[publishedVersion\];/);
+  assert.match(main, /function switchWorkflowVersionView\(versionId = ''\)/);
+  assert.match(main, /const isWorkflowTopologyEditable = computed\(\(\) => workflowVersionView\.value === 'draft'\);/);
+  assert.match(main, /function showLatestPublishedVersionIfNeeded\(\)/);
+  assert.match(main, /workflowVersionView\.value = 'published';/);
+  assert.match(main, /function switchWorkflowVersionView\(versionId = ''\)[\s\S]*if \(!draftVersionBuffer\)[\s\S]*draftVersionBuffer\.scene\.publishStatus = 'draft';/);
+  assert.match(index, /class="wf-version-history-btn" title="バージョン履歴"/);
+  assert.match(index, /<el-icon class="wf-version-history-icon"><clock \/><\/el-icon>/);
+  assert.match(index, /@element-plus\/icons-vue@2\.3\.1\/dist\/index\.iife\.min\.js/);
+  assert.match(main, /app\.component\('Clock', ElementPlusIconsVue\.Clock\);/);
+  assert.doesNotMatch(index, /<span>バージョン履歴<\/span>/);
+  assert.match(index, />現在の下書き</);
+  assert.doesNotMatch(index, /v-for="version in publishedVersionOptions"/);
+  assert.match(index, /latestPublishedVersion/);
+  assert.match(index, />適用中<\/span>/);
+  assert.match(index, /:class="\{ 'is-applied-view': workflowVersionView === 'published' \}"/);
+});
+
+test('publishes directly from Step4 after confirmation', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(index, /class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト/);
+  assert.match(index, /<el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開<\/el-button>/);
+  assert.match(main, /function publishWorkflowScene\(\)[\s\S]*confirmPublishWorkflowScene\(\);/);
+  assert.doesNotMatch(main, /function publishWorkflowScene\(\)[\s\S]{0,240}openWorkflowTestDialog/);
+  assert.match(main, /function confirmPublishWorkflowScene\(\)[\s\S]*form\.scene\.publishStatus = 'published';/);
+  assert.match(main, /workflowVersionView\.value = 'published';/);
+  assert.match(main, /selectedPublishedVersionId\.value = publishedVersion\.id;/);
+});
+
+test('places workflow reset at the end of the canvas history toolbar', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const step2Start = index.indexOf('<template v-else-if="workflowSetupStep === 2">');
+  const step2Workspace = index.indexOf('class="idp-workspace"', step2Start);
+  const step2Toolbar = index.slice(step2Start, step2Workspace);
+  const historyToolbar = index.slice(
+    index.indexOf('class="wf-canvas-floating-actions wf-canvas-history-actions"'),
+    index.indexOf('class="wf-canvas-floating-actions wf-canvas-view-actions"'),
+  );
+
+  assert.doesNotMatch(step2Toolbar, /resetWorkflowCanvas/);
+  assert.equal((step2Toolbar.match(/<el-button/g) || []).length, 3);
+  assert.match(historyToolbar, /title="リセット"[\s\S]*@click="resetWorkflowCanvas"/);
+  assert.ok(historyToolbar.lastIndexOf('@click="resetWorkflowCanvas"') > historyToolbar.lastIndexOf('</el-popover>'));
+  assert.match(main, /ElementPlus\.ElMessageBox\.confirm\('開始ノード以外のすべてのノードと接続を削除します。続行しますか？'/);
+});
+
+test('gates Step2 save and next with static validation only', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+
+  assert.match(mockData, /function collectWorkflowTestDimensionErrors\(workflow, testCase, sceneContext = \{\}, options = \{\}\)/);
+  assert.match(mockData, /if \(!options\.skipTestInput/);
+  assert.match(main, /function validateWorkflowStaticConfiguration\(\)/);
+  assert.match(main, /collectWorkflowTestDimensionErrors\([\s\S]*skipTestInput: true/);
+  assert.match(main, /function saveWorkflowStep2\(\)/);
+  assert.match(main, /function goToWorkflowStep3\(\)/);
+  assert.match(index, /@click="goToWorkflowStep3">次へ<\/el-button>/);
+  assert.match(index, /@click="saveWorkflowStep2">保存<\/el-button>/);
+  assert.match(main, /if \(!validateWorkflowStaticConfiguration\(\)\) return false;/);
+  assert.match(main, /function saveWorkflowStep2\(\)[\s\S]*markWorkflowReadyAfterStaticValidation\(\)/);
+  assert.match(main, /function markWorkflowReadyAfterStaticValidation\(\)[\s\S]*form\.scene\.publishStatus = 'ready';/);
+});
