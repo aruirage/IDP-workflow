@@ -523,9 +523,7 @@ function getSceneLinkValidationError(documents, mainDocType, docFieldLinks, getD
     docFieldLinks,
   );
   if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
-    const unlinkedTypes = [...new Set([...stats.noRelationDocs, ...stats.unlinkedDocs])];
-    const names = unlinkedTypes.map((type) => getDocDisplayLabel(type)).join('、');
-    return `関連関係が設定されていない帳票があります：${names}`;
+    return '関連関係が未設定です。';
   }
   return '';
 }
@@ -1198,7 +1196,7 @@ function sceneForm(sceneOrId) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildDefaultCaseWorkflow(),
+    case: buildMinimalCaseWorkflow(),
   };
   data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
     ? cloneWorkflowTestCaseDefault()
@@ -1230,7 +1228,7 @@ function sceneFormByScene(scene) {
   data.output = normalizeOutputConfig(data.output, data.scene.documents, data.master.mappings, data.master.knowledgeSource);
   syncOcrExtractTypesOnForm(data);
   data.workflows = {
-    case: buildDefaultCaseWorkflow(),
+    case: buildMinimalCaseWorkflow(),
   };
   data.workflowTestCase = typeof cloneWorkflowTestCaseDefault === 'function'
     ? cloneWorkflowTestCaseDefault()

@@ -23,7 +23,7 @@ const appOptions = {
     ensureFormWorkflows(initialForm);
     const wfCase = initialForm.workflows?.case;
     if (wfCase && shouldMigrateCaseWorkflowToDefault(wfCase)) {
-      initialForm.workflows.case = buildDefaultCaseWorkflow();
+      initialForm.workflows.case = buildMinimalCaseWorkflow();
       if (typeof saveStorage === 'function') {
         saveStorage(currentSceneId.value, initialForm);
       }
@@ -790,7 +790,7 @@ const appOptions = {
       ['テストデータを更新しました', '已更新测试数据'],
       ['アップロード', '已上传'],
       ['内蔵の集約済み案件スナップショット（読み取り専用）をテスト入力として使用します。', '使用内置标准集约済み案件快照（只读）作为测试输入。'],
-      ['内蔵の集約済み案件スナップショットで Workflow をテスト実行します。人工確認タスク作成・通知送信・メール送信は行いません。通知設定はテスト対象外です。', '使用内置集约完成案件快照执行 Workflow 测试；不创建人工确认任务，不发送通知，不发送邮件。通知设置不属于测试对象。'],
+      ['内蔵の Mock テストデータで Workflow を実行します。人工確認タスク作成・通知送信・メール送信は行いません。通知設定はテスト対象外です。', '使用内置 Mock 测试数据执行 Workflow；不创建人工确认任务，不发送通知或邮件，通知配置不在测试范围内。'],
       ['読み取り専用', '只读'],
       ['JSON の形式が正しくありません', 'JSON 格式不正确'],
       ['テスト用データを初期値に戻しました', '已恢复检查输入默认值'],
@@ -813,7 +813,7 @@ const appOptions = {
       ['主帳票', '主账票'],
       ['関連帳票', '相关账票'],
       ['参考資料', '参考资料'],
-      ['標準集約済み案件', '标准集约済み案件'],
+      ['Mock テストデータ', 'Mock 测试数据'],
       ['内蔵', '内置'],
       ['内蔵の集約済みスナップショットを既定入力とします。缺件・検証結果は Workflow 実行時に AI検証ノードで判定します。', '使用内置集约済み快照作为默认输入。缺件与检证结果在 Workflow 执行时由 AI 检证节点判定。'],
       ['案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。', '案件集约済み的固定快照。缺件与检证结果在 Workflow 执行时（AI 检证节点）判定。'],
@@ -2630,9 +2630,7 @@ const appOptions = {
     const sceneSetupLinkCheckSummary = computed(() => {
       const stats = sceneSetupLinkStats.value;
       if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
-        const unlinkedTypes = [...new Set([...stats.noRelationDocs, ...stats.unlinkedDocs])];
-        const names = unlinkedTypes.map((type) => getDocDisplayLabel(type)).join('、');
-        return { tone: 'warn', text: `関連関係が設定されていない帳票があります：${names}` };
+        return { tone: 'warn', text: '関連関係が未設定です。' };
       }
       return { tone: 'ok', text: 'すべての帳票に関連関係が設定されています' };
     });
@@ -3509,8 +3507,8 @@ const appOptions = {
     }
 
     let workflowEdgePathsEvalCount = 0;
-    const WF_EDGE_ROUTE_GAP = 72;
-    const WF_EDGE_ROUTE_STEP = 34;
+    const WF_EDGE_ROUTE_GAP = 40;
+    const WF_EDGE_ROUTE_STEP = 24;
     const WF_EDGE_ROUTE_PAD = 18;
     const WF_EDGE_COLLISION_SAMPLES = 24;
 
@@ -3574,9 +3572,7 @@ const appOptions = {
         : '';
       if (explicit) return explicit;
       const span = Math.abs(draft.x2 - draft.x1);
-      if (draft.isBackflow || draft.x2 < draft.x1) {
-        return span > 220 ? 'bottom' : 'top';
-      }
+      if (draft.isBackflow || draft.x2 < draft.x1) return 'bottom';
       if (draft.y2 > draft.y1 + 28) return 'bottom';
       if (draft.y2 < draft.y1 - 28) return 'top';
       const branch = String(draft.edge.branch || '');
@@ -3600,23 +3596,24 @@ const appOptions = {
       const absDx = Math.abs(dx);
       const maxForwardCurve = Math.max(8, Math.abs(dx) / 2 - 6);
       const curve = backflow
-        ? Math.max(36, Math.min(104, absDx * 0.32))
+        ? Math.max(32, Math.min(72, absDx * 0.28))
         : Math.min(maxForwardCurve, Math.max(16, Math.min(84, absDx * 0.32)));
       const sign = direction === 'top' ? -1 : 1;
       if (backflow) {
         const laneY = direction === 'bottom'
           ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
           : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
-        const midX = (x1 + x2) / 2;
+        const sideX = Math.min(x1, x2) - curve;
         const d = [
           `M ${x1} ${y1}`,
-          `C ${x1 + curve} ${y1}, ${x1 + curve} ${laneY}, ${midX} ${laneY}`,
-          `C ${x2 - curve} ${laneY}, ${x2 - curve} ${y2}, ${x2} ${y2}`,
+          `C ${x1 + curve} ${y1}, ${x1 + curve} ${laneY}, ${x1} ${laneY}`,
+          `C ${x1 - curve} ${laneY}, ${sideX} ${laneY}, ${sideX} ${laneY}`,
+          `C ${sideX} ${y2}, ${x2 - curve} ${y2}, ${x2} ${y2}`,
         ].join(' ');
         return {
           d,
-          mid: { x: midX, y: laneY },
-          labelAnchor: { x: midX, y: laneY },
+          mid: { x: sideX, y: laneY },
+          labelAnchor: { x: sideX, y: laneY },
         };
       }
       const yBias = laneOffset ? sign * laneOffset : 0;
@@ -3714,8 +3711,8 @@ const appOptions = {
           y2 = toCy;
         }
 
-        const isBackflow = isWorkflowBackflowEdge(getActiveWf(), edge.from, edge.to)
-          || x2 < x1 - 24;
+        const isBackflow = x2 < x1 - 24
+          || edge.branch === 'request_supplement';
         const draft = {
           x1,
           y1,
@@ -5477,17 +5474,6 @@ const appOptions = {
     function validateSceneAggregateDraft(draft) {
       if (!draft.mainDocType) return '主帳票を1件選択してください';
       if (!draft.mainKey) return '業務キーを選択してください';
-      const invalidGroups = sceneSetupAggregateInvalidGroups.value;
-      if (invalidGroups.length) {
-        return 'この帳票間関連のフィールドを追加してください';
-      }
-      const linkError = getSceneLinkValidationError(
-        draft.documents,
-        draft.mainDocType,
-        draft.docFieldLinks,
-        getDocDisplayLabel,
-      );
-      if (linkError) return linkError;
       return '';
     }
 
@@ -5522,17 +5508,6 @@ const appOptions = {
         sceneSetupDraft.docFieldLinks,
         sceneSetupDraft.documents,
       );
-      const linkErr = getSceneLinkValidationError(
-        sceneSetupDraft.documents,
-        sceneSetupDraft.mainDocType,
-        sceneSetupDraft.docFieldLinks,
-        getDocDisplayLabel,
-      );
-      if (linkErr) {
-        flashSceneSetupLinkCheckResult();
-        ElementPlus.ElMessage.warning(linkErr);
-        return;
-      }
       if (sceneSetupMode.value === 'edit') {
         const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
         if (!scene) return;
@@ -5596,17 +5571,6 @@ const appOptions = {
         sceneSetupDraft.docFieldLinks,
         sceneSetupDraft.documents,
       );
-      const linkErr = getSceneLinkValidationError(
-        sceneSetupDraft.documents,
-        sceneSetupDraft.mainDocType,
-        sceneSetupDraft.docFieldLinks,
-        getDocDisplayLabel,
-      );
-      if (linkErr) {
-        flashSceneSetupLinkCheckResult();
-        ElementPlus.ElMessage.warning(linkErr);
-        return false;
-      }
       if (sceneSetupMode.value === 'edit') {
         const scene = scenes.value.find((s) => s.id === sceneSetupDraft.sceneId);
         if (!scene) return false;
@@ -5646,13 +5610,6 @@ const appOptions = {
       const sceneErr = validateSceneAggregate();
       if (sceneErr) return sceneErr;
       if (!form.scene.documents?.length) return '関連帳票を1件以上追加してください';
-      const linkErr = getSceneLinkValidationError(
-        form.scene.documents,
-        getSceneMainDocType(form.scene),
-        form.scene.docFieldLinks || [],
-        getDocDisplayLabel,
-      );
-      if (linkErr) return linkErr;
       if (!getActiveWf()?.nodes?.length) return 'Workflowノードを設定してください';
       return '';
     }
@@ -5724,9 +5681,6 @@ const appOptions = {
         getDocDisplayLabel,
       );
       flashSceneSetupLinkCheckResult();
-      if (linkErr) {
-        ElementPlus.ElMessage.warning(linkErr);
-      }
     }
 
     function removeSceneSetupDoc(index) {
@@ -5773,55 +5727,22 @@ const appOptions = {
       sceneSetupDraft.docFieldLinks.splice(index, 1);
     }
 
-    async function autoMatchDocFieldLinks() {
+    function autoMatchDocFieldLinks() {
       if (sceneSetupDraft.documents.length < 2) {
         ElementPlus.ElMessage.warning('関連帳票を2件以上追加してください');
         return;
       }
       applySceneSetupAggregate();
-      const mainDocType = sceneSetupDraft.mainDocType || sceneSetupDraft.documents[0]?.type || '';
-      const requestInput = {
-        businessScene: sceneSetupDraft.name,
-        mainDocument: {
-          docType: mainDocType,
-          primaryKey: sceneSetupDraft.mainKey || '',
-          fields: getSceneSetupFieldOptions(mainDocType),
-        },
-        relatedDocuments: sceneSetupDraft.documents
-          .filter((doc) => doc.type !== mainDocType)
-          .map((doc) => ({
-            docType: doc.type,
-            fields: getSceneSetupFieldOptions(doc.type),
-          })),
-        existingRules: Object.values((sceneSetupDraft.docFieldLinks || []).reduce((rules, link) => {
-          const pairKey = `${link.sourceDocType}|${link.targetDocType}`;
-          const groupKey = `${pairKey}|${link.conditionGroupId || 'default'}`;
-          if (!rules[groupKey]) {
-            rules[groupKey] = {
-              leftDocType: link.sourceDocType,
-              rightDocType: link.targetDocType,
-              group: { relations: [] },
-            };
-          }
-          rules[groupKey].group.relations.push({
-            leftField: link.sourceField,
-            rightField: link.targetField,
-          });
-          return rules;
-        }, {})),
-      };
-      window.__neosAiDocFieldLinkPromptInput = cloneJson(requestInput);
       sceneSetupAiMatching.value = true;
       try {
-        const response = await fetch('/api/aggregate-rules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestInput),
+        const result = recommendDocFieldLinksByAiRules({
+          sceneName: sceneSetupDraft.name,
+          documents: sceneSetupDraft.documents,
+          mainDocType: sceneSetupDraft.mainDocType,
+          mainKey: sceneSetupDraft.mainKey,
+          existingRelations: [],
         });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || 'AI関連ルールの生成に失敗しました');
         const relations = normalizeDocFieldLinks(result.relations, sceneSetupDraft.documents);
-        if (!relations.length) throw new Error('AIから関連ルールが返されませんでした');
         sceneSetupDraft.docFieldLinks = relations;
         Object.keys(sceneSetupAggregateDetailOpen).forEach((key) => delete sceneSetupAggregateDetailOpen[key]);
         relations.forEach((relation) => {
@@ -5829,9 +5750,7 @@ const appOptions = {
         });
         ensureSceneSetupAggregateRuleSettings();
         clearSceneSetupLinkCheckDisplay();
-        ElementPlus.ElMessage.success(`AIが関連ルールを生成しました（${relations.length}件）`);
-      } catch (error) {
-        ElementPlus.ElMessage.error(error?.message || 'AI関連ルールの生成に失敗しました');
+        ElementPlus.ElMessage.success(`関連ルールを生成しました（${relations.length}件）`);
       } finally {
         sceneSetupAiMatching.value = false;
       }
@@ -6874,6 +6793,7 @@ const appOptions = {
               breadcrumb: path.join(' › '),
               scope: item.scope || '',
               dataType: item.dataType || '',
+              valueSpec: item.valueSpec || '',
               description: item.description || '',
             };
             return;
@@ -6905,6 +6825,32 @@ const appOptions = {
     function getDecisionValuePlaceholder(condition) {
       const operator = DECISION_OPERATORS.find((opt) => opt.value === condition?.operator);
       return operator?.placeholder || '値を入力';
+    }
+
+    function decisionUsesFreeTextValue(condition) {
+      if (!condition || !decisionUsesValueField(condition.operator)) return false;
+      const type = normalizeDecisionDataType(getDecisionConditionDataType(condition));
+      return ['string', 'number'].includes(type);
+    }
+
+    function decisionUsesValueSelect(condition) {
+      if (!condition || !decisionUsesValueField(condition.operator)) return false;
+      const type = normalizeDecisionDataType(getDecisionConditionDataType(condition));
+      return type === 'enum';
+    }
+
+    function getDecisionValueOptions(condition) {
+      const option = getDecisionConditionVariableOption(condition);
+      return String(option?.valueSpec || '')
+        .split('/')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => {
+          const value = item.replace(/[（(].*$/, '').trim();
+          return { value, label: value };
+        })
+        .filter((item, index, list) => item.value
+          && list.findIndex((candidate) => candidate.value === item.value) === index);
     }
 
     function inferDecisionConditionDefaultValue(condition, decisionCase = null) {
@@ -6977,6 +6923,7 @@ const appOptions = {
     }
 
     function onDecisionConditionVariableChange(condition) {
+      condition.value = '';
       ensureDecisionConditionOperator(condition, true);
       onDecisionConditionFieldChange();
     }
@@ -10041,6 +9988,9 @@ const appOptions = {
       getDecisionVariableOptions,
       getDecisionOperatorOptions,
       getDecisionValuePlaceholder,
+      decisionUsesFreeTextValue,
+      decisionUsesValueSelect,
+      getDecisionValueOptions,
       previewDecisionCase,
       previewDecisionNode,
       decisionConditionPreview,

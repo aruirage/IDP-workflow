@@ -13501,7 +13501,17 @@ body.idp-inspector-resizing * {
   font-weight: 600;
   color: #475467;
 }
+.notify-var-insert-target {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 112px;
+  flex: 0 0 112px;
+}
+.notify-var-insert-target .el-radio-button {
+  min-width: 0;
+}
 .notify-var-insert-target .el-radio-button__inner {
+  width: 100%;
   padding: 4px 10px;
   font-size: 12px;
 }

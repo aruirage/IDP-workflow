@@ -11,17 +11,18 @@ async function loadTemplateRegistry() {
   const registrySource = source.slice(start, end);
   const context = {};
   const maxDocsMatch = source.match(/const MAX_DOCS = (\d+);/);
-  vm.runInNewContext(`${registrySource}\nthis.registry = DOC_TYPE_REGISTRY;`, context);
+  vm.runInNewContext(`${registrySource}\nthis.registry = DOC_TYPE_REGISTRY;\nthis.initialTypes = INITIAL_SCENE_DOCUMENT_TYPES;`, context);
   context.maxDocs = Number(maxDocsMatch?.[1]);
   return context;
 }
 
-test('uses ten initial templates while retaining the twenty-document limit', async () => {
-  const { registry, maxDocs } = await loadTemplateRegistry();
+test('offers twenty templates while selecting ten initial documents', async () => {
+  const { registry, initialTypes, maxDocs } = await loadTemplateRegistry();
   const ids = Array.from(registry, (item) => item.id);
 
   assert.equal(maxDocs, 20);
-  assert.deepEqual(ids, [
+  assert.equal(ids.length, 20);
+  assert.deepEqual(Array.from(initialTypes), [
     '保険請求書',
     '診断書',
     '診療明細書',
@@ -63,8 +64,28 @@ test('loads all ten templates as the initial scene documents', async () => {
   const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
   const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
 
-  assert.match(mockData, /const INITIAL_SCENE_DOCUMENT_TYPES = DOC_TYPE_REGISTRY\.map/);
+  assert.match(mockData, /const INITIAL_SCENE_DOCUMENT_TYPES = \[/);
   assert.match(sceneConfig, /function ensureInitialSceneDocuments\(documents\)/);
   assert.match(sceneConfig, /INITIAL_SCENE_DOCUMENT_TYPES\.map/);
   assert.equal((sceneConfig.match(/documents = ensureInitialSceneDocuments/g) || []).length, 3);
+});
+
+test('uses local aggregate recommendations without calling the GLM API', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const autoMatchStart = main.indexOf('function autoMatchDocFieldLinks()');
+  const autoMatchEnd = main.indexOf('function normalizeSceneSetupAggregateRuleSettings', autoMatchStart);
+  const autoMatchSource = main.slice(autoMatchStart, autoMatchEnd);
+
+  assert.match(autoMatchSource, /recommendDocFieldLinksByAiRules/);
+  assert.doesNotMatch(autoMatchSource, /fetch\(|\/api\/aggregate-rules/);
+});
+
+test('does not block scene progress on aggregate link validation', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const validateStart = main.indexOf('function validateSceneAggregateDraft');
+  const validateEnd = main.indexOf('function setSceneSetupMainDoc', validateStart);
+  const validateSource = main.slice(validateStart, validateEnd);
+
+  assert.doesNotMatch(validateSource, /getSceneLinkValidationError|sceneSetupAggregateInvalidGroups/);
+  assert.match(main, /text: '関連関係が未設定です。'/);
 });

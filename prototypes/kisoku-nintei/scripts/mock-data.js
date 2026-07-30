@@ -250,9 +250,30 @@ const DOC_TYPE_REGISTRY = [
   { id: '代理署名・押印念書', category: 'authorization', icon: '代', fields: ['証券番号', '給付金等受取人', '記入日（西暦）', 'フリガナ（姓）', 'フリガナ（名）', '氏名（自署・姓）', '氏名（自署・名）', '代理者 新郵便番号', '代理者 都道府県', '代理者 市区町村', '代理者 町名・番地', '日中連絡先', '理由', '請求番号'] },
   { id: '印鑑登録証明書', category: 'certificate', icon: '印', fields: ['登録印影', '氏名', '旧氏', '生年月日', '住所', '証明年月日', '証明発行者', '証明文'] },
   { id: '住民票', category: 'certificate', icon: '住', fields: ['件名', '作成', '世帯主', '個人番号', '住民コード', '氏名', '旧氏の氏名及び仮名', '生年月日', '性別', '続柄', '転入前住所', '住民異動の種類', '転入年月日', '住民となった日', '届出日', '本人確認'] },
+  { id: '領収書', category: 'receipt', icon: '領', fields: ['患者氏名', '患者番号', '領収日', '診療期間', '領収金額', '医療機関名'] },
+  { id: '入院証明書', category: 'medical', icon: '入', fields: ['患者氏名', '生年月日', '入院年月日', '退院年月日', '傷病名', '医療機関名', '医師名'] },
+  { id: '手術証明書', category: 'medical', icon: '手', fields: ['患者氏名', '生年月日', '手術年月日', '手術名', '医療機関名', '医師名'] },
+  { id: '通院証明書', category: 'medical', icon: '通', fields: ['患者氏名', '生年月日', '通院期間', '通院日数', '傷病名', '医療機関名'] },
+  { id: '死亡診断書', category: 'medical', icon: '死', fields: ['氏名', '生年月日', '死亡年月日時分', '死亡場所', '死因', '医療機関名', '医師名'] },
+  { id: '戸籍謄本', category: 'certificate', icon: '戸', fields: ['本籍', '筆頭者氏名', '氏名', '生年月日', '続柄', '発行年月日'] },
+  { id: '本人確認書類', category: 'certificate', icon: '本', fields: ['氏名', '生年月日', '住所', '有効期限', '書類番号'] },
+  { id: '委任状', category: 'authorization', icon: '委', fields: ['委任者氏名', '受任者氏名', '委任内容', '作成年月日', '住所'] },
+  { id: '同意書', category: 'authorization', icon: '同', fields: ['同意者氏名', '対象者氏名', '同意内容', '同意年月日'] },
+  { id: '休業証明書', category: 'report', icon: '休', fields: ['氏名', '勤務先名', '休業期間', '休業理由', '証明年月日'] },
 ];
 
-const INITIAL_SCENE_DOCUMENT_TYPES = DOC_TYPE_REGISTRY.map(({ id }) => id);
+const INITIAL_SCENE_DOCUMENT_TYPES = [
+  '保険請求書',
+  '診断書',
+  '診療明細書',
+  '調剤明細書',
+  '抗がん剤・ホルモン剤治療給付金請求書',
+  '事故状況報告書',
+  '法定相続人代表者選任書',
+  '代理署名・押印念書',
+  '印鑑登録証明書',
+  '住民票',
+];
 
 const EXTRACT_FIELDS = DOC_TYPE_REGISTRY.map(({ id, fields }) => ({ type: id, fields }));
 
@@ -1577,15 +1598,15 @@ function normalizeInputConfig(input) {
   return base;
 }
 
-const WORKFLOW_TEST_SCOPE_NOTE = '案件集約は本テストの対象外。選択した案件は既に集約済みであり、Workflow のみ検証します。';
+const WORKFLOW_TEST_SCOPE_NOTE = '案件集約は本テストの対象外。Mock の集約済み案件データを使用し、Workflow のみ検証します。';
 
-/** 内置「标准集约完成案件」快照：含文件归属与 OCR/标准字段初值，供 Workflow 测试执行消费 */
+/** 内置 Mock 数据：含文件归属与 OCR/标准字段初值，供 Workflow 测试执行消费 */
 const WORKFLOW_TEST_SAMPLES = {
   normal: {
     id: 'normal',
-    label: '標準集約済み案件',
+    label: 'Mock テストデータ',
     fixtureName: 'surgery_claim_post_aggregate.zip',
-    description: '案件集約済みの固定スナップショット。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。',
+    description: '集約済み案件を模した Mock データ。缺件・検証結果は Workflow 実行時（AI検証ノード）に判定します。',
     includes: [
       '案件集約完了 · 6 ファイル',
       '主帳票・関連帳票を含む標準構成',
@@ -1603,8 +1624,8 @@ const WORKFLOW_TEST_SAMPLES = {
     files: [
       {
         id: 'f-claim',
-        name: '保険金請求書_p1-2.pdf',
-        docType: '保険金請求書',
+        name: '保険請求書_p1-2.pdf',
+        docType: '保険請求書',
         role: '主帳票',
         ocrFields: { 氏名: '高橋誠', 請求金額: '245800', 診療日: '2025-03-12', 医療機関名: '中央総合病院' },
       },
@@ -1650,7 +1671,7 @@ const WORKFLOW_TEST_SAMPLES = {
     id: 'custom',
     label: 'ユーザーアップロード',
     fixtureName: '',
-    description: '第一期では未提供。内蔵の標準集約済み案件スナップショットのみ使用します。',
+    description: '第一期では未提供。内蔵の Mock テストデータのみ使用します。',
     includes: [],
     caseNo: '—',
     caseLabel: '—',
@@ -2758,11 +2779,11 @@ function buildWorkflowTestSteps(workflow, testCase, sceneContext = {}) {
         summary: workflowTestStepResultText({ type: 'start', label: start.label }, testCase),
       }));
     }
-    const errorId = first?.nodeId || start?.id || (wf.nodes || [])[0]?.id || 'gate';
+    const errorId = first?.nodeId || 'gate';
     if (!nodeMap[errorId] && errorId === 'gate') {
       steps.push({
         id: 'gate',
-        label: 'テスト前チェック',
+        label: first?.dimension === 'テスト入力' ? 'テスト入力チェック' : 'テスト前チェック',
         type: 'custom',
         status: 'error',
         onCycle: false,

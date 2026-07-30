@@ -12,9 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.1/dist/index.css" />
   <link rel="stylesheet" href="style.css?v=679" />
+  <style>[v-cloak] { display: none !important; }</style>
 </head>
 <body>
-  <div id="app">
+  <div id="app" v-cloak>
     <div class="app-shell">
       <div class="body-row idp-body" :class="{ 'is-editor-surface': inspectorExpanded && currentModule === 'case-workflow', 'is-workflow-setup-fullscreen': workflowSetupFullscreen && currentModule === 'case-workflow' }">
         <div v-show="currentModule === 'case-workflow' && !workflowSetupFullscreen" class="scene-list-col" :class="{ 'is-collapsed': sceneSidebarCollapsed }">
@@ -1353,7 +1354,7 @@
                                 </el-select>
                               </div>
                               <el-input
-                                v-if="decisionUsesValueField(condition.operator)"
+                                v-if="decisionUsesFreeTextValue(condition)"
                                 v-model="condition.value"
                                 class="inspector-ifelse-val"
                                 clearable
@@ -1361,6 +1362,25 @@
                                 :placeholder="getDecisionValuePlaceholder(condition)"
                                 @input="onDecisionConditionFieldChange"
                               ></el-input>
+                              <el-select
+                                v-else-if="decisionUsesValueSelect(condition)"
+                                v-model="condition.value"
+                                class="inspector-ifelse-val"
+                                clearable
+                                size="small"
+                                placeholder="取値を選択"
+                                placement="bottom-start"
+                                :teleported="false"
+                                popper-class="inspector-ifelse-select-popper idp-inspector-select-popper"
+                                @change="onDecisionConditionFieldChange"
+                              >
+                                <el-option
+                                  v-for="opt in getDecisionValueOptions(condition)"
+                                  :key="opt.value"
+                                  :label="opt.label"
+                                  :value="opt.value"
+                                ></el-option>
+                              </el-select>
                             </div>
                             <button
                               type="button"
@@ -1724,8 +1744,8 @@
                         <div class="notify-var-insert-head">
                           <span class="notify-var-insert-label" data-no-translate>{{ t('変数を挿入') }}</span>
                           <el-radio-group v-model="notifyVarInsertTarget" size="small" class="notify-var-insert-target">
-                            <el-radio-button value="subject" :label="t('件名')" />
-                            <el-radio-button value="body" :label="t('内容')" />
+                            <el-radio-button value="subject" :label="t('件名')"></el-radio-button>
+                            <el-radio-button value="body" :label="t('内容')"></el-radio-button>
                           </el-radio-group>
                         </div>
                         <el-cascader
@@ -1875,8 +1895,8 @@
                     <small class="workflow-notification-insert-hint">システム変数・ノード出力定義を挿入できます。</small>
                     <div class="workflow-notification-insert-actions">
                       <el-radio-group v-model="workflowNotificationInsertTarget" size="small" class="notify-var-insert-target">
-                        <el-radio-button value="subject" :label="t('件名')" />
-                        <el-radio-button value="body" :label="t('内容')" />
+                        <el-radio-button value="subject" :label="t('件名')"></el-radio-button>
+                        <el-radio-button value="body" :label="t('内容')"></el-radio-button>
                       </el-radio-group>
                       <el-select
                         class="workflow-notification-var-select"
@@ -2254,7 +2274,7 @@
               <div class="wf-test-sample-default">
                 <div class="wf-test-sample-default-head">
                   <strong>{{ t(workflowTestDraft.testCase.label) }}</strong>
-                  <span class="wf-test-sample-badge is-readonly">ファイル固定</span>
+                  <span class="wf-test-sample-badge is-readonly">Mock データ</span>
                 </div>
                 <p class="wf-test-sample-meta">
                   {{ workflowTestDraft.testCase.caseNo }} · {{ workflowTestDraft.testCase.caseLabel }} · {{ workflowTestDraft.testCase.files.length }}{{ t('件') }}
@@ -2264,7 +2284,7 @@
                     {{ file.name }} · {{ file.docType }} · {{ t(file.role) }}
                   </li>
                 </ul>
-                <p class="wf-test-sample-note">{{ t('内蔵の集約済み案件スナップショットで Workflow をテスト実行します。人工確認タスク作成・通知送信・メール送信は行いません。通知設定はテスト対象外です。') }}</p>
+                <p class="wf-test-sample-note">{{ t('内蔵の Mock テストデータで Workflow を実行します。人工確認タスク作成・通知送信・メール送信は行いません。通知設定はテスト対象外です。') }}</p>
               </div>
             </div>
           </section>
@@ -2447,8 +2467,8 @@
             <small class="workflow-notification-insert-hint">システム変数・ノード出力定義を挿入できます。</small>
             <div class="workflow-notification-insert-actions">
               <el-radio-group v-model="workflowNotificationEditInsertTarget" size="small" class="notify-var-insert-target">
-                <el-radio-button value="subject" :label="t('件名')" />
-                <el-radio-button value="body" :label="t('内容')" />
+                <el-radio-button value="subject" :label="t('件名')"></el-radio-button>
+                <el-radio-button value="body" :label="t('内容')"></el-radio-button>
               </el-radio-group>
               <el-select
                 class="workflow-notification-var-select"

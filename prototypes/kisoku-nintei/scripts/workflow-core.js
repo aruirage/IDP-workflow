@@ -1027,6 +1027,7 @@ function appendNodeOutputVarCatalog(node, workflow, options, catalogMode = 'cond
       group: title,
       scope: item.scope || '案件',
       dataType: item.type || '',
+      valueSpec: item.valueSpec || '',
       description: item.description || item.label,
       nodeType: node.type,
       nodeId: node.id,
@@ -2977,6 +2978,7 @@ function appendDecisionVarOption(options, spec) {
     localId,
     scope: spec.scope || '',
     dataType: spec.dataType || spec.type || '',
+    valueSpec: spec.valueSpec || '',
     description: spec.description || '',
     value: spec.value,
     label: spec.label,
@@ -4090,8 +4092,8 @@ function markWorkflowTopologyEdited(workflow) {
 function shouldMigrateCaseWorkflowToDefault(workflow) {
   if (!workflow?.nodes?.length) return true;
   if (workflow.topologyCustomized) return false;
-  if (isDefaultCaseWorkflowTemplate(workflow)) return false;
-  if (isMinimalPlaceholderCaseWorkflow(workflow)) return true;
+  if (isDefaultCaseWorkflowTemplate(workflow)) return true;
+  if (isMinimalPlaceholderCaseWorkflow(workflow)) return false;
   if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) {
     return !workflow.templateVersion || workflow.templateVersion < CASE_WORKFLOW_TEMPLATE_VERSION;
   }
@@ -4139,21 +4141,21 @@ function ensureFormWorkflows(form, { force = false } = {}) {
     };
     delete form.workflow;
     if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-      form.workflows.case = buildDefaultCaseWorkflow();
+      form.workflows.case = buildMinimalCaseWorkflow();
     }
     return;
   }
   if (form.workflows?.case) {
     if (!force) {
       if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-        form.workflows.case = buildDefaultCaseWorkflow();
+        form.workflows.case = buildMinimalCaseWorkflow();
       } else if (needsCanonicalCaseWorkflowLayout(form.workflows.case)) {
         applyCanonicalCaseWorkflowLayout(form.workflows.case);
       }
       return;
     }
     if (shouldMigrateCaseWorkflowToDefault(form.workflows.case)) {
-      form.workflows.case = buildDefaultCaseWorkflow();
+      form.workflows.case = buildMinimalCaseWorkflow();
       return;
     }
     form.workflows.case = normalizeWorkflow(form.workflows.case, 'case');
