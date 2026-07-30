@@ -5339,6 +5339,20 @@ const appOptions = {
     }
 
     function goToWorkflowSetupStep(step, options = {}) {
+      if (workflowVersionView.value === 'published') {
+        workflowSetupStep.value = step;
+        sceneSetupVisible.value = step === 1;
+        currentNode.value = step === 4 ? 'output' : 'scene';
+        selectedWorkflowEdgeKey.value = null;
+        selectedWorkflowNodeId.value = null;
+        inspectorPanelCollapsed.value = true;
+        if (step === 2) {
+          sceneSetupVisible.value = false;
+          enterWorkflowCanvasView();
+          nextTick(() => fitWorkflowToView());
+        }
+        return;
+      }
       if (step === 1) {
         if (workflowSetupStep.value === 1) return;
         const scene = currentScene.value;

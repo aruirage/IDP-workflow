@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 test('initializes the workflow canvas with only the fixed start node', async () => {
   const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
 
   assert.doesNotMatch(sceneConfig, /case: buildDefaultCaseWorkflow\(\)/);
@@ -105,6 +106,7 @@ test('keeps draft and published workflow history separate', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
 
   assert.match(sceneConfig, /function createPublishedSnapshot\(formData\)/);
   assert.match(sceneConfig, /delete snapshot\.publishedSnapshot;/);
@@ -130,6 +132,15 @@ test('keeps draft and published workflow history separate', async () => {
   assert.match(index, /latestPublishedVersion/);
   assert.match(index, />適用中<\/span>/);
   assert.match(index, /:class="\{ 'is-applied-view': workflowVersionView === 'published' \}"/);
+  assert.doesNotMatch(style, /適用中の設定（閲覧のみ）/);
+  assert.match(index, /v-if="workflowVersionView === 'published'" class="wf-toolbar-right"[\s\S]*goToWorkflowSetupStep\(2, \{ readonlyNavigation: true \}\)[\s\S]*次へ/);
+  assert.match(index, /goToWorkflowSetupStep\(3, \{ readonlyNavigation: true \}\)/);
+  assert.match(index, /goToWorkflowSetupStep\(4, \{ readonlyNavigation: true \}\)/);
+  assert.match(main, /if \(workflowVersionView\.value === 'published'\)[\s\S]*workflowSetupStep\.value = step;/);
+  assert.match(index, /class="wf-setup-page" :inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="idp-workspace"[\s\S]*:inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="wf-notification-step-page" :inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="wf-export-step-page" :inert="workflowVersionView === 'published'"/);
 });
 
 test('publishes directly from Step4 after confirmation', async () => {
@@ -151,13 +162,21 @@ test('places workflow reset at the end of the canvas history toolbar', async () 
   const step2Start = index.indexOf('<template v-else-if="workflowSetupStep === 2">');
   const step2Workspace = index.indexOf('class="idp-workspace"', step2Start);
   const step2Toolbar = index.slice(step2Start, step2Workspace);
+  const step2DraftToolbar = step2Toolbar.slice(
+    step2Toolbar.indexOf('v-if="workflowVersionView === \'draft\'"'),
+    step2Toolbar.indexOf('v-if="workflowVersionView === \'published\'"'),
+  );
+  const step2PublishedToolbar = step2Toolbar.slice(
+    step2Toolbar.indexOf('v-if="workflowVersionView === \'published\'"'),
+  );
   const historyToolbar = index.slice(
     index.indexOf('class="wf-canvas-floating-actions wf-canvas-history-actions"'),
     index.indexOf('class="wf-canvas-floating-actions wf-canvas-view-actions"'),
   );
 
   assert.doesNotMatch(step2Toolbar, /resetWorkflowCanvas/);
-  assert.equal((step2Toolbar.match(/<el-button/g) || []).length, 3);
+  assert.equal((step2DraftToolbar.match(/<el-button/g) || []).length, 3);
+  assert.equal((step2PublishedToolbar.match(/<el-button/g) || []).length, 2);
   assert.match(historyToolbar, /title="リセット"[\s\S]*@click="resetWorkflowCanvas"/);
   assert.ok(historyToolbar.lastIndexOf('@click="resetWorkflowCanvas"') > historyToolbar.lastIndexOf('</el-popover>'));
   assert.match(main, /ElementPlus\.ElMessageBox\.confirm\('開始ノード以外のすべてのノードと接続を削除します。続行しますか？'/);

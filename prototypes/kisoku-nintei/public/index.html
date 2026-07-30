@@ -326,9 +326,12 @@
               >{{ t('関連チェック') }}</el-button>
               <el-button type="primary" @click="proceedToWorkflowStep">{{ sceneSetupConfirmLabel }}</el-button>
             </div>
+            <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
+              <el-button @click="goToWorkflowSetupStep(2, { readonlyNavigation: true })">次へ</el-button>
+            </div>
           </div>
 
-          <div class="wf-setup-page">
+          <div class="wf-setup-page" :inert="workflowVersionView === 'published'">
             <div class="wf-setup-page-body">
               <div class="wf-setup-step1-shell">
                 <div class="wf-setup-config-stack">
@@ -688,12 +691,17 @@
               <el-button @click="goToWorkflowStep3">次へ</el-button>
               <el-button type="primary" @click="saveWorkflowStep2">保存</el-button>
             </div>
+            <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
+              <el-button @click="goToWorkflowSetupStep(1, { readonlyNavigation: true })">前へ</el-button>
+              <el-button @click="goToWorkflowSetupStep(3, { readonlyNavigation: true })">次へ</el-button>
+            </div>
           </div>
 
           <div
             class="idp-workspace"
             :class="{ 'inspector-collapsed': inspectorPanelCollapsed, 'inspector-resizing': inspectorResizing, 'canvas-maximized': wfCanvasMaximized, 'inspector-expanded': inspectorExpanded }"
             :style="inspectorWorkspaceStyle"
+            :inert="workflowVersionView === 'published'"
           >
             <main class="idp-canvas-wrap">
               <div
@@ -1863,9 +1871,13 @@
               <el-button @click="goToWorkflowStep4FromNotifications">次へ</el-button>
               <el-button type="primary" @click="saveWorkflowNotificationConfig">保存</el-button>
             </div>
+            <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
+              <el-button @click="goToWorkflowSetupStep(2, { readonlyNavigation: true })">前へ</el-button>
+              <el-button @click="goToWorkflowSetupStep(4, { readonlyNavigation: true })">次へ</el-button>
+            </div>
           </div>
 
-          <div class="wf-notification-step-page">
+          <div class="wf-notification-step-page" :inert="workflowVersionView === 'published'">
             <section class="workflow-notification-builder">
               <h3 class="workflow-notification-section-title">通知ルール追加</h3>
               <div class="workflow-notification-builder-grid">
@@ -2054,9 +2066,12 @@
               <el-button @click="saveOutputConfigFromStep3">保存</el-button>
               <el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開</el-button>
             </div>
+            <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
+              <el-button @click="goToWorkflowSetupStep(3, { readonlyNavigation: true })">前へ</el-button>
+            </div>
           </div>
 
-          <div class="wf-export-step-page">
+          <div class="wf-export-step-page" :inert="workflowVersionView === 'published'">
             <div class="export-config export-config--step">
               <div class="export-config-body">
                 <aside class="export-config-sidebar">

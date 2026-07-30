@@ -7091,12 +7091,6 @@ code.export-config-meta-value {
 .idp-workflow-module.is-applied-view .wf-export-step-page {
   pointer-events: none;
 }
-.idp-workflow-module.is-applied-view .wf-toolbar::after {
-  content: '適用中の設定（閲覧のみ）';
-  color: #667085;
-  font-size: 12px;
-  font-weight: 600;
-}
 .wf-canvas-toolbar--top {
   position: static;
   transform: none;
