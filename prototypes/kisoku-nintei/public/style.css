@@ -6978,6 +6978,7 @@ code.export-config-meta-value {
 }
 
 .wf-toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -7024,13 +7025,32 @@ code.export-config-meta-value {
   background: #ecfdf3;
   color: #039855;
 }
-.wf-toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.wf-publish-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #98a2b3;
+  border-radius: 50%;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+}
+.wf-toolbar-right { position: relative; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .wf-toolbar-center {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 1;
   min-width: 0;
+}
+.wf-toolbar-check-btn {
+  position: absolute;
+  right: calc(100% + 8px);
 }
 .wf-version-history-btn {
   display: flex;

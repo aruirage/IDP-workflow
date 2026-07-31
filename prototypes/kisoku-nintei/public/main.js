@@ -3,7 +3,8 @@ const WF_CANONICAL_LAYOUT_KEY = 'neosai-idp-wf-canonical-layout-v27';
 
 const appOptions = {
   setup() {
-    const uiLanguage = ref(localStorage.getItem('neosai-idp-ui-language') || 'ja');
+    localStorage.setItem('neosai-idp-ui-language', 'ja');
+    const uiLanguage = ref('ja');
     const sceneSearch = ref('');
     const currentSceneId = ref('2064639102406844416');
     const currentNode = ref('scene');
@@ -5383,9 +5384,6 @@ const appOptions = {
           proceedToWorkflowStep();
           if (workflowSetupStep.value !== 2) return;
         }
-        if (workflowSetupStep.value === 2
-          && !options.skipWorkflowStaticValidation
-          && !validateWorkflowStaticConfiguration()) return;
         updateSceneReadyState();
         currentNode.value = 'scene';
         selectedWorkflowEdgeKey.value = null;
@@ -5715,20 +5713,28 @@ const appOptions = {
       return '';
     }
 
-    function validateWorkflowPublish() {
-      if (scenePublishStatusKey.value !== 'ready') return 'Step2 の設定を保存してください';
-      return '';
-    }
-
     function publishWorkflowScene() {
       if (!applyCurrentSceneSetupDraftIfNeeded()) return;
       syncOutputDocFieldsBySceneDocs();
-      const err = validateWorkflowPublish();
-      if (err) {
-        ElementPlus.ElMessage.warning(err);
+      if (scenePublishStatusKey.value !== 'ready') {
+        showWorkflowNotPublishableDialog();
         return;
       }
       confirmPublishWorkflowScene();
+    }
+
+    function showWorkflowNotPublishableDialog() {
+      ElementPlus.ElMessageBox.confirm(
+        'Step2の設定チェックを完了し、ステータスを「公開可能」にしてください。',
+        '現在のステータスでは公開できません。',
+        {
+          confirmButtonText: 'Step2へ',
+          cancelButtonText: 'キャンセル',
+          type: 'warning',
+        },
+      ).then(() => {
+        goToWorkflowSetupStep(2);
+      }).catch(() => {});
     }
 
     function confirmPublishWorkflowScene() {
@@ -5741,11 +5747,6 @@ const appOptions = {
           type: 'warning',
         },
       ).then(() => {
-        const err = validateWorkflowPublish();
-        if (err) {
-          ElementPlus.ElMessage.warning(err);
-          return;
-        }
         form.scene.publishStatus = 'published';
         form.scene.publishedAt = new Date().toISOString();
         if (!Array.isArray(form.publishedVersions)) form.publishedVersions = [];
@@ -8966,9 +8967,6 @@ const appOptions = {
     }
 
     function handleSave(options = {}) {
-      if (workflowSetupStep.value === 2
-        && !options.skipWorkflowStaticValidation
-        && !validateWorkflowStaticConfiguration()) return false;
       if (currentNode.value === 'scene') {
         const err = validateSceneAggregate();
         if (err) {
@@ -8983,7 +8981,7 @@ const appOptions = {
       return true;
     }
 
-    function validateWorkflowStaticConfiguration() {
+    function validateWorkflowStaticConfiguration(options = {}) {
       const result = collectWorkflowTestDimensionErrors(
         getActiveWf(),
         {},
@@ -8993,7 +8991,7 @@ const appOptions = {
       const firstError = result?.errors?.[0];
       if (!firstError) return true;
       ElementPlus.ElMessage.warning(firstError.message || 'Workflow の設定を確認してください');
-      if (firstError.nodeId) {
+      if (firstError.nodeId && options.focusNode !== false) {
         selectWorkflowNode(firstError.nodeId);
         workflowTestHighlightNodeId.value = firstError.nodeId;
         focusWorkflowNodeOnCanvas(firstError.nodeId);
@@ -9006,18 +9004,20 @@ const appOptions = {
     }
 
     function saveWorkflowStep2() {
-      if (!validateWorkflowStaticConfiguration()) return false;
-      if (!handleSave({ silent: true, skipWorkflowStaticValidation: true })) return false;
-      markWorkflowReadyAfterStaticValidation();
+      if (!handleSave({ silent: true })) return false;
       ElementPlus.ElMessage.success('保存しました');
       return true;
     }
 
     function goToWorkflowStep3() {
-      if (!validateWorkflowStaticConfiguration()) return false;
-      if (!handleSave({ silent: true, skipWorkflowStaticValidation: true })) return false;
-      markWorkflowReadyAfterStaticValidation();
       goToWorkflowSetupStep(3, { skipWorkflowStaticValidation: true });
+      return true;
+    }
+
+    function checkWorkflowStep2Configuration() {
+      if (!validateWorkflowStaticConfiguration()) return false;
+      markWorkflowReadyAfterStaticValidation();
+      ElementPlus.ElMessage.success('設定チェックが完了しました');
       return true;
     }
 
@@ -9752,6 +9752,7 @@ const appOptions = {
       workflowSetupStep,
       saveWorkflowStep2,
       goToWorkflowStep3,
+      checkWorkflowStep2Configuration,
       workflowVersionView,
       selectedPublishedVersionId,
       latestPublishedVersion,

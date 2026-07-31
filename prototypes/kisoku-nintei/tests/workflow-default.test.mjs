@@ -67,6 +67,14 @@ test('hides the uncompiled Vue template until mount', async () => {
   assert.match(index, /<div id="app" v-cloak>/);
 });
 
+test('always opens the prototype in Japanese', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  assert.match(main, /localStorage\.setItem\('neosai-idp-ui-language', 'ja'\);/);
+  assert.match(main, /const uiLanguage = ref\('ja'\);/);
+  assert.doesNotMatch(main, /ref\(localStorage\.getItem\('neosai-idp-ui-language'\)/);
+});
+
 test('does not render forward edges as backflow inside a cycle', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const edgePathsStart = main.indexOf('const workflowEdgePaths = computed');
@@ -148,8 +156,11 @@ test('publishes directly from Step4 after confirmation', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.doesNotMatch(index, /class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト/);
-  assert.match(index, /<el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開<\/el-button>/);
-  assert.match(main, /function publishWorkflowScene\(\)[\s\S]*confirmPublishWorkflowScene\(\);/);
+  assert.match(index, /<el-button type="primary" @click="publishWorkflowScene">公開<\/el-button>/);
+  assert.match(index, /<el-button type="primary" @click="saveOutputConfigFromStep3">保存<\/el-button>/);
+  assert.match(main, /function publishWorkflowScene\(\)[\s\S]*scenePublishStatusKey\.value !== 'ready'[\s\S]*showWorkflowNotPublishableDialog\(\)[\s\S]*confirmPublishWorkflowScene\(\);/);
+  assert.match(main, /function showWorkflowNotPublishableDialog\(\)[\s\S]*Step2の設定チェックを完了し、ステータスを「公開可能」にしてください。[\s\S]*現在のステータスでは公開できません。[\s\S]*confirmButtonText: 'Step2へ'[\s\S]*goToWorkflowSetupStep\(2\)/);
+  assert.doesNotMatch(main, /function publishWorkflowScene\(\)[\s\S]{0,500}validateWorkflowStaticConfiguration/);
   assert.doesNotMatch(main, /function publishWorkflowScene\(\)[\s\S]{0,240}openWorkflowTestDialog/);
   assert.match(main, /function confirmPublishWorkflowScene\(\)[\s\S]*form\.scene\.publishStatus = 'published';/);
   assert.match(main, /workflowVersionView\.value = 'published';/);
@@ -175,27 +186,42 @@ test('places workflow reset at the end of the canvas history toolbar', async () 
   );
 
   assert.doesNotMatch(step2Toolbar, /resetWorkflowCanvas/);
-  assert.equal((step2DraftToolbar.match(/<el-button/g) || []).length, 3);
+  assert.equal((step2DraftToolbar.match(/<el-button/g) || []).length, 4);
   assert.equal((step2PublishedToolbar.match(/<el-button/g) || []).length, 2);
   assert.match(historyToolbar, /title="リセット"[\s\S]*@click="resetWorkflowCanvas"/);
   assert.ok(historyToolbar.lastIndexOf('@click="resetWorkflowCanvas"') > historyToolbar.lastIndexOf('</el-popover>'));
   assert.match(main, /ElementPlus\.ElMessageBox\.confirm\('開始ノード以外のすべてのノードと接続を削除します。続行しますか？'/);
 });
 
-test('gates Step2 save and next with static validation only', async () => {
+test('offers a separate Step2 configuration check without blocking save or navigation', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
 
   assert.match(mockData, /function collectWorkflowTestDimensionErrors\(workflow, testCase, sceneContext = \{\}, options = \{\}\)/);
   assert.match(mockData, /if \(!options\.skipTestInput/);
-  assert.match(main, /function validateWorkflowStaticConfiguration\(\)/);
+  assert.match(main, /function validateWorkflowStaticConfiguration\(options = \{\}\)/);
   assert.match(main, /collectWorkflowTestDimensionErrors\([\s\S]*skipTestInput: true/);
+  assert.match(main, /function checkWorkflowStep2Configuration\(\)[\s\S]*validateWorkflowStaticConfiguration\(\)[\s\S]*markWorkflowReadyAfterStaticValidation\(\)/);
   assert.match(main, /function saveWorkflowStep2\(\)/);
   assert.match(main, /function goToWorkflowStep3\(\)/);
   assert.match(index, /@click="goToWorkflowStep3">次へ<\/el-button>/);
   assert.match(index, /@click="saveWorkflowStep2">保存<\/el-button>/);
-  assert.match(main, /if \(!validateWorkflowStaticConfiguration\(\)\) return false;/);
-  assert.match(main, /function saveWorkflowStep2\(\)[\s\S]*markWorkflowReadyAfterStaticValidation\(\)/);
-  assert.match(main, /function markWorkflowReadyAfterStaticValidation\(\)[\s\S]*form\.scene\.publishStatus = 'ready';/);
+  assert.match(index, /type="warning"[\s\S]*class="wf-check-links-btn wf-toolbar-check-btn"[\s\S]*@click="checkWorkflowStep2Configuration"[\s\S]*設定チェック/);
+  assert.match(style, /\.wf-toolbar-right\s*\{[^}]*position:\s*relative;/s);
+  assert.match(style, /\.wf-toolbar-check-btn\s*\{[^}]*position:\s*absolute;[^}]*right:\s*calc\(100% \+ 8px\);/s);
+  const saveStep2Source = main.slice(main.indexOf('function saveWorkflowStep2()'), main.indexOf('function goToWorkflowStep3()'));
+  const nextStep2Source = main.slice(main.indexOf('function goToWorkflowStep3()'), main.indexOf('function checkWorkflowStep2Configuration()'));
+  assert.doesNotMatch(saveStep2Source, /validateWorkflowStaticConfiguration/);
+  assert.doesNotMatch(nextStep2Source, /validateWorkflowStaticConfiguration/);
+});
+
+test('explains the publishable status beside every workflow status badge', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.equal((index.match(/Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。/g) || []).length, 4);
+  assert.equal((index.match(/class="wf-publish-help"/g) || []).length, 4);
+  assert.match(style, /\.wf-publish-help\s*\{[^}]*cursor:\s*help;/s);
 });

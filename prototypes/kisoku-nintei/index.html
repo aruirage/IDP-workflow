@@ -315,6 +315,9 @@
                 class="wf-publish-badge"
                 :class="'is-' + scenePublishStatusKey"
               >{{ scenePublishBadge }}</span>
+              <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
+                <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
+              </el-tooltip>
             </div>
             <div class="wf-toolbar-center"></div>
             <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
@@ -684,9 +687,17 @@
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
+              <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
+                <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
+              </el-tooltip>
             </div>
             <div class="wf-toolbar-center"></div>
             <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
+              <el-button
+                type="warning"
+                class="wf-check-links-btn wf-toolbar-check-btn"
+                @click="checkWorkflowStep2Configuration"
+              >設定チェック</el-button>
               <el-button @click="goToWorkflowSetupStep(1)">前へ</el-button>
               <el-button @click="goToWorkflowStep3">次へ</el-button>
               <el-button type="primary" @click="saveWorkflowStep2">保存</el-button>
@@ -1864,6 +1875,9 @@
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
+              <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
+                <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
+              </el-tooltip>
             </div>
             <div class="wf-toolbar-center"></div>
             <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
@@ -2059,12 +2073,15 @@
               <span class="wf-toolbar-sep">/</span>
               <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
+              <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
+                <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
+              </el-tooltip>
             </div>
             <div class="wf-toolbar-center"></div>
             <div v-if="workflowVersionView === 'draft'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(3)">前へ</el-button>
-              <el-button @click="saveOutputConfigFromStep3">保存</el-button>
-              <el-button type="primary" :disabled="!canPublishWorkflowScene" @click="publishWorkflowScene">公開</el-button>
+              <el-button type="primary" @click="saveOutputConfigFromStep3">保存</el-button>
+              <el-button type="primary" @click="publishWorkflowScene">公開</el-button>
             </div>
             <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(3, { readonlyNavigation: true })">前へ</el-button>
