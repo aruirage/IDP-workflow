@@ -20,6 +20,8 @@ function inlineMarkdown(text) {
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   out = out.replace(/\*\*([^*]+)\*\*/g, '$1');
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  out = out.replace(/&lt;(ins|mark|del) class=&quot;(change-(?:added|modified|deleted))&quot;&gt;/g, '<$1 class="$2">');
+  out = out.replace(/&lt;\/(ins|mark|del)&gt;/g, '</$1>');
   return out;
 }
 
@@ -422,6 +424,26 @@ const STYLES = `
     .paper th { background: #f9fafb; font-weight: 600; }
     .paper a.fn-link { color: var(--primary); font-weight: 500; text-decoration: none; }
     .paper a.fn-link:hover { text-decoration: underline; }
+    .change-added {
+      color: #175cd3;
+      background: #eff8ff;
+      text-decoration: none;
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+    .change-modified {
+      color: #b54708;
+      background: #fffaeb;
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+    .change-deleted {
+      color: #b42318;
+      background: #fef3f2;
+      text-decoration: line-through;
+      border-radius: 3px;
+      padding: 0 2px;
+    }
     .paper code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.9em;
