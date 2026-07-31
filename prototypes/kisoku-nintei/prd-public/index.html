@@ -233,7 +233,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/31 11:32:59</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/7/31 17:11:32</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -255,7 +255,7 @@
 <p>业务场景状态转换图：</p>
 <div class="mermaid">flowchart LR
   newScene[&quot;新建 / 复制&quot;] --&gt; draft[&quot;草稿 draft&quot;]
-  draft --&gt; checkFail[&quot;Step2 设置检查失败&quot;]
+  draft --&gt; checkFail[&quot;Step2 设置检查失败 / 状态不变&quot;]
   checkFail --&gt; draft
   draft --&gt; checkSuccess[&quot;Step2 设置检查通过&quot;]
   checkSuccess --&gt; ready[&quot;可发布 ready&quot;]
@@ -291,7 +291,7 @@
 <p><mark class="change-modified">Step2 不提供样例测试入口，提供独立的设置检查。设置检查执行静态配置校验，检查结构、连线、节点必填项、变量引用、字段选择和节点依赖；不读取 Mock 样例、不求值条件路径、不真实调用节点。检查失败时提示首条错误；错误对应节点时选中并定位该节点。保存、下一步和步骤条跳转不触发该检查。</mark></p>
 <p><del class="change-deleted">废弃：Step2 测试弹窗使用系统内置案件样例，真实调用处理节点并按命中路径生成执行时间线。</del></p>
 <p>Step2 清空删除开始节点以外的所有工作流节点和连线。开始节点是系统固定入口，默认存在，节点面板不提供新增，用户不能单独删除，也不会出现多个开始节点。<mark class="change-modified">リセット 后场景回到草稿。清空后画布仅保留开始节点，用户需要重新添加处理节点、条件节点、人工确认和结束节点，并重新通过设置检查后才能公开。</mark></p>
-<table><thead><tr><th>检查维度</th><th>检查内容</th><th>失败处理</th></tr></thead><tbody><tr><td>结构</td><td>结束节点、从固定开始节点到结束的有效路径、孤立节点、回流可终止</td><td>保存失败；高亮问题节点或断点；保持草稿</td></tr><tr><td>连线</td><td>输入数量、条件出口、人工确认出口、悬空连线</td><td>保存失败；提示对应连线或出口问题</td></tr><tr><td>节点配置</td><td>前处理、OCR 抽出、数据映射、AI 检证、人工确认、自定义函数</td><td>保存失败；提示缺失配置或非法依赖</td></tr><tr><td>变量引用</td><td>条件变量、自定义函数输入、删除或改线后的引用</td><td>保存失败；提示失效变量和节点</td></tr><tr><td>字段选择</td><td>标准字段和 OCR 字段必须选到叶子字段</td><td>保存失败；提示重新选择字段</td></tr><tr><td>测试执行</td><td>按画布路径真实调用处理节点并生成时间线；人工确认使用测试样例里的人工判断结果选择出口，不创建真实待办、不等待真实审查者</td><td>任一节点失败即停止本轮测试</td></tr></tbody></table>
+<table><thead><tr><th>检查维度</th><th>检查内容</th><th>失败处理</th></tr></thead><tbody><tr><td>结构</td><td>结束节点、从固定开始节点到结束的有效路径、分支可达结束、孤立或不可达节点、回流可终止</td><td>设置检查失败；提示首条原因并定位节点；状态不变；仍可全局保存或步骤跳转</td></tr><tr><td>连线</td><td>同一节点仅允许一条普通输入连线、条件出口、人工确认出口、案件终止不连线、补件只回流、悬空连线</td><td>同上</td></tr><tr><td>节点配置</td><td>AI 前处理、OCR 抽出、数据映射、AI 检证、条件、人工确认、自定义 JavaScript 的必填配置及 Step1 账票范围</td><td>同上</td></tr><tr><td>变量引用</td><td>条件变量、自定义函数输入、删除或改线后的引用</td><td>同上</td></tr><tr><td>字段选择</td><td>条件左值必须选到可判断的叶子字段，字段类型与运算符匹配</td><td>同上</td></tr><tr><td>依赖</td><td>人工确认合法上游、数据映射上游、AI 检证上游满足节点依赖</td><td>同上</td></tr></tbody></table>
 <h4 class="subsection-heading">6.01.8 Step3 通知设置</h4>
 <p>Step3 负责配置全局通知规则模板，不读取 Step2 画布里的实际节点实例。运行时由工作流节点类型、输出变量和变量取值匹配这里的全局规则；如果 Step2 没有对应节点，则对应规则不会被触发，但配置本身仍可保存。</p>
 <p>页面上方是「通知ルール追加」生成器。配置人员先选対象节点，再选节点变量和取值，例如 <code>ocrStatus = failed</code> 或 <code>ocrResult = reviewRequired</code>。然后选择通知对象，编辑件名和内容。件名和内容上方提供变量插入区，先切换插入目标（件名 / 内容），再从变量下拉中选择要插入的变量。</p>
@@ -349,7 +349,7 @@
 <h4 class="subsection-heading">6.01.11 列表展示</h4>
 <p>Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書き / 公開可能 / 公開済み）。<ins class="change-added">已发布过的场景在顶部展示版本切换图标。下拉列表只包含「現在の下書き」和最新发布版本；发布版本标记为适用中。发布成功后立即显示最新发布版本。选择发布版本后，Step1～4 的表单、画布和快捷操作全部只读，但保留步骤条及「前へ / 次へ」用于浏览四步配置；隐藏关联检查、保存和公开等编辑操作。未主动切换到「現在の下書き」前不能编辑；切换后恢复草稿编辑。再次发布时覆盖最新发布版本，不展示或保留可切换的更早版本。</ins>列表工具栏关键词检索，占位「業務シーン名で検索」。无数据时展示空状态；无权限隐藏新建。</p>
 <h4 class="subsection-heading">6.01.12 异常与边界</h4>
-<table><thead><tr><th>场景</th><th>条件</th><th>用户提示 / 处理</th></tr></thead><tbody><tr><td><mark class="change-modified">Step2 设置检查失败</mark></td><td><mark class="change-modified">点击 Step2 设置检查，或在非可发布状态点击公开</mark></td><td><mark class="change-modified">Toast 提示首条错误并定位对应节点；从 Step4 发起时自动跳转 Step2；场景保持草稿</mark></td></tr><tr><td>名称为空</td><td>保存或发布未填名称</td><td>「業務シーン名を入力してください」</td></tr><tr><td>名称重复</td><td>同租户同名</td><td>「同じ業務シーン名が既に存在します」</td></tr><tr><td>未选账票</td><td>Step1 无关联账票</td><td>「関連帳票を1件以上追加してください」</td></tr><tr><td>无主账票/主字段</td><td>未指定</td><td>「主帳票を1件選択してください」/「業務キーを選択してください」</td></tr><tr><td>账票网络未连通</td><td>有账票无法直接或间接到达主账票</td><td>「主帳票へ到達できない帳票があります：{列表}」</td></tr><tr><td>关系缺失</td><td>帐票对没有条件组，或条件组内没有字段关系</td><td>「この帳票間関連のフィールドを追加してください」</td></tr><tr><td>工作流未配置</td><td>画布无节点</td><td>「ワークフローノードを設定してください」</td></tr><tr><td>无可选输出字段</td><td>Step4 无 OCR 抽出候选</td><td>保留 Step4 配置布局；侧栏和预览区无项目，仅提示「出力可能な項目がありません」；允许保存空输出设置；不影响发布</td></tr><tr><td>输出未保存</td><td>有 OCR 候选但未点保存就公开</td><td>允许发布；发布读取上一次已保存的输出配置，若从未保存则按空输出处理</td></tr><tr><td><ins class="change-added">公开前自动检查</ins></td><td>场景不是可发布且点击公开</td><td><ins class="change-added">直接执行 Step2 设置检查；失败时 Toast 提示首条原因并自动跳转 Step2，成功时继续显示公开确认</ins></td></tr><tr><td>发布确认</td><td>场景为可发布且点击公开</td><td>标题「業務シーンを公開しますか？」；按钮「公開」「キャンセル」；确认后直接公开</td></tr><tr><td>并发保存</td><td>草稿已被他人更新</td><td>「設定が更新されています。再読み込みしてからもう一度お試しください」</td></tr></tbody></table>
+<table><thead><tr><th>场景</th><th>条件</th><th>用户提示 / 处理</th></tr></thead><tbody><tr><td><mark class="change-modified">Step2 设置检查失败</mark></td><td><mark class="change-modified">点击 Step2 设置检查，或在非可发布状态点击公开</mark></td><td><mark class="change-modified">Toast 提示首条错误并定位对应节点；从 Step4 发起时自动跳转 Step2；状态不变；仍可全局保存</mark></td></tr><tr><td>名称为空</td><td>保存或发布未填名称</td><td>「業務シーン名を入力してください」</td></tr><tr><td>名称重复</td><td>同租户同名</td><td>「同じ業務シーン名が既に存在します」</td></tr><tr><td>未选账票</td><td>Step1 无关联账票</td><td>「関連帳票を1件以上追加してください」</td></tr><tr><td>无主账票/主字段</td><td>未指定</td><td>「主帳票を1件選択してください」/「業務キーを選択してください」</td></tr><tr><td>账票网络未连通</td><td>有账票无法直接或间接到达主账票</td><td>「主帳票へ到達できない帳票があります：{列表}」</td></tr><tr><td>关系缺失</td><td>帐票对没有条件组，或条件组内没有字段关系</td><td>「この帳票間関連のフィールドを追加してください」</td></tr><tr><td>工作流未配置</td><td>画布无节点</td><td>「ワークフローノードを設定してください」</td></tr><tr><td>无可选输出字段</td><td>Step4 无 OCR 抽出候选</td><td>保留 Step4 配置布局；侧栏和预览区无项目，仅提示「出力可能な項目がありません」；允许保存空输出设置；不影响发布</td></tr><tr><td>输出未保存</td><td>有 OCR 候选但未点保存就公开</td><td>允许发布；发布读取上一次已保存的输出配置，若从未保存则按空输出处理</td></tr><tr><td><ins class="change-added">公开前自动检查</ins></td><td>场景不是可发布且点击公开</td><td><ins class="change-added">直接执行 Step2 设置检查；失败时 Toast 提示首条原因并自动跳转 Step2，成功时继续显示公开确认</ins></td></tr><tr><td>发布确认</td><td>场景为可发布且点击公开</td><td>标题「業務シーンを公開しますか？」；按钮「公開」「キャンセル」；确认后直接公开</td></tr><tr><td>并发保存</td><td>草稿已被他人更新</td><td>「設定が更新されています。再読み込みしてからもう一度お試しください」</td></tr></tbody></table>
 <p>***</p>
 <h3 id="sec-6-02" class="section-heading">6.02 工作流画布与可编排节点</h3>
 <h4 class="subsection-heading">6.02.1 概述</h4>
@@ -376,8 +376,8 @@
 <h4 class="subsection-heading">6.02.8 静态配置校验</h4>
 <p><mark class="change-modified">Step2 点击「設定チェック」时执行静态配置校验；当前状态不是可发布而点击 Step4「公開」时，也执行同一校验。校验只读取当前画布、Step1 账票与字段定义；不读取样例数据，不执行 OCR、AI 检证、数据映射或自定义 JavaScript，不创建人工待办，不发送通知或邮件。</mark></p>
 <p>校验维度：</p>
-<table><thead><tr><th>顺序</th><th>维度</th><th>检查范围</th><th>失败处理</th></tr></thead><tbody><tr><td>1</td><td>结构</td><td>结束节点、开始到结束可达、分支可达结束、孤立或不可达节点、回流可终止</td><td>提示首条错误；能对应节点时选中并定位</td></tr><tr><td>2</td><td>连线</td><td>主输入数量、条件出口、人工确认出口、案件终止不连线、补件只回流、悬空端点</td><td>同上</td></tr><tr><td>3</td><td>节点配置</td><td>前处理、OCR 抽出、数据映射、AI 检证、条件、人工确认、自定义 JavaScript 的必填配置</td><td>同上</td></tr><tr><td>4</td><td>变量引用</td><td>条件变量和自定义函数输入可从上游到达；删除或改线后无失效引用</td><td>同上</td></tr><tr><td>5</td><td>字段选择</td><td>条件左值选到可判断的叶子字段，字段类型与运算符匹配</td><td>同上</td></tr><tr><td>6</td><td>依赖</td><td>人工确认合法上游、数据映射上游、AI 检证上游满足节点依赖</td><td>同上</td></tr></tbody></table>
-<p><mark class="change-modified">校验失败时场景保持草稿；从 Step4 发起检查时，Toast 提示首条原因并自动跳转 Step2。校验通过时保存当前检查结果，场景更新为可发布；从 Step4 发起检查时继续显示公开确认。Step1 或 Step2 后续发生实质修改时，场景重新变为草稿，必须再次通过设置检查。</mark></p>
+<table><thead><tr><th>顺序</th><th>校验维度</th><th>检查范围</th><th>检查失败时</th></tr></thead><tbody><tr><td>1</td><td>结构</td><td>结束节点、开始到结束可达、分支可达结束、孤立或不可达节点、回流可终止</td><td>提示首条原因并定位节点；状态不变</td></tr><tr><td>2</td><td>连线</td><td>普通输入连线、条件出口、人工确认出口、案件终止不连线、补件只回流、连线两端有效</td><td>同上</td></tr><tr><td>3</td><td>节点配置</td><td>各节点的必填配置及 Step1 账票范围</td><td>同上</td></tr><tr><td>4</td><td>变量引用</td><td>条件变量、自定义函数输入及删除或改线后的引用有效性</td><td>同上</td></tr><tr><td>5</td><td>字段选择</td><td>条件左值为可判断的叶子字段，字段类型与运算符匹配</td><td>同上</td></tr><tr><td>6</td><td>节点依赖</td><td>人工确认、数据映射、AI 检证的上游节点满足依赖</td><td>同上</td></tr></tbody></table>
+<p><mark class="change-modified">设置检查与全局保存相互独立，无论检查成功或失败均可保存。检查失败时状态不变；从 Step4 发起检查时，Toast 提示首条原因并自动跳转 Step2。检查通过时场景更新为可发布；从 Step4 发起检查时继续显示公开确认。Step1 或 Step2 后续发生实质修改时，场景重新变为草稿，必须再次通过设置检查。</mark></p>
 <p><mark class="change-modified">公开不执行样例测试。</mark><ins class="change-added">Step4 的公开按钮始终可点击；当前不是可发布状态时先执行 Step2 设置检查，检查通过后显示公开确认弹窗，确认后直接生成发布版本并切换为只读。</ins></p>
 <p>***</p>
 <h4 class="subsection-heading">6.02.10 工作流变量</h4>
