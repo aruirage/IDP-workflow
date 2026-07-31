@@ -22,6 +22,7 @@ function inlineMarkdown(text) {
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
   out = out.replace(/&lt;(ins|mark|del) class=&quot;(change-(?:added|modified|deleted))&quot;&gt;/g, '<$1 class="$2">');
   out = out.replace(/&lt;\/(ins|mark|del)&gt;/g, '</$1>');
+  out = out.replace(/&lt;br\s*\/?&gt;/g, '<br />');
   return out;
 }
 

@@ -218,6 +218,8 @@ test('offers a separate Step2 configuration check without blocking save or navig
   assert.match(index, /@click="goToWorkflowStep3">次へ<\/el-button>/);
   assert.match(index, /@click="saveWorkflowStep2">保存<\/el-button>/);
   assert.match(index, /type="warning"[\s\S]*class="wf-check-links-btn wf-toolbar-check-btn"[\s\S]*@click="checkWorkflowStep2Configuration"[\s\S]*設定チェック/);
+  assert.match(main, /設定チェックが完了し、公開可能になりました。/);
+  assert.doesNotMatch(main, /設定チェックが完了しました/);
   assert.match(style, /\.wf-toolbar-right\s*\{[^}]*position:\s*relative;/s);
   assert.match(style, /\.wf-toolbar-check-btn\s*\{[^}]*position:\s*absolute;[^}]*right:\s*calc\(100% \+ 8px\);/s);
   const saveStep2Source = main.slice(main.indexOf('function saveWorkflowStep2()'), main.indexOf('function goToWorkflowStep3()'));

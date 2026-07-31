@@ -8998,7 +8998,7 @@ const appOptions = {
     function checkWorkflowStep2Configuration() {
       if (!validateWorkflowStaticConfiguration()) return false;
       markWorkflowReadyAfterStaticValidation();
-      ElementPlus.ElMessage.success('設定チェックが完了しました');
+      ElementPlus.ElMessage.success('設定チェックが完了し、公開可能になりました。');
       return true;
     }
 
