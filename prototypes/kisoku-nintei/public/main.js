@@ -5717,24 +5717,12 @@ const appOptions = {
       if (!applyCurrentSceneSetupDraftIfNeeded()) return;
       syncOutputDocFieldsBySceneDocs();
       if (scenePublishStatusKey.value !== 'ready') {
-        showWorkflowNotPublishableDialog();
-        return;
+        if (!checkWorkflowStep2Configuration()) {
+          goToWorkflowSetupStep(2);
+          return;
+        }
       }
       confirmPublishWorkflowScene();
-    }
-
-    function showWorkflowNotPublishableDialog() {
-      ElementPlus.ElMessageBox.confirm(
-        'Step2の設定チェックを完了し、ステータスを「公開可能」にしてください。',
-        '現在のステータスでは公開できません。',
-        {
-          confirmButtonText: 'Step2へ',
-          cancelButtonText: 'キャンセル',
-          type: 'warning',
-        },
-      ).then(() => {
-        goToWorkflowSetupStep(2);
-      }).catch(() => {});
     }
 
     function confirmPublishWorkflowScene() {
@@ -6080,16 +6068,9 @@ const appOptions = {
         ElementPlus.ElMessage.warning('開始ノードは削除できません。');
         return;
       }
-      const name = getWorkflowNodeDisplayLabel(node);
-      ElementPlus.ElMessageBox.confirm(
-        `「${name}」を削除しますか？関連する接続も削除されます。`,
-        'ノード削除',
-        { confirmButtonText: '削除', cancelButtonText: 'キャンセル', type: 'warning' },
-      ).then(() => {
-        removeWorkflowNode(id);
-        markWorkflowEdited('ノードを削除');
-        ElementPlus.ElMessage.success('ノードを削除しました');
-      }).catch(() => {});
+      removeWorkflowNode(id);
+      markWorkflowEdited('ノードを削除');
+      ElementPlus.ElMessage.success('ノードを削除しました');
     }
 
     function onWfKeyDown(event) {

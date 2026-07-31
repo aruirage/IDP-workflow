@@ -151,16 +151,15 @@ test('keeps draft and published workflow history separate', async () => {
   assert.match(index, /class="wf-export-step-page" :inert="workflowVersionView === 'published'"/);
 });
 
-test('publishes directly from Step4 after confirmation', async () => {
+test('runs the Step2 configuration check before publishing from Step4', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.doesNotMatch(index, /class="wf-check-links-btn" @click="openWorkflowTestDialog">テスト/);
   assert.match(index, /<el-button type="primary" @click="publishWorkflowScene">公開<\/el-button>/);
   assert.match(index, /<el-button type="primary" @click="saveOutputConfigFromStep3">保存<\/el-button>/);
-  assert.match(main, /function publishWorkflowScene\(\)[\s\S]*scenePublishStatusKey\.value !== 'ready'[\s\S]*showWorkflowNotPublishableDialog\(\)[\s\S]*confirmPublishWorkflowScene\(\);/);
-  assert.match(main, /function showWorkflowNotPublishableDialog\(\)[\s\S]*Step2の設定チェックを完了し、ステータスを「公開可能」にしてください。[\s\S]*現在のステータスでは公開できません。[\s\S]*confirmButtonText: 'Step2へ'[\s\S]*goToWorkflowSetupStep\(2\)/);
-  assert.doesNotMatch(main, /function publishWorkflowScene\(\)[\s\S]{0,500}validateWorkflowStaticConfiguration/);
+  assert.match(main, /function publishWorkflowScene\(\)[\s\S]*scenePublishStatusKey\.value !== 'ready'[\s\S]*checkWorkflowStep2Configuration\(\)[\s\S]*goToWorkflowSetupStep\(2\)[\s\S]*confirmPublishWorkflowScene\(\);/);
+  assert.doesNotMatch(main, /function showWorkflowNotPublishableDialog\(\)/);
   assert.doesNotMatch(main, /function publishWorkflowScene\(\)[\s\S]{0,240}openWorkflowTestDialog/);
   assert.match(main, /function confirmPublishWorkflowScene\(\)[\s\S]*form\.scene\.publishStatus = 'published';/);
   assert.match(main, /workflowVersionView\.value = 'published';/);
@@ -191,6 +190,16 @@ test('places workflow reset at the end of the canvas history toolbar', async () 
   assert.match(historyToolbar, /title="リセット"[\s\S]*@click="resetWorkflowCanvas"/);
   assert.ok(historyToolbar.lastIndexOf('@click="resetWorkflowCanvas"') > historyToolbar.lastIndexOf('</el-popover>'));
   assert.match(main, /ElementPlus\.ElMessageBox\.confirm\('開始ノード以外のすべてのノードと接続を削除します。続行しますか？'/);
+});
+
+test('deletes workflow nodes immediately without a confirmation dialog', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const removeHandler = main.match(/function confirmRemoveSelectedWorkflowNode\(\)[\s\S]*?\n    }\n\n    function onWfKeyDown/)?.[0] || '';
+
+  assert.doesNotMatch(removeHandler, /ElMessageBox\.confirm/);
+  assert.match(removeHandler, /開始ノードは削除できません/);
+  assert.match(removeHandler, /removeWorkflowNode\(id\)/);
+  assert.match(removeHandler, /ノードを削除しました/);
 });
 
 test('offers a separate Step2 configuration check without blocking save or navigation', async () => {
