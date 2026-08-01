@@ -75,6 +75,15 @@ test('always opens the prototype in Japanese', async () => {
   assert.doesNotMatch(main, /ref\(localStorage\.getItem\('neosai-idp-ui-language'\)/);
 });
 
+test('uses a compact required badge for the scene name', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /業務シーン名<span class="field-required">必須<\/span>/);
+  assert.doesNotMatch(index, /field-required">（必須）/);
+  assert.match(style, /\.field-required\s*\{[^}]*background:\s*#fff1f3;[^}]*color:\s*#e54861;/s);
+});
+
 test('shows Japanese output names and focused value tooltips', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');

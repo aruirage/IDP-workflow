@@ -729,7 +729,20 @@ body {
   display: block; margin-bottom: 8px;
   font-size: 15px; font-weight: 500; color: #344054; line-height: 1.5;
 }
-.field-required { font-weight: 400; color: #98a2b3; margin-left: 4px; }
+.field-required {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fff1f3;
+  color: #e54861;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  vertical-align: 1px;
+}
 .field-hint { margin: 8px 0 0; font-size: 15px; line-height: 1.5; color: #98a2b3; }
 .scene-deficiency-policy {
   margin: 0;
