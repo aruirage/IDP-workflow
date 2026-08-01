@@ -235,7 +235,7 @@ const appOptions = {
       ['3 つの出口（+）から下流ノードを接続してください。分岐はシステム固定です。', '请从 3 个出口（+）连接下游节点。分支由系统固定。'],
       ['通過', '通过'],
       ['完成', '完成'],
-      ['案件終止', '案件终止'],
+      ['案件中止', '案件中止'],
       ['案件', '案件'],
       ['原ファイル', '原文件'],
       ['処理ファイル', '处理文件'],
@@ -674,7 +674,7 @@ const appOptions = {
       ['ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。', '指定文件格式和最大文件大小（上限 20MB，仅可设置为 20MB 以下）。'],
       ['抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。', '抽出字段、Prompt、置信度阈值等详情在账票 template 或系统模型设定中管理。'],
       ['マスタデータ本体は設定ページで管理します。このノードでは現在の Workflow で使う入力フィールド、照合列、返却列、照合方式を設定します。', 'Master Data 本体在设定页面管理。此节点只设定当前 Workflow 使用的输入字段、照合列、返回列和照合方式。'],
-      ['データマッピング設定で定義した全局ルールをこの Workflow で呼び出します。ノード内ではルール摘要、適用性チェック、設定ページへの導線のみ扱います。', '调用 Data Mapping 设定中定义的全局规则。节点内只显示规则摘要、适用性检查和前往设定页面的入口。'],
+      ['データマッピング設定で定義したルールをこの Workflow で呼び出します。ルールの確認・編集はデータマッピング設定から行います。', '调用 Data Mapping 设定中定义的规则。规则的确认和编辑在 Data Mapping 设定中进行。'],
       ['入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。', '定义输入字段、标准字段和转换规则。后续节点可通过标准字段名引用。'],
       ['標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。', '这是标准数据模型使用的项目，会作为案件数据集、照合、校验和导出的通用 Key。'],
       ['標準フィールドは上流データマッピングから自動連携します。照合対象フィールドは標準フィールドまたは OCR 抽出フィールドから指定します。', '标准字段从上游 Data Mapping 自动联动。照合对象字段可从标准字段或 OCR 抽出字段中指定。'],
@@ -2002,9 +2002,9 @@ const appOptions = {
       ai_verify: { status: 'verifyStatus', result: 'verifyResult' },
     };
     const WORKFLOW_NOTIFICATION_HITL_EVENTS = [
-      { value: 'approve', label: '完成' },
+      { value: 'approve', label: '完了' },
       { value: 'request_supplement', label: '補件' },
-      { value: 'reject', label: '案件終止' },
+      { value: 'reject', label: '案件中止' },
     ];
 
     const notificationRuleDraft = reactive({
@@ -3263,6 +3263,7 @@ const appOptions = {
       return workflowNodeOutputVars.value.map((item) => ({
         ...item,
         name: String(item.id || '').split('.').pop() || item.id,
+        displayName: getWorkflowOutputDisplayName(item),
         scope: normalizeWorkflowVariableCategory(item).label,
         dataType: inferWorkflowOutputVarType(item),
         description: t(item.description || item.label),
@@ -3292,12 +3293,10 @@ const appOptions = {
     }
 
     function formatWorkflowOutputInfo(item) {
-      const name = getWorkflowOutputDisplayName(item);
       const parts = [
-        `変数名：${name}`,
         item?.valueSpec ? `取値範囲：${t(item.valueSpec)}` : '',
       ].filter(Boolean);
-      const base = [...new Set(parts)].join('\n') || '説明なし';
+      const base = [...new Set(parts)].join('\n') || '取値範囲：指定なし';
       const example = typeof getWorkflowOutputVarExample === 'function'
         ? getWorkflowOutputVarExample(item)
         : '';

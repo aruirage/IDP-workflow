@@ -1580,7 +1580,7 @@
                   <inspector-module>
                     <inspector-module-card title="OCR抽出設定">
                       <template #action>
-                        <el-button type="primary" link @click="openFixedDocSettings()">設定ページへ →</el-button>
+                        <el-button type="primary" link class="inspector-settings-link" @click="openFixedDocSettings()">設定ページへ →</el-button>
                       </template>
                       <div class="ocr-extract-panel">
                         <div v-if="ocrExtractItems.length" class="ocr-extract-list">
@@ -1617,7 +1617,7 @@
                   <inspector-module>
                     <inspector-module-card title="データマッピング設定">
                       <template #action>
-                        <el-button type="primary" link @click="switchModule('data-mapping-config')">設定ページへ →</el-button>
+                        <el-button type="primary" link class="inspector-settings-link" @click="switchModule('data-mapping-config')">設定ページへ →</el-button>
                       </template>
                     </inspector-module-card>
                   </inspector-module>
@@ -1673,7 +1673,7 @@
                           <h4 class="inspector-section-block__title inspector-module-title">AI検証設定</h4>
                         </div>
                         <div class="inspector-section-block__action">
-                        <el-button type="primary" link @click="switchModule('ai-verify-config')">設定ページへ →</el-button>
+                        <el-button type="primary" link class="inspector-settings-link" @click="switchModule('ai-verify-config')">設定ページへ →</el-button>
                         </div>
                       </header>
                       <div class="inspector-section-block__body"></div>
@@ -1846,16 +1846,17 @@
                       <li v-for="item in workflowOutputVariableRows" :key="item.id" class="workflow-output-var-item">
                         <div class="workflow-output-var-main">
                           <code class="workflow-output-var-name">{{ item.name }}</code>
-                          <span class="workflow-output-var-type">{{ t(item.dataType) }}</span>
+                          <span class="workflow-output-var-label">{{ item.displayName }}</span>
+                          <el-tooltip
+                            effect="dark"
+                            placement="top"
+                            popper-class="workflow-output-var-tooltip"
+                            :content="formatWorkflowOutputInfo(item)"
+                          >
+                            <button type="button" class="workflow-output-var-info" aria-label="取値範囲">i</button>
+                          </el-tooltip>
                         </div>
-                        <el-tooltip
-                          effect="dark"
-                          placement="top"
-                          popper-class="workflow-output-var-tooltip"
-                          :content="formatWorkflowOutputInfo(item)"
-                        >
-                          <button type="button" class="workflow-output-var-info" aria-label="変数説明">i</button>
-                        </el-tooltip>
+                        <span class="workflow-output-var-type">{{ t(item.dataType) }}</span>
                       </li>
                     </ul>
                   </div>

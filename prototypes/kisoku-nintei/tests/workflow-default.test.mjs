@@ -75,6 +75,36 @@ test('always opens the prototype in Japanese', async () => {
   assert.doesNotMatch(main, /ref\(localStorage\.getItem\('neosai-idp-ui-language'\)/);
 });
 
+test('shows Japanese output names and focused value tooltips', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /workflow-output-var-name[\s\S]*item\.displayName[\s\S]*aria-label="取値範囲"[\s\S]*workflow-output-var-type/);
+  assert.match(main, /displayName: getWorkflowOutputDisplayName\(item\)/);
+  assert.match(main, /item\?\.valueSpec \? `取値範囲：\$\{t\(item\.valueSpec\)\}`/);
+  assert.doesNotMatch(main, /`変数名：\$\{name\}`/);
+  assert.match(main, /return `\$\{base\}\\n\\n例：\\n\$\{example\}`/);
+  assert.match(style, /\.workflow-output-var-item\s*\{[^}]*justify-content:\s*space-between;/s);
+  assert.match(style, /\.workflow-output-var-type\s*\{[^}]*margin-left:\s*auto;/s);
+});
+
+test('uses one regular-weight settings shortcut label', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.equal((index.match(/class="inspector-settings-link"/g) || []).length, 3);
+  assert.equal((index.match(/>設定ページへ →<\/el-button>/g) || []).length, 3);
+  assert.match(style, /\.idp-inspector-body \.inspector-settings-link\.el-button\.is-link\s*\{[^}]*font-weight:\s*400;/s);
+});
+
+test('aligns OCR extraction switches to the row end', async () => {
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(style, /\.ocr-extract-row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
+  assert.match(style, /\.ocr-extract-row__toggle\s*\{[^}]*margin-left:\s*auto;/s);
+});
+
 test('does not render forward edges as backflow inside a cycle', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const edgePathsStart = main.indexOf('const workflowEdgePaths = computed');

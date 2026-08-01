@@ -2006,7 +2006,7 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     const seen = new Set();
     outs.forEach((e) => {
       if (e.branch === 'reject') {
-        push('S2-11', '接続', '案件終止出口は接続できません', node.id);
+        push('S2-11', '接続', '案件中止出口は接続できません', node.id);
       }
       if (e.branch === 'request_supplement' && typeof workflowCanReach === 'function' && !workflowCanReach(wf, e.to, node.id, e)) {
         push('S2-11', '接続', '補件出口は前述ノードへの回流接続のみ可能です', node.id);

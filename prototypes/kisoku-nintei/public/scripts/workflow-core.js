@@ -46,8 +46,8 @@ const INSPECTOR_HINTS = {
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
   preprocess: 'OCR 前に画像補正、画像回転、画像分割を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像並び替え：同一帳票タイプ内の画像を整列。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
-  ocrExtract: '業務シーン設定で登録した関連帳票を参照します。帳票タイプごとに OCR 抽出の ON/OFF を設定します。テンプレート詳細は OCR抽出テンプレート から編集します。',
-  dataMapping: 'データマッピング設定で定義した共通ルールをこの Workflow で呼び出します。ノード内ではルール概要、適用性チェック、設定ページへの導線のみ扱います。',
+  ocrExtract: 'Step1で関連付けた帳票タイプを参照します。帳票タイプごとにOCR抽出の実行有無を選択し、抽出項目は「帳票タイプ設定」で編集します。',
+  dataMapping: 'データマッピング設定で定義したルールをこの Workflow で呼び出します。ルールの確認・編集はデータマッピング設定から行います。',
   dataMappingRules: '入力フィールド、標準フィールド、変換ルールを定義します。後続ノードは標準フィールド名で参照できます。',
   dataMappingStandard: '標準データモデルで利用する項目です。案件データセット、照合、検証、エクスポートの共通キーになります。',
   nodeOutput: '後続ノード・IF/ELSE 条件で使える出力変数です。{ノード変数名.項目} 形式で指定します。',
@@ -68,12 +68,12 @@ const INSPECTOR_HINTS = {
   masterApi: 'リトライ回数・キャッシュ TTL・例外時の動作を指定します。',
   masterRules: '登録済み照合ルールの一覧です。下のフォームから追加・編集できます。',
   masterRuleAdd: '帳票タイプ・照合元 OCR 項目・照合先・出力フィールドを指定してルールを追加します。',
-  aiVerify: 'AI検証設定で定義した検証ルールをこの Workflow で呼び出します。検証結果は変数として出力し、補件・人工確認・異常分岐は後続ノードで判断します。',
+  aiVerify: 'AI検証設定で定義した検証ルールを参照します。検証項目ごとに実行有無を選択し、検証ルールは「AI検証設定」で編集します。',
   completeness: '必須・任意帳票の収集状態と、帳票ごとの必須項目を検証します。帳票タイプは業務シーン設定で登録し、ここで必須/任意と必須項目を指定します。',
   textVerify: '自然言語で記述し、AI補助で実行式を生成します。入力欄の下にプレビューが表示されます。',
   dataVerify: '帳票間の整合性と業務ロジックを自然言語で記述し、AI補助で実行式をプレビュー表示します。',
   seal: '署名・印鑑が存在するかを検出します。帳票タイプごとに検出目標と類似度閾値を設定できます。閾値未満は不備として扱います。',
-  hitlGate: '案件レベルの人工確認タスクを生成します。完成は後続へ接続し、補件は前述ノードへ回流接続します。案件終止は画面表示のみで接続できません。',
+  hitlGate: '案件単位の人工確認タスクを生成します。「完了」は後続ノードに接続し、「補件」は上流ノードに戻るよう接続します。「案件中止」は画面上にのみ表示され、ノードには接続できません。',
   hitlContext: '前処理・OCR 抽出・AI 検証の要確認分岐に接続すると、確認対象が自動判定されます。条件分岐を挟んだ接続にも対応します。',
   decision: 'IF / ELIF / ELSE を変数・演算子で自由に設定します。上流ノードの出力変数を選択して分岐条件を組み立てます。',
   decisionContext: '案件就緒・検証結果・処理完了など、分岐の業務意味を選びます。変更時は既定条件で上書きされます。',
@@ -83,10 +83,10 @@ const INSPECTOR_HINTS = {
   startTriggers: 'システム固定入口。設定項目はありません。',
   endTriggers: 'Workflow の終点。設定項目・出力変数はありません。',
   startTriggerSchedule: 'スケジュール起動は現在バージョンでは未対応です。',
-  code: 'JavaScript でファイル名の生成・変更ルールを定義します。帳票フィールド、標準フィールド、開始ノードの caseId / files[] を入力変数として参照できます。',
+  code: '入力変数を追加し、参照する上流ノードの変数を選択します。入力変数はJavaScript内で参照し、処理結果はreturnで返します。戻り値は本ノードの実行結果として扱い、後続ノードから参照できる出力変数には登録しません。',
   codeInput: '入力変数は条件ノードと同じ変数選択器から選択します。開始ノードの caseId / files[] も選択できます。',
   codePython: 'JavaScript の関数本文として記述します。入力変数は inputs.変数名 または inputs["変数名"] で参照します。',
-  codeOutput: '下流が参照できる出力変数は codeStatus のみです。ファイル名の戻り値は実行結果として保存します。',
+  codeOutput: 'ノードの出力変数には処理状態の codeStatus のみ表示します。スクリプトの戻り値は出力変数には表示されません。',
   hitlLegacy: '前処理・OCR抽出・外部API連携・AI検証・出力の各ノードで HITL が発生した場合の復核ロールを設定します。',
   output: '自動エクスポート設定です。命名規則・ファイル形式・出力フィールドを指定します。',
   outputFields: 'OCR 抽出フィールドの出力有無と順序を設定します。',
@@ -561,7 +561,7 @@ const WORKFLOW_NODE_META = {
     icon: 'MAP',
     title: 'データマッピング',
     desc: '異構造フィールドを標準項目へ変換',
-    tasks: ['標準フィールド', '競合検出', '適用性チェック'],
+    tasks: ['標準フィールド', '競合検出'],
     input: 'Case · OCR Fields',
     output: 'Standard Fields',
     accent: '#4f46e5',
@@ -587,7 +587,7 @@ const WORKFLOW_NODE_META = {
   hitl_gate: {
     icon: '人',
     title: '人工確認',
-    desc: '完成・補件・案件終止',
+    desc: '完了・補件・案件中止',
     tasks: [],
     input: 'Process Result',
     output: 'Confirmed',
@@ -852,7 +852,7 @@ const WORKFLOW_FILE_NODE_EXTRA_SCHEMA = {
 
 /** @deprecated 兼容旧引用；元素结构见 WORKFLOW_FILE_ENTRY_FIELD_SCHEMA */
 const WORKFLOW_FILE_BASE_FIELDS = [
-  { id: 'files[]', label: 'ファイル一覧', scope: 'ファイル', type: 'Array', valueSpec: '本ノード処理後の全ファイル对象配列', description: '本ノード実行後の案件内全ファイル（状態・URL 等を含む）' },
+  { id: 'files[]', label: 'ファイル一覧', scope: 'ファイル', type: 'Array', valueSpec: '本ノード処理後の全ファイル配列', description: '本ノード実行後の案件内全ファイル（状態・URL 等を含む）' },
   ...WORKFLOW_FILE_ENTRY_FIELD_SCHEMA,
 ];
 
@@ -906,7 +906,7 @@ function workflowNodeFileOutputFields(nodeType) {
     label: 'ファイル一覧',
     scope: 'ファイル',
     type: 'Array',
-    valueSpec: '本ノード処理後の全ファイル对象配列',
+    valueSpec: '本ノード処理後の全ファイル配列',
     description: note
       ? `案件内全ファイル配列。${note}`
       : '本ノード実行後の案件内全ファイル（状態・URL 等を含む）',
@@ -1795,9 +1795,9 @@ const HITL_CONTEXT_OPTIONS = [
 const HITL_PRESET_OPTIONS = HITL_CONTEXT_OPTIONS;
 
 const HITL_ACTION_OPTIONS = [
-  { value: 'approve', label: '完成' },
+  { value: 'approve', label: '完了' },
   { value: 'request_supplement', label: '補件' },
-  { value: 'reject', label: '案件終止' },
+  { value: 'reject', label: '案件中止' },
 ];
 
 const HITL_DEFAULT_ACTIONS = HITL_ACTION_OPTIONS.map((o) => o.value);
@@ -3971,11 +3971,11 @@ function buildDefaultCaseWorkflow() {
     { from: 'wf-d-final', to: 'wf-end', branch: 'if', label: '通過' },
     { from: 'wf-d-final', to: 'wf-end', branch: 'elif-error', label: '異常' },
     { from: 'wf-d-final', to: 'wf-hu-final', branch: 'else', label: '人工確認' },
-    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-pre', to: 'wf-oc', branch: 'approve', label: '完了' },
     { from: 'wf-hu-pre', to: 'wf-pp', branch: 'request_supplement', label: '補件' },
-    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-ocr', to: 'wf-map', branch: 'approve', label: '完了' },
     { from: 'wf-hu-ocr', to: 'wf-oc', branch: 'request_supplement', label: '補件' },
-    { from: 'wf-hu-final', to: 'wf-end', branch: 'approve', label: '完成' },
+    { from: 'wf-hu-final', to: 'wf-end', branch: 'approve', label: '完了' },
     { from: 'wf-hu-final', to: 'wf-ai', branch: 'request_supplement', label: '補件' },
   );
 
