@@ -1860,19 +1860,6 @@ const appOptions = {
       selectedPublishedVersionId.value = versionId;
     }
 
-    function showLatestPublishedVersionIfNeeded() {
-      if (form.scene.publishStatus !== 'published') return;
-      const versions = Array.isArray(form.publishedVersions) ? form.publishedVersions : [];
-      const latestVersion = versions[versions.length - 1];
-      if (!latestVersion?.snapshot) return;
-      draftVersionBuffer = cloneJson(form);
-      draftVersionBuffer.scene.publishStatus = 'draft';
-      const published = cloneJson(latestVersion.snapshot);
-      published.publishedVersions = cloneJson(versions);
-      replaceWorkflowVersionForm(published);
-      workflowVersionView.value = 'published';
-      selectedPublishedVersionId.value = latestVersion.id;
-    }
     function updateSceneReadyState() {
       if (form.scene.publishStatus === 'published') return;
       form.scene.publishStatus = normalizeScenePublishStatus(form.scene.publishStatus);
@@ -8891,7 +8878,6 @@ const appOptions = {
       Object.assign(form, next);
       ensureFormWorkflows(form);
       updateSceneReadyState();
-      showLatestPublishedVersionIfNeeded();
       savedSnapshot.value = JSON.stringify(form);
       if (options.focusScene) {
         selectedWorkflowNodeId.value = null;
@@ -9462,7 +9448,6 @@ const appOptions = {
     }
 
     onMounted(() => {
-      showLatestPublishedVersionIfNeeded();
       if (!form.master.knowledgeSource) {
         form.master.knowledgeSource = normalizeKnowledgeSource(null);
       }

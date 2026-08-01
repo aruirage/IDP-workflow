@@ -157,7 +157,7 @@ test('keeps draft and published workflow history separate', async () => {
   assert.match(main, /form\.publishedVersions = \[publishedVersion\];/);
   assert.match(main, /function switchWorkflowVersionView\(versionId = ''\)/);
   assert.match(main, /const isWorkflowTopologyEditable = computed\(\(\) => workflowVersionView\.value === 'draft'\);/);
-  assert.match(main, /function showLatestPublishedVersionIfNeeded\(\)/);
+  assert.doesNotMatch(main, /showLatestPublishedVersionIfNeeded/);
   assert.match(main, /workflowVersionView\.value = 'published';/);
   assert.match(main, /function switchWorkflowVersionView\(versionId = ''\)[\s\S]*if \(!draftVersionBuffer\)[\s\S]*draftVersionBuffer\.scene\.publishStatus = 'draft';/);
   assert.match(index, /class="wf-version-history-btn" title="バージョン履歴"/);
@@ -169,6 +169,7 @@ test('keeps draft and published workflow history separate', async () => {
   assert.doesNotMatch(index, /v-for="version in publishedVersionOptions"/);
   assert.match(index, /latestPublishedVersion/);
   assert.match(index, />適用中<\/span>/);
+  assert.match(main, /function selectScene\(id, options = \{\}\)[\s\S]*workflowVersionView\.value = 'draft';/);
   assert.match(index, /:class="\{ 'is-applied-view': workflowVersionView === 'published' \}"/);
   assert.doesNotMatch(style, /適用中の設定（閲覧のみ）/);
   assert.match(index, /v-if="workflowVersionView === 'published'" class="wf-toolbar-right"[\s\S]*goToWorkflowSetupStep\(2, \{ readonlyNavigation: true \}\)[\s\S]*次へ/);
