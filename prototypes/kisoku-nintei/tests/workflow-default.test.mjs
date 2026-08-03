@@ -162,6 +162,25 @@ test('keeps status outputs but removes them from condition choices', async () =>
   assert.doesNotMatch(workflowCore, /cond\(`\$\{(?:ppVar|ocrVar|aiVar)\}\.case\.(?:preprocess|ocr|verify)Status`/);
 });
 
+test('renames image sorting and adds image combination', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(workflowCore, /key: 'sort',[\s\S]*label: '画像整列'/);
+  assert.match(workflowCore, /key: 'combine',[\s\S]*label: '画像組合'[\s\S]*switchKey: 'combine'[\s\S]*docTypesKey: 'combineDocTypes'/);
+  assert.doesNotMatch(workflowCore, /画像並び替え/);
+  assert.match(mockData, /combine: false,[\s\S]*combineDocTypes: \[\]/);
+  assert.match(sceneConfig, /const combine = image\?\.combine === true;/);
+  assert.match(sceneConfig, /combineDocTypes: defaultImageDocTypes\(combine, image\?\.combineDocTypes, imageCombineTypes\)/);
+  assert.match(mockData, /function isImageCombineEnabledForDocType\(docType\)/);
+  assert.match(main, /function getPreprocessDocTypes\(item\)/);
+  assert.match(index, /v-for="t in getPreprocessDocTypes\(item\)"/);
+  assert.match(index, /帳票タイプ設定で画像組合が有効な帳票のみ選択できます。/);
+});
+
 test('keeps draft and published workflow history separate', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');

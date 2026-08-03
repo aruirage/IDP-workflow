@@ -58,6 +58,8 @@ const WORKFLOW_DEFAULTS = {
     splitDocTypes: [],
     sort: true,
     sortDocTypes: [],
+    combine: false,
+    combineDocTypes: [],
     io: cloneJson(NODE_IO_DEFAULTS.preprocess),
   },
   hitl: {
@@ -241,8 +243,8 @@ const HITL_ROLE_OPTIONS = [
 
 const DOC_TYPE_REGISTRY = [
   { id: '保険請求書', category: 'claim', icon: '請', fields: ['証券番号', '被保険者氏名', '請求日（記入日）', '受取人（請求者）フリガナ', '受取人（請求者）氏名', '携帯電話番号', '登録住所', '送付先指定欄', '親権者または後見人 氏名', '親権者または後見人 フリガナ', '口座名義人 フリガナ', '口座名義人 氏名', '金融機関名', '支店名', '預金種目', '口座番号', '通帳記号（5ケタ）', '通帳番号（8ケタ以下）', '請求番号'] },
-  { id: '診断書', category: 'medical', icon: '診', fields: ['患者氏名', '被保険者氏名', '性別', 'カルテ番号', '生年月日', '入院区分', 'ICD10コード', '診療科', '診断名', '主たる手術等', '入院年月日', '退院年月日', '発病又は受傷年月日', '発行日', '医療機関名', '医師名', '請求番号'] },
-  { id: '診療明細書', category: 'receipt', icon: '明', fields: ['患者番号', '患者氏名', '診療科', '発行日', '明細管理番号', '収納管理番号', '保険', '区分', '入院科等', '医療機関名'] },
+  { id: '診断書', category: 'medical', icon: '診', imageCombineEnabled: true, fields: ['患者氏名', '被保険者氏名', '性別', 'カルテ番号', '生年月日', '入院区分', 'ICD10コード', '診療科', '診断名', '主たる手術等', '入院年月日', '退院年月日', '発病又は受傷年月日', '発行日', '医療機関名', '医師名', '請求番号'] },
+  { id: '診療明細書', category: 'receipt', icon: '明', imageCombineEnabled: true, fields: ['患者番号', '患者氏名', '診療科', '発行日', '明細管理番号', '収納管理番号', '保険', '区分', '入院科等', '医療機関名'] },
   { id: '調剤明細書', category: 'receipt', icon: '調', fields: ['発行日', '患者番号', '患者氏名', '診療科', '保険種別', '本人・家族', '外来・入院', '担当者名', '保険証記号番号', '今回請求額', '前回残額', '合計請求額', '領収金額', '医療機関名', '医療機関住所', '医療機関電話番号', '医療機関番号', '薬局名'] },
   { id: '抗がん剤・ホルモン剤治療給付金請求書', category: 'claim', icon: '抗', fields: ['証券番号', '被保険者（治療した方）', '請求日（記入日）', '受取人（請求者）氏名', '抗がん剤・ホルモン剤治療を行った傷病名', '次回以降ご請求方法', '請求番号'] },
   { id: '事故状況報告書', category: 'report', icon: '事', fields: ['被保険者名', '記入日', '受傷日', '受傷場所', '受傷状況', '飲酒', '労災保険の適用', '警察への届出', '事故時の状況', '請求番号'] },
@@ -278,6 +280,10 @@ const INITIAL_SCENE_DOCUMENT_TYPES = [
 const EXTRACT_FIELDS = DOC_TYPE_REGISTRY.map(({ id, fields }) => ({ type: id, fields }));
 
 const DOC_TYPE_MAP = Object.fromEntries(DOC_TYPE_REGISTRY.map((d) => [d.id, d]));
+
+function isImageCombineEnabledForDocType(docType) {
+  return DOC_TYPE_MAP[migrateDocTypeId(docType)]?.imageCombineEnabled === true;
+}
 
 /** 手動エクスポート画面と同一のフィールド名（帳票タイプ設定から連携） */
 const DOC_FIELD_SCHEMA = {
