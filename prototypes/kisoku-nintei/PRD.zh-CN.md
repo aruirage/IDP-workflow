@@ -427,14 +427,14 @@ Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書�
 | 节点/字段     | 控件     | 必填     | 数据来源与枚举                                             | 校验与转换                                              | 保存结果与消费方                                                                                       |
 | --------- | ------ | ------ | --------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | 开始节点      | 只读说明   | 否      | 系统固定入口                                              | 不保存配置；节点面板不提供新增；单独选中时不显示删除按钮；Step2 リセット 后仍保留一个开始节点 | 运行时由引擎注入 `caseId`、`files[]`；不进入条件变量池                                                           |
-| AI 前处理能力  | 开关+多选  | 至少一项   | 画像旋转/补正/分割/排序；目标账票来自 Step1 关联账票集合                   | 全关阻断保存                                             | 保存为前处理节点配置；运行时输出 `preprocessStatus`、`preprocessResult`；条件节点和 Step3 通知可消费这两个输出变量                |
+| AI 前处理能力  | 开关+多选  | 至少一项   | 画像旋转/补正/分割/排序；目标账票来自 Step1 关联账票集合                   | 全关阻断保存                                             | 保存为前处理节点配置；运行时输出 `preprocessStatus`、`preprocessResult`；条件节点只消费 Result，Step3 通知可消费 Status / Result |
 | OCR 抽出开关  | 开关列表   | 至少一项   | Step1 关联账票集合                                        | 关闭账票仅分类                                            | 保存为 OCR 节点目标账票配置；运行时输出 `ocrStatus`、`ocrResult`；Step4 输出字段候选来自已配置 OCR 抽出的账票字段                   |
-| 数据映射跳转    | 跳转链接   | 否      | 数据映射设置页                                             | 面板不编映射规则                                           | 节点面板只保存引用关系；映射规则在数据映射设置页维护；运行时输出 `mappingStatus`、`mappingResult` 和标准字段结果，供条件、Step3 通知、Step4 使用 |
-| AI 检证模块   | 开关列表   | 至少一项   | 六项检证模块                                              | 至少开启一项                                             | 保存为 AI 检证节点配置；运行时输出 `verifyStatus`、`verifyResult`、逐条规则结果；条件节点和 Step3 通知消费状态/结果，人工确认页读取规则明细     |
+| 数据映射跳转    | 跳转链接   | 否      | 数据映射设置页                                             | 面板不编映射规则                                           | 节点面板只保存引用关系；映射规则在数据映射设置页维护；运行时输出 `mappingStatus`、`mappingResult` 和标准字段结果；条件节点消费 Result 和标准字段，Step3 通知消费 Status / Result |
+| AI 检证模块   | 开关列表   | 至少一项   | 六项检证模块                                              | 至少开启一项                                             | 保存为 AI 检证节点配置；运行时输出 `verifyStatus`、`verifyResult`、逐条规则结果；条件节点只消费 Result，Step3 通知消费 Status / Result，人工确认页读取规则明细 |
 | 条件变量/分支   | 级联+表达式 | 条件节点必填 | 可达上游变量；标准字段和 OCR 字段必须选到叶子                           | ELSE 无表达式                                          | 只保存分支表达式和连线出口；条件节点不输出变量，不进入 Step3 通知対象ノード                                                      |
 | 审查角色      | 下拉     | 人工确认必填 | 担当者、操作员、操作管理者                                       | —                                                  | 保存为人工确认待办指派规则；运行时生成待办并输出 `hitlStatus`；完了、补件、案件中止由人工提交事件表达，Step3 通知也按这三类事件触发                    |
 | 自定义函数输入参数 | 弹窗+列表  | 按用户添加  | 用户添加的输入参数；变量选择器与条件节点一致，并额外允许开始节点 `caseId`、`files[]` | 参数名唯一；Source 不可选后续节点                               | 保存为 JavaScript 节点入参映射；代码内用自定义变量名读取入参；返回值只进执行日志或本节点调试，不进变量池                                     |
-| 自定义函数脚本   | 代码编辑器  | 是      | 用户输入 JavaScript                                     | 代码为空阻断保存；运行时异常写执行日志                                | 保存为 JavaScript 节点执行代码；运行时只输出 `codeStatus`，条件节点可消费该状态，Step3 通知不把自定义函数作为対象ノード                    |
+| 自定义函数脚本   | 代码编辑器  | 是      | 用户输入 JavaScript                                     | 代码为空阻断保存；运行时异常写执行日志                                | 保存为 JavaScript 节点执行代码；运行时只输出 `codeStatus`，不进入条件变量选择器；Step3 通知不把自定义函数作为対象ノード                    |
 | 结束节点      | 只读说明   | 否      | 系统固定终点                                              | 画布不提供出线端口；不能从结束节点发起连接                              | 不保存配置，不输出变量；到达结束仅代表工作流路径结束，案件状态由平台状态机汇聚                                                        |
 
 #### 6.02.6 列表展示
@@ -503,7 +503,7 @@ Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書�
 
 | 粒度      | 定义                              | 典型变量                                                                                                                                                  | 是否可进条件变量池                  | 说明                    |
 | ------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------- |
-| 案件级变量   | 一个案件实例只有一个值，或由多个文件/字段汇聚成一个案件级结论 | `preprocessStatus`、`preprocessResult`、`ocrStatus`、`ocrResult`、`mappingStatus`、`mappingResult`、`verifyStatus`、`verifyResult`、`hitlStatus`、`codeStatus` | 只有消费分类含条件、且来自上游可达节点时可选     | 条件节点主要消费处理状态与处理结果     |
+| 案件级变量   | 一个案件实例只有一个值，或由多个文件/字段汇聚成一个案件级结论 | `preprocessStatus`、`preprocessResult`、`ocrStatus`、`ocrResult`、`mappingStatus`、`mappingResult`、`verifyStatus`、`verifyResult`、`hitlStatus`、`codeStatus` | 上游可达节点的 Result 可选，Status 不可选 | Status 用于运行状态、通知和自定义函数入参；条件节点消费 Result |
 | 文件级变量   | 仅开始节点以 `files[]` 数组承载归属文件信息     | `files[]`                                                                                                                                             | 不可直接选                      | 传给处理节点与人工确认页读取；条件不用数组 |
 | 账票字段级变量 | 从 Step1 账票模板字段或标准字段中选到具体叶子字段后生成 | `docTypes.{账票类型}.{OCR字段名}`、`standardFields.{字段名}`                                                                                                     | 按模板字段类型 String / Number 可选 | 字段容器不可选；必须选到叶子字段      |
 
@@ -521,7 +521,7 @@ Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書�
 | 处理结果 | `passed`         | 业务通过，可走主流程                       |
 | 处理结果 | `reviewRequired` | 业务要确认，去人工确认                      |
 
-分岔时：先看处理状态有没有挂（`failed`），再看处理结果要不要人看（`reviewRequired`）。
+分岔时使用处理结果：`passed` 进入主流程，`reviewRequired` 进入人工确认。处理状态不进入条件变量选择器。
 
 Step3 通知规则模板只消费通知变量白名单里的变量。触发条件由系统按节点事件内置判断，用户只能在件名和内容里插入变量；插入变量不改变触发条件。
 
@@ -545,21 +545,20 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 消费分类 | 谁消费              | 可消费变量                                                                              | 不可消费变量                                              | 说明                     |
 | ---- | ---------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------- |
-| 条件   | 条件判断节点           | 上游可达、消费分类含条件的变量；标准字段和 Step1 OCR 字段必须选到叶子                                           | 开始节点输出、结束节点输出、`files[]`、Array 容器、Date、DateTime、系统变量 | 只用于 IF / ELIF 分岔       |
+| 条件   | 条件判断节点           | 上游可达处理节点的 Result；标准字段和 Step1 OCR 字段必须选到叶子                                           | 所有 Status、开始节点输出、结束节点输出、`files[]`、Array 容器、Date、DateTime、系统变量 | 只用于 IF / ELIF 分岔       |
 | 通知   | Step3 通知规则模板     | `caseId`、可配置通知节点的标准输出变量定义（前处理/OCR 抽出/数据映射/AI 检证的 `Status`/`Result`、人工确认的 `Status`） | `files[]`、触发条件本身、自定义函数脚本返回值                         | 只用于主题和内容插值；缺值按空值渲染并记日志 |
 | 系统   | 引擎、日志、状态汇聚、Step4 | 开始 `caseId` / `files[]`                                                            | 不提供给条件                                              | 数据映射不是系统变量来源           |
 
 同一业务事件的推荐写法：
 
-| 场景    | 条件变量                                     | 待办/运行时    |
-| ----- | ---------------------------------------- | --------- |
-| 结果要确认 | `{node}.case.*Result = reviewRequired`   | 人工确认页展示明细 |
-| 节点失败  | `{node}.case.*Status = failed`           | 异常分支或终止   |
-| 全部通过  | `*Status = success` 且 `*Result = passed` | 走主流程      |
+| 场景    | 条件变量                                   | 待办/运行时    |
+| ----- | -------------------------------------- | --------- |
+| 结果要确认 | `{node}.case.*Result = reviewRequired` | 人工确认页展示明细 |
+| 业务通过  | `{node}.case.*Result = passed`         | 走主流程      |
 
 #### 条件变量规则
 
-条件节点只能选择上游连线可达变量。开始节点、结束节点、条件节点本身都不是条件变量来源。条件节点变量选择器不得出现 Array 容器、Date、DateTime、`files[]`、字段容器 `standardFields`。
+条件节点只能选择上游连线可达的 Result、OCR 字段叶子和标准字段叶子。所有节点的 Status 均保留为输出变量，但不得出现在条件变量选择器中。开始节点、结束节点、条件节点本身都不是条件变量来源。条件节点变量选择器不得出现 Array 容器、Date、DateTime、`files[]`、字段容器 `standardFields`。
 
 账票类型字段不经由开始节点输出，条件选择器直接从 Step1 模板加载 `docTypes.{账票类型}.{OCR字段名}`。Step1 账票模板新增字段类型配置，当前只允许 `string` 与 `number`。OCR 字段和标准字段被条件节点选中时，运算子按用户在模板中配置的字段类型决定；字段容器仍不可选。
 
@@ -597,7 +596,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 类型     | 可用运算子                                                                 | 默认  | 说明                           |
 | ------ | --------------------------------------------------------------------- | --- | ---------------------------- |
-| Enum   | `=` / `≠`                                                             | `=` | 节点状态、节点结果等枚举字段               |
+| Enum   | `=` / `≠`                                                             | `=` | 节点 Result 枚举字段               |
 | String | `=` / `≠` / `contains` / `not contains` / `is empty` / `is not empty` | `=` | 模板字段类型为 string 的 OCR 字段和标准字段 |
 | Number | `=` / `≠` / `>` / `≥` / `<` / `≤`                                     | `=` | 模板字段类型为 number 的 OCR 字段和标准字段 |
 
@@ -613,17 +612,11 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 来源           | 变量键                        | 类型              | 取值范围                            | 典型条件场景                                 |
 | ------------ | -------------------------- | --------------- | ------------------------------- | -------------------------------------- |
-| AI 前处理节点     | `preprocessStatus`         | Enum            | `processing / success / failed` | `= failed` → 异常分支                      |
 | AI 前处理节点     | `preprocessResult`         | Enum            | `passed / reviewRequired`       | `= reviewRequired` → 前处理确认             |
-| OCR 抽出节点     | `ocrStatus`                | Enum            | `processing / success / failed` | `= failed` → 异常分支                      |
 | OCR 抽出节点     | `ocrResult`                | Enum            | `passed / reviewRequired`       | `= reviewRequired` → OCR 确认            |
-| 数据映射节点       | `mappingStatus`            | Enum            | `processing / success / failed` | `= failed` → 异常分支                      |
 | 数据映射节点       | `mappingResult`            | Enum            | `passed / reviewRequired`       | `= reviewRequired` → 人工确认              |
 | 数据映射节点       | `standardFields.{field}`   | String / Number | 按模板字段类型的运算子                     | 关键字分岔或金额阈值分岔                           |
-| AI 检证节点      | `verifyStatus`             | Enum            | `processing / success / failed` | `= failed` → 异常处理                      |
 | AI 检证节点      | `verifyResult`             | Enum            | `passed / reviewRequired`       | `= reviewRequired` → 确认或补件路由           |
-| 人工确认节点       | `hitlStatus`               | Enum            | `processing / success / failed` | `= success` → 人工提交完成；`= failed` → 异常分支 |
-| 自定义函数节点      | `codeStatus`               | Enum            | `processing / success / failed` | `= failed` → 异常分支                      |
 | Step1 账票模板字段 | `docTypes.{账票类型}.{OCR字段名}` | String / Number | 按模板字段类型的运算子                     | String 字段做关键字或空值分岔；Number 字段做金额阈值分岔    |
 
 条件变量选择器展示约定：
@@ -728,7 +721,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 变量键                | 类型   | 消费分类 | 取值范围                            | 定义   |
 | ------------------ | ---- | ---- | ------------------------------- | ---- |
-| `preprocessStatus` | Enum | 条件   | `processing / success / failed` | 处理状态 |
+| `preprocessStatus` | Enum | 运行时 / 通知 | `processing / success / failed` | 处理状态；保留为节点输出，不进入条件变量选择器 |
 | `preprocessResult` | Enum | 条件   | `passed / reviewRequired`       | 处理结果 |
 
 #### OCR 抽出节点
@@ -757,7 +750,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 变量键         | 类型   | 消费分类 | 取值范围                            | 定义   |
 | ----------- | ---- | ---- | ------------------------------- | ---- |
-| `ocrStatus` | Enum | 条件   | `processing / success / failed` | 处理状态 |
+| `ocrStatus` | Enum | 运行时 / 通知 | `processing / success / failed` | 处理状态；保留为节点输出，不进入条件变量选择器 |
 | `ocrResult` | Enum | 条件   | `passed / reviewRequired`       | 处理结果 |
 
 #### 数据映射节点
@@ -784,7 +777,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 变量键                      | 类型              | 消费分类 | 取值范围                            | 定义           |
 | ------------------------ | --------------- | ---- | ------------------------------- | ------------ |
-| `mappingStatus`          | Enum            | 条件   | `processing / success / failed` | 处理状态         |
+| `mappingStatus`          | Enum            | 运行时 / 通知 | `processing / success / failed` | 处理状态；保留为节点输出，不进入条件变量选择器 |
 | `mappingResult`          | Enum            | 条件   | `passed / reviewRequired`       | 处理结果         |
 | `standardFields.{field}` | String / Number | 条件   | 按标准字段模板类型的运算子                   | 数据映射后的标准字段单值 |
 
@@ -814,7 +807,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 变量键            | 类型   | 消费分类 | 取值范围                            | 定义   |
 | -------------- | ---- | ---- | ------------------------------- | ---- |
-| `verifyStatus` | Enum | 条件   | `processing / success / failed` | 处理状态 |
+| `verifyStatus` | Enum | 运行时 / 通知 | `processing / success / failed` | 处理状态；保留为节点输出，不进入条件变量选择器 |
 | `verifyResult` | Enum | 条件   | `passed / reviewRequired`       | 处理结果 |
 
 #### 人工确认节点
@@ -847,7 +840,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 
 | 变量键          | 类型   | 消费分类 | 取值范围                            | 定义                                   |
 | ------------ | ---- | ---- | ------------------------------- | ------------------------------------ |
-| `hitlStatus` | Enum | 条件   | `processing / success / failed` | 人工确认处理状态；审查动作由完了/补件/案件中止三分支承载，不进入变量池 |
+| `hitlStatus` | Enum | 运行时 / 通知 | `processing / success / failed` | 人工确认处理状态；保留为节点输出，不进入条件变量选择器 |
 
 #### 条件判断节点
 
@@ -865,7 +858,7 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 | 场景              | 条件式                                                                            |
 | --------------- | ------------------------------------------------------------------------------ |
 | OCR 要确认         | `{ocr}.case.ocrResult = reviewRequired`                                        |
-| AI 检证全部通过       | `{verify}.case.verifyStatus = success` 且 `{verify}.case.verifyResult = passed` |
+| AI 检证全部通过       | `{verify}.case.verifyResult = passed` |
 | 映射要确认           | `{map}.case.mappingResult = reviewRequired`                                    |
 | 标准字段关键字         | `{map}.case.standardFields.policyNo contains "A"`                              |
 | 标准字段金额阈值        | `{map}.case.standardFields.claimAmount > 100000`                               |
@@ -969,4 +962,4 @@ return files.map((file, index) => {
 
 | 变量键          | 类型   | 消费分类 | 取值范围                            | 定义              |
 | ------------ | ---- | ---- | ------------------------------- | --------------- |
-| `codeStatus` | Enum | 条件   | `processing / success / failed` | JavaScript 处理状态 |
+| `codeStatus` | Enum | 运行时 | `processing / success / failed` | JavaScript 处理状态；保留为节点输出，不进入条件变量选择器 |

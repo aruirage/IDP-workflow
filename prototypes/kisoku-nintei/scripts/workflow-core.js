@@ -759,16 +759,16 @@ function formatWorkflowVarConsumptionLabels(paths = []) {
 /** 案件级变量键 → 消费路径（出力変数面板列全量；条件选择器按路径过滤） */
 const WORKFLOW_VAR_CONSUMPTION_PATHS_BY_ID = {
   'case.caseId': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
-  'case.preprocessStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.preprocessStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.preprocessResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.ocrStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.ocrStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.ocrResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.mappingStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.mappingResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.verifyStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.verifyResult': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.hitlStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
-  'case.codeStatus': [WORKFLOW_VAR_CONSUMPTION.CONDITION],
+  'case.hitlStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
+  'case.codeStatus': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'case.latencyMs': [WORKFLOW_VAR_CONSUMPTION.RUNTIME],
   'files[]': [WORKFLOW_VAR_CONSUMPTION.TODO],
 };
@@ -2176,24 +2176,14 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
   if (judgmentContext === 'case_readiness') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'preprocess').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.preprocessStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.preprocessResult`, 'passed'));
     });
-    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.case.preprocessStatus', 'success'));
+    if (!ifConditions.length) ifConditions.push(judgmentCond('preprocess.case.preprocessResult', 'passed'));
     resolveUpstreamNodesByType(workflow, nodeId, 'ocr').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.ocrStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.ocrResult`, 'passed'));
     });
-    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.case.ocrStatus', 'success'));
-    resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.hitlStatus`, 'success'));
-    });
-    return [
-      createDecisionCase('if', { id: 'if', label: '就緒完了', conditions: ifConditions }),
-      createDecisionCase('elif', {
-        id: 'elif-reupload',
-        label: '再アップロード待ち',
-        conditions: [judgmentCond('ocr.case.ocrStatus', 'failed')],
-      }),
-    ];
+    if (!resolveUpstreamNodesByType(workflow, nodeId, 'ocr').length) ifConditions.push(judgmentCond('ocr.case.ocrResult', 'passed'));
+    return [createDecisionCase('if', { id: 'if', label: '就緒完了', conditions: ifConditions })];
   }
   if (judgmentContext === 'verification_result') {
     const verifyNodes = resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify');
@@ -2201,20 +2191,17 @@ function buildJudgmentCasesFromContext(judgmentContext, workflow, nodeId, verify
       ? getWorkflowNodeVarName(verifyNodes[verifyNodes.length - 1], workflow)
       : 'verify';
     const ifConditions = [];
-    ifConditions.push(judgmentCond(`${vn}.case.verifyStatus`, 'success'));
+    ifConditions.push(judgmentCond(`${vn}.case.verifyResult`, 'passed'));
     return [createDecisionCase('if', { id: 'if', label: '自動パス', conditions: ifConditions })];
   }
   if (judgmentContext === 'processing_completion') {
     const ifConditions = [];
     resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyStatus`, 'success'));
+      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.verifyResult`, 'passed'));
     });
     if (!resolveUpstreamNodesByType(workflow, nodeId, 'ai_verify').length) {
-      ifConditions.push(judgmentCond('verify.case.verifyStatus', 'success'));
+      ifConditions.push(judgmentCond('verify.case.verifyResult', 'passed'));
     }
-    resolveUpstreamNodesByType(workflow, nodeId, 'hitl_gate').forEach((n) => {
-      ifConditions.push(judgmentCond(`${getWorkflowNodeVarName(n, workflow)}.case.hitlStatus`, 'success'));
-    });
     return [createDecisionCase('if', { id: 'if', label: '承認・完結', conditions: ifConditions })];
   }
   return [createDecisionCase('if', { id: 'if', label: 'IF', conditions: [judgmentCond('')] })];
@@ -3056,8 +3043,13 @@ function getDecisionVariableOptionGroups(options) {
   return groups;
 }
 
+function isDecisionStatusVariable(value) {
+  return /Status$/i.test(String(value || '').replace(/^\{|\}$/g, '').trim());
+}
+
 function getDecisionVariableOptions(workflow, nodeId, verifyConfig = null, sceneContext = null) {
-  return buildDecisionVariableCatalog(workflow, nodeId, verifyConfig, sceneContext);
+  return buildDecisionVariableCatalog(workflow, nodeId, verifyConfig, sceneContext)
+    .filter((option) => !isDecisionStatusVariable(option.value));
 }
 
 function getDecisionVariableLabel(value, options = []) {
@@ -3270,6 +3262,7 @@ function syncDecisionVariablesInWorkflow(workflow) {
     (node.cases || []).forEach((c) => {
       (c.conditions || []).forEach((cond) => {
         cond.variable = migrateDecisionVariableScope(cond.variable);
+        if (isDecisionStatusVariable(cond.variable)) return;
         if (!cond.variable || !isAllowedVariable(cond.variable)) {
           const preset = cond.preset || node.conditionType;
           const resolved = resolveDecisionPresetVariable(workflow, node.id, preset);
@@ -3908,7 +3901,6 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${ppVar}.case.preprocessStatus`, 'is', 'success'),
           cond(`${ppVar}.case.preprocessResult`, 'is', 'passed'),
         ],
       }),
@@ -3925,7 +3917,6 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${ocrVar}.case.ocrStatus`, 'is', 'success'),
           cond(`${ocrVar}.case.ocrResult`, 'is', 'passed'),
         ],
       }),
@@ -3942,16 +3933,7 @@ function buildDefaultCaseWorkflow() {
         label: '通過',
         logic: 'and',
         conditions: [
-          cond(`${aiVar}.case.verifyStatus`, 'is', 'success'),
           cond(`${aiVar}.case.verifyResult`, 'is', 'passed'),
-        ],
-      }),
-      createDecisionCase('elif', {
-        id: 'elif-error',
-        label: '異常',
-        logic: 'and',
-        conditions: [
-          cond(`${aiVar}.case.verifyStatus`, 'is', 'failed'),
         ],
       }),
     ],

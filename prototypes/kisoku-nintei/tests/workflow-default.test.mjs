@@ -149,6 +149,19 @@ test('uses type-aware condition value controls', async () => {
   assert.match(workflowCore, /valueSpec: spec\.valueSpec \|\| ''/);
 });
 
+test('keeps status outputs but removes them from condition choices', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+
+  assert.match(workflowCore, /case\.preprocessStatus[^\n]*WORKFLOW_OUTPUT_VALUE_SPECS\.nodeStatus/);
+  assert.match(workflowCore, /function getDecisionVariableOptions[\s\S]*filter\(\(option\) => !isDecisionStatusVariable\(option\.value\)\)/);
+  assert.match(workflowCore, /function buildCodeVariableOptions[\s\S]*buildCodeSourceVariableOptions/);
+  assert.match(workflowCore, /if \(isDecisionStatusVariable\(cond\.variable\)\) return;/);
+  assert.match(mockData, /typeof buildCodeVariableOptions === 'function'[\s\S]*buildCodeVariableOptions\(wf, node\.id, varSceneCtx\)/);
+  assert.match(mockData, /status は条件に使用できません/);
+  assert.doesNotMatch(workflowCore, /cond\(`\$\{(?:ppVar|ocrVar|aiVar)\}\.case\.(?:preprocess|ocr|verify)Status`/);
+});
+
 test('keeps draft and published workflow history separate', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');

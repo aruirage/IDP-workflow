@@ -2095,13 +2095,17 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     return false;
   };
   nodes.filter((n) => n.type === 'decision' && reachable.has(n.id)).forEach((node) => {
-    const options = typeof getDecisionVariableOptions === 'function'
-      ? getDecisionVariableOptions(wf, node.id, sceneContext.verify || null, varSceneCtx)
+    const options = typeof buildCodeVariableOptions === 'function'
+      ? buildCodeVariableOptions(wf, node.id, varSceneCtx)
       : [];
     (node.cases || []).forEach((decisionCase) => {
       (decisionCase.conditions || []).forEach((cond) => {
         const raw = String(cond?.variable || '').trim();
         if (!raw) return;
+        if (typeof isDecisionStatusVariable === 'function' && isDecisionStatusVariable(raw)) {
+          push('S2-26', '変数参照', `条件変数「${raw}」の status は条件に使用できません`, node.id, 'result または帳票フィールドを選択してください');
+          return;
+        }
         if (isContainerVarPath(raw)) {
           push('S2-24', 'フィールド選択', `条件左値「${raw}」は容器です。葉項目を選んでください`, node.id);
           return;
