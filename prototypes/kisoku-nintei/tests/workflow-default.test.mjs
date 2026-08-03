@@ -178,7 +178,7 @@ test('renames image sorting and adds image combination', async () => {
   assert.match(mockData, /function isImageCombineEnabledForDocType\(docType\)/);
   assert.match(main, /function getPreprocessDocTypes\(item\)/);
   assert.match(index, /v-for="t in getPreprocessDocTypes\(item\)"/);
-  assert.match(index, /帳票タイプ設定で画像組合が有効な帳票のみ選択できます。/);
+  assert.doesNotMatch(index, /帳票タイプ設定で画像組合が有効な帳票のみ選択できます。/);
 });
 
 test('keeps draft and published workflow history separate', async () => {
