@@ -109,10 +109,7 @@ const appOptions = {
       ['開始', '开始'],
       ['終了', '结束'],
       ['前処理', '前处理'],
-      ['画像分割', '图像分割'],
       ['画像整列', '图像排列'],
-      ['画像組合', '图像组合'],
-      ['画像組合が有効な帳票タイプがありません', '没有已启用图像组合的账票类型'],
       ['OCR抽出', 'OCR抽出'],
       ['データマッピング', 'Data Mapping'],
       ['AI検証', 'AI校验'],
@@ -623,7 +620,7 @@ const appOptions = {
       ['条件がありません。下のボタンから追加してください。', '没有条件。请通过下方按钮添加。'],
       ['条件を追加', '添加条件'],
       ['前処理オプション', '前处理选项'],
-      ['画像回転・補正・画像分割・画像整列・画像組合など、OCR 前の処理を有効化します。', '启用 OCR 前的图像旋转、补正、图像分割、图像排列、图像组合等处理。'],
+      ['画像回転・補正・画像整列など、OCR 前の処理を有効化します。', '启用 OCR 前的图像旋转、补正、图像排列等处理。'],
       ['対象帳票', '对象账票'],
       ['分類・保管のみ', '仅分类・保管'],
       ['業務シーン設定で関連帳票を追加すると、OCR抽出の対象を設定できます', '在业务场景设定中添加关联账票后，可设定 OCR 抽出对象'],
@@ -939,7 +936,7 @@ const appOptions = {
       ['前处理 → OCR → Data Mapping → AI 检证', '前处理 → OCR → Data Mapping → AI 检证'],
       ['补件文件のみ前处理実行（既存ファイル再実行なし）', '仅对补件文件执行前处理（不重跑既有文件）'],
       ['同一案件・同一通知ノードのため 1 回のみ送信', '同一案件・同一通知节点因此仅发送 1 次'],
-      ['画像補正・回転・画像分割を完了しました', '已完成图像补正・旋转・图像分割'],
+      ['画像補正・回転・画像整列を完了しました', '已完成图像补正・旋转・图像排列'],
       ['帳票タイプ別に公式フィールドを抽出しました', '已按账票类型抽出正式字段'],
       ['標準フィールドへマッピングしました', '已映射到标准字段'],
       ['必須フィールド・必要書類・各種検証を通過しました', '已通过必填字段・必要资料・各类校验'],
@@ -3171,11 +3168,6 @@ const appOptions = {
     });
 
     const sceneDocTypes = computed(() => form.scene.documents.map((d) => d.type));
-
-    function getPreprocessDocTypes(item) {
-      if (item?.key !== 'combine') return sceneDocTypes.value;
-      return sceneDocTypes.value.filter((type) => isImageCombineEnabledForDocType(type));
-    }
 
     const selectedWorkflowNode = computed(() =>
       (getActiveWf()?.nodes || []).find((n) => n.id === selectedWorkflowNodeId.value) || null
@@ -8018,15 +8010,10 @@ const appOptions = {
         const img = form.processing.image;
         const nextRotate = filterImageDocTypes(img.rotateDocTypes, allowed);
         const nextPerspective = filterImageDocTypes(img.perspectiveDocTypes, allowed);
-        const nextSplit = filterImageDocTypes(img.splitDocTypes, allowed);
         const nextSort = filterImageDocTypes(img.sortDocTypes, allowed);
-        const combineAllowed = allowed.filter((type) => isImageCombineEnabledForDocType(type));
-        const nextCombine = filterImageDocTypes(img.combineDocTypes, combineAllowed);
         if (JSON.stringify(nextRotate) !== JSON.stringify(img.rotateDocTypes || [])) img.rotateDocTypes = nextRotate;
         if (JSON.stringify(nextPerspective) !== JSON.stringify(img.perspectiveDocTypes || [])) img.perspectiveDocTypes = nextPerspective;
-        if (JSON.stringify(nextSplit) !== JSON.stringify(img.splitDocTypes || [])) img.splitDocTypes = nextSplit;
         if (JSON.stringify(nextSort) !== JSON.stringify(img.sortDocTypes || [])) img.sortDocTypes = nextSort;
-        if (JSON.stringify(nextCombine) !== JSON.stringify(img.combineDocTypes || [])) img.combineDocTypes = nextCombine;
         if (form.verify.seal?.rules?.length) {
           const nextSealRules = form.verify.seal.rules
             .map((r) => ({
@@ -10125,7 +10112,6 @@ const appOptions = {
       formatWfNodeLabel,
       getWorkflowNodeActiveTasks,
       PREPROCESS_SETTING_ITEMS,
-      getPreprocessDocTypes,
       isPreprocessSettingOn,
       showPreprocessSettingDetail,
       DECISION_CONDITION_TYPES,

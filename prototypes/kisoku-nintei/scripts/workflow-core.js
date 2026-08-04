@@ -44,7 +44,7 @@ const INSPECTOR_HINTS = {
   scene: '業務シーン作成時、またはステップ1で関連帳票・案件集約・帳票間関連を設定します。',
   inputSetting: '画面上アップロードまたは APIアップロードでファイルを受け付けます。APIアップロードを有効にした場合はエンドポイント URL を指定します。',
   inputLimits: 'ファイル形式・最大ファイルサイズ（上限 20MB・それ以下のみ）を指定します。',
-  preprocess: 'OCR 前に画像補正、画像回転、画像分割、画像整列、画像組合を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像分割：同一ページ内に複数帳票がある場合も画像単位で分割し、ファイル流を生成。\n・画像整列：同一帳票タイプ内の画像を整列。\n・画像組合：帳票タイプ設定の組合キーに基づき、同一帳票タイプの画像を一つの論理ファイルにまとめます。',
+  preprocess: 'OCR 前に画像補正、画像回転、画像整列を実行します。\n\n・画像補正：歪み・傾きの補正。対象帳票未指定時は全帳票タイプが対象。\n・画像回転：スキャン方向の自動補正。対象帳票未指定時は全帳票タイプが対象。\n・画像整列：同一帳票タイプ内の画像を整列。',
   ocrSetting: '抽出フィールド・Prompt・信頼度閾値などの詳細は帳票 template またはシステムモデル設定で管理します。',
   ocrExtract: 'Step1で関連付けた帳票タイプを参照します。帳票タイプごとにOCR抽出の実行有無を選択し、抽出項目は「帳票タイプ設定」で編集します。',
   dataMapping: 'データマッピング設定で定義したルールをこの Workflow で呼び出します。ルールの確認・編集はデータマッピング設定から行います。',
@@ -542,8 +542,8 @@ const WORKFLOW_NODE_META = {
   preprocess: {
     icon: 'PP',
     title: '前処理',
-    desc: '画像補正・回転・画像分割・画像整列・画像組合',
-    tasks: ['画像補正', '画像回転', '画像分割', '画像整列', '画像組合'],
+    desc: '画像補正・回転・画像整列',
+    tasks: ['画像補正', '画像回転', '画像整列'],
     input: 'Physical Files',
     output: 'Logical Document Set',
     accent: '#00857a',
@@ -1469,25 +1469,11 @@ const PREPROCESS_SETTING_ITEMS = [
     docTypesKey: 'perspectiveDocTypes',
   },
   {
-    key: 'split',
-    label: '画像分割',
-    switchKey: 'split',
-    detailType: 'split',
-    docTypesKey: 'splitDocTypes',
-  },
-  {
     key: 'sort',
     label: '画像整列',
     switchKey: 'sort',
     detailType: 'sort',
     docTypesKey: 'sortDocTypes',
-  },
-  {
-    key: 'combine',
-    label: '画像組合',
-    switchKey: 'combine',
-    detailType: 'combine',
-    docTypesKey: 'combineDocTypes',
   },
 ];
 
@@ -1499,9 +1485,7 @@ const WORKFLOW_CANVAS_SUMMARY_LINE_H = 22;
 const PREPROCESS_CANVAS_SHORT_LABELS = {
   rotate: '回転',
   perspective: '補正',
-  split: '分割',
   sort: '整列',
-  combine: '組合',
 };
 
 const AI_VERIFY_CANVAS_SHORT_LABELS = {

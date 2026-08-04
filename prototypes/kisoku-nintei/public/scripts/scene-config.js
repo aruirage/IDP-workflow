@@ -4,11 +4,8 @@ function getInputChannelLabel(channelId) {
 
 function normalizeImageConfig(image, documents) {
   const allowedTypes = (documents || []).map((d) => d.type);
-  const imageCombineTypes = allowedTypes.filter((type) => isImageCombineEnabledForDocType(type));
   const rotate = image?.rotate !== false;
   const perspective = image?.perspective !== false;
-  const split = image?.split !== false;
-  const combine = image?.combine === true;
   const sortEnabled = image?.sort !== undefined
     ? image.sort !== false
     : (image?.classify !== undefined ? image.classify !== false : true);
@@ -20,12 +17,8 @@ function normalizeImageConfig(image, documents) {
     rotateDocTypes: defaultImageDocTypes(rotate, image?.rotateDocTypes, allowedTypes),
     perspective,
     perspectiveDocTypes: defaultImageDocTypes(perspective, image?.perspectiveDocTypes, allowedTypes),
-    split,
-    splitDocTypes: filterImageDocTypes(image?.splitDocTypes, allowedTypes),
     sort: sortEnabled,
     sortDocTypes: defaultImageDocTypes(sortEnabled, sortDocTypesRaw, allowedTypes),
-    combine,
-    combineDocTypes: defaultImageDocTypes(combine, image?.combineDocTypes, imageCombineTypes),
     io: { ...NODE_IO_DEFAULTS.preprocess, ...(image?.io || {}) },
   };
 }

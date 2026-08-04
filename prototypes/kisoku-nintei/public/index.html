@@ -1555,21 +1555,18 @@
                               size="small"
                               placeholder="対象帳票（未指定時は全帳票）"
                               class="inspector-field-control inspector-multi-select preprocess-doc-select"
-                              :disabled="!getPreprocessDocTypes(item).length"
+                              :disabled="!sceneDocTypes.length"
                               teleported
                               placement="bottom-start"
                               popper-class="idp-inspector-select-popper"
                               :popper-options="{ strategy: 'fixed' }"
                             >
                               <el-option
-                                v-for="t in getPreprocessDocTypes(item)"
+                                v-for="t in sceneDocTypes"
                                 :key="item.key + '-' + t"
                                 :label="getDocDisplayLabel(t)"
                                 :value="t"
                               />
-                              <template #empty>
-                                <span>{{ item.key === 'combine' ? '画像組合が有効な帳票タイプがありません' : '対象帳票がありません' }}</span>
-                              </template>
                             </el-select>
                           </div>
                         </div>
