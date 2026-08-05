@@ -7050,7 +7050,7 @@ const appOptions = {
 
     function getDecisionBranchTarget(nodeId, branch) {
       const edge = (getActiveWf()?.edges || []).find((e) => e.from === nodeId && e.branch === branch);
-      if (!edge) return '—';
+      if (!edge) return '未接続';
       const target = (getActiveWf()?.nodes || []).find((n) => n.id === edge.to);
       return target?.label?.replace(/\n/g, ' ') || edge.to;
     }

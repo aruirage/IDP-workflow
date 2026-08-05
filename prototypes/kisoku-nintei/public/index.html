@@ -935,7 +935,7 @@
                             <span class="wf-ifelse-kind wf-ifelse-kind--else">ELSE</span>
                           </div>
                           <div class="wf-ifelse-row-main">
-                            <span class="wf-ifelse-condition--muted">{{ node.elseLabel || '条件に該当しない場合' }}</span>
+                            <span class="wf-ifelse-condition--muted">{{ getDecisionBranchTarget(node.id, 'else') }}</span>
                           </div>
                         </div>
                       </div>

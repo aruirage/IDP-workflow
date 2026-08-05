@@ -174,6 +174,14 @@ test('keeps only rotation, correction, and image alignment preprocessing', async
   assert.doesNotMatch(sceneConfig, /splitDocTypes|combineDocTypes/);
 });
 
+test('shows connected target names in decision branch rows', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  assert.match(index, /getDecisionBranchTarget\(node\.id, 'else'\)/);
+  assert.match(main, /if \(!edge\) return '未接続';/);
+});
+
 test('keeps draft and published workflow history separate', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
