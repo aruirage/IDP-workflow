@@ -461,16 +461,30 @@ Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書�
 
 <mark class="change-modified">Step2 点击「設定チェック」时执行静态配置校验；当前状态不是可发布而点击 Step4「公開」时，也执行同一校验。校验只读取当前画布、Step1 账票与字段定义；不读取样例数据，不执行 OCR、AI 检证、数据映射或自定义 JavaScript，不创建人工待办，不发送通知或邮件。</mark>
 
-校验维度：
+<mark class="change-modified">每次点击「設定チェック」均从第一个维度开始重新检查，只显示本次检查结果中的首个错误，不记录上次检查位置。</mark>
 
-| 顺序 | 维度 | 检查范围 | 失败处理 |
-| -- | -- | ---- | ---- |
-| 1 | 结构 | 结束节点、开始到结束可达、分支可达结束、孤立或不可达节点、回流可终止 | 设置检查失败；提示首条原因并定位节点；状态不变；仍可全局保存或步骤跳转 |
-| 2 | 连线 | 同一节点仅允许一条普通输入连线、条件出口不重复、人工确认至少连接一个可连接出口、案件中止不连线、补件只回流、连线两端节点存在 | 同上 |
-| 3 | 节点配置 | 前处理、OCR 抽出、数据映射、AI 检证、条件、人工确认、自定义 JavaScript 的必填配置 | 同上 |
-| 4 | 变量引用 | 条件变量和自定义函数输入可从上游到达；删除或改线后无失效引用 | 同上 |
-| 5 | 字段选择 | 条件左值选到可判断的叶子字段，字段类型与运算符匹配 | 同上 |
-| 6 | 依赖 | 人工确认合法上游、数据映射上游、AI 检证上游满足节点依赖 | 同上 |
+| <mark class="change-modified">检查维度</mark> | <mark class="change-modified">检查内容</mark> | 失败处理 | <ins class="change-added">日文错误文案</ins> | <ins class="change-added">中文翻译</ins> |
+| --- | --- | --- | --- | --- |
+| <mark class="change-modified">结构</mark> | <mark class="change-modified">至少配置一个结束节点</mark> | <mark class="change-modified">设置检查失败；Toast 显示首条原因；存在对应节点时自动选中、居中并高亮；状态不变；仍可全局保存或步骤跳转</mark> | <ins class="change-added">終了ノードを配置してください。</ins> | <ins class="change-added">请配置结束节点。</ins> |
+| <mark class="change-modified">结构</mark> | <mark class="change-modified">开始节点可以到达结束节点</mark> | 同上 | <ins class="change-added">開始ノードから終了ノードへ到達できません。</ins> | <ins class="change-added">无法从开始节点到达结束节点。</ins> |
+| <mark class="change-modified">结构</mark> | <mark class="change-modified">不存在孤立或从开始节点不可达的节点</mark> | 同上 | <ins class="change-added">開始ノードから到達できないノードがあります。</ins> | <ins class="change-added">存在无法从开始节点到达的节点。</ins> |
+| <mark class="change-modified">结构</mark> | <mark class="change-modified">所有分支和回流路径最终均可结束</mark> | 同上 | <ins class="change-added">終了ノードに到達できない経路があります。</ins> | <ins class="change-added">存在无法到达结束节点的路径。</ins> |
+| <mark class="change-modified">连线</mark> | <mark class="change-modified">条件节点的 IF、ELIF、ELSE 均已连接</mark> | 同上 | <ins class="change-added">「{分岐名}」の接続先が設定されていません。</ins> | <ins class="change-added">“{分支名称}”尚未设置连接目标。</ins> |
+| <mark class="change-modified">连线</mark> | <mark class="change-modified">同一分支只连接一个后续节点</mark> | 同上 | <ins class="change-added">「{分岐名}」から複数のノードに接続されています。</ins> | <ins class="change-added">“{分支名称}”连接了多个节点。</ins> |
+| <mark class="change-modified">连线</mark> | <mark class="change-modified">案件中止不连接节点</mark> | 同上 | <ins class="change-added">「案件中止」には後続ノードを接続できません。</ins> | <ins class="change-added">“案件中止”不能连接后续节点。</ins> |
+| <mark class="change-modified">连线</mark> | <mark class="change-modified">补件只回流至已执行过的前序节点</mark> | 同上 | <ins class="change-added">「補件」は前述ノードへの回流のみ設定できます。</ins> | <ins class="change-added">“补件”只能回流至前序节点。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">前处理至少开启一个选项</mark> | 同上 | <ins class="change-added">前処理オプションを1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个前处理选项。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">OCR 抽出至少开启一个对象账票</mark> | 同上 | <ins class="change-added">OCR対象帳票を1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个 OCR 对象账票。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">AI 检证至少开启一个模块</mark> | 同上 | <ins class="change-added">検証モジュールを1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个检证模块。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">条件分支已设置</mark> | 同上 | <ins class="change-added">未設定の条件分岐があります。</ins> | <ins class="change-added">存在尚未设置的条件分支。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">人工确认已选择审查角色</mark> | 同上 | <ins class="change-added">審査ロールを選択してください。</ins> | <ins class="change-added">请选择审查角色。</ins> |
+| <mark class="change-modified">节点配置</mark> | <mark class="change-modified">自定义函数已填写 JavaScript</mark> | 同上 | <ins class="change-added">JavaScriptを入力してください。</ins> | <ins class="change-added">请输入 JavaScript。</ins> |
+| <mark class="change-modified">引用有效性</mark> | <mark class="change-modified">Step1 删除账票或字段，或画布删除节点、修改连线后，条件变量和自定义函数输入不存在失效引用</mark> | 同上 | <ins class="change-added">「{ノード名}」に無効な参照があります。設定内容を確認してください。</ins> | <ins class="change-added">“{节点名称}”中存在无效引用，请检查设置内容。</ins> |
+| <mark class="change-modified">执行前提</mark> | <mark class="change-modified">人工确认只连接在前处理、OCR 抽出或 AI 检证结果对应的条件分支后</mark> | 同上 | <ins class="change-added">「{処理ノード名}」の結果を判定する条件分岐には、人工確認ノードを接続できません。</ins> | <ins class="change-added">判断“{处理节点名称}”结果的条件分支不能连接人工确认节点。</ins> |
+| <mark class="change-modified">执行前提</mark> | <mark class="change-modified">数据映射存在所需输入数据</mark> | 同上 | <ins class="change-added">データマッピングに必要な入力データがありません。接続を確認してください。</ins> | <ins class="change-added">数据映射缺少所需输入数据，请检查连接。</ins> |
+| <mark class="change-modified">执行前提</mark> | <mark class="change-modified">AI 检证存在所需输入数据</mark> | 同上 | <ins class="change-added">AI検証に必要な入力データがありません。接続を確認してください。</ins> | <ins class="change-added">AI 检证缺少所需输入数据，请检查连接。</ins> |
+
+<mark class="change-modified">条件节点的变量类型、可选字段和运算符匹配由配置控件即时限制，不纳入设置检查。案件中止出口的连线操作由画布即时禁止；设置检查仅用于兼容历史或异常配置。</mark>
 
 <mark class="change-modified">设置检查与全局保存相互独立，无论检查成功或失败均可保存。检查失败时状态不变；从 Step4 发起检查时，Toast 提示首条原因并自动跳转 Step2。检查通过时场景更新为可发布；从 Step4 发起检查时继续显示公开确认。Step1 或 Step2 后续发生实质修改时，场景重新变为草稿，必须再次通过设置检查。</mark>
 
