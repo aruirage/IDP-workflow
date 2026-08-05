@@ -2003,12 +2003,6 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
     }
     const seen = new Set();
     outs.forEach((e) => {
-      if (e.branch === 'reject') {
-        push('S2-11', '接続', '案件中止出口は接続できません', node.id);
-      }
-      if (e.branch === 'request_supplement' && typeof workflowCanReach === 'function' && !workflowCanReach(wf, e.to, node.id, e)) {
-        push('S2-11', '接続', '補件出口は前述ノードへの回流接続のみ可能です', node.id);
-      }
       if (seen.has(e.branch)) {
         push('S2-11', '接続', `人工確認出口「${e.branch}」が重複しています`, node.id);
       }
@@ -2139,32 +2133,9 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
   if (errors.some((e) => e.dimension === '変数参照')) return { errors, blockedDimension: '変数参照' };
   if (errors.some((e) => e.dimension === 'フィールド選択')) return { errors, blockedDimension: 'フィールド選択' };
 
-  // —— 依赖：HITL 上游 / 映射前有 OCR ——
+  // —— 依赖：HITL 上游 ——
   validateWorkflowTestHitlContext(wf).forEach((issue) => {
     push('S2-28', '依存', issue.message, issue.nodeId);
-  });
-  const hasOcrUpstream = (nodeId) => {
-    const seen = new Set();
-    const q = edges.filter((e) => e.to === nodeId).map((e) => e.from);
-    while (q.length) {
-      const id = q.shift();
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      const n = nodes.find((x) => x.id === id);
-      if (n?.type === 'ocr' || n?.type === 'preprocess') return true;
-      edges.filter((e) => e.to === id).forEach((e) => q.push(e.from));
-    }
-    return false;
-  };
-  nodes.filter((n) => n.type === 'data_mapping' && reachable.has(n.id)).forEach((node) => {
-    if (!hasOcrUpstream(node.id)) {
-      push('S2-26', '依存', 'データマッピングの上流に前処理/OCR がありません', node.id);
-    }
-  });
-  nodes.filter((n) => n.type === 'ai_verify' && reachable.has(n.id)).forEach((node) => {
-    if (!hasOcrUpstream(node.id)) {
-      push('S2-27', '依存', 'AI検証の上流に OCR/前処理結果がありません', node.id);
-    }
   });
   if (errors.some((e) => e.dimension === '依存')) return { errors, blockedDimension: '依存' };
 
@@ -2695,10 +2666,8 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
       if (hasEmptyBranch) return '未設定の条件分岐があります';
       return '';
     }
-    case 'hitl_gate': {
-      if (!String(node.role || '').trim()) return '審査ロールを選択してください';
+    case 'hitl_gate':
       return '';
-    }
     case 'code': {
       if (typeof normalizeCodeNode !== 'function') return '';
       const normalized = normalizeCodeNode(node, wf);

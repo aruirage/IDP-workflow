@@ -182,6 +182,16 @@ test('shows connected target names in decision branch rows', async () => {
   assert.match(main, /if \(!edge\) return '未接続';/);
 });
 
+test('does not revalidate rules already enforced by configuration controls', async () => {
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(mockData, /案件中止出口は接続できません/);
+  assert.doesNotMatch(mockData, /補件出口は前述ノードへの回流接続のみ可能です/);
+  assert.doesNotMatch(mockData, /審査ロールを選択してください/);
+  assert.doesNotMatch(mockData, /データマッピングの上流に前処理\/OCR がありません/);
+  assert.doesNotMatch(mockData, /AI検証の上流に OCR\/前処理結果がありません/);
+});
+
 test('keeps draft and published workflow history separate', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
