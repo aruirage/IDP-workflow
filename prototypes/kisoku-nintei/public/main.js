@@ -85,6 +85,7 @@ const appOptions = {
     const sceneSetupActiveTab = ref('basic');
     const sceneSetupAiMatching = ref(false);
     const sceneSetupAggregateDetailOpen = reactive({});
+    const sceneSetupNetworkExpandedDocs = reactive({});
     const sceneSetupNetworkViewportRef = ref(null);
     const sceneSetupNetworkViewportSize = reactive({ width: 0, height: 0 });
     let sceneSetupNetworkResizeObserver = null;
@@ -2706,8 +2707,20 @@ const appOptions = {
         getDocDisplayLabel,
         (docType) => getDocSchema(docType).fields || [],
         sceneSetupDraft.mainKey,
+        sceneSetupNetworkExpandedDocs,
       )
     );
+
+    function toggleSceneSetupNetworkDoc(docType) {
+      if (!docType) return;
+      sceneSetupNetworkExpandedDocs[docType] = !sceneSetupNetworkExpandedDocs[docType];
+    }
+
+    function resetSceneSetupNetworkExpandedDocs() {
+      Object.keys(sceneSetupNetworkExpandedDocs).forEach((docType) => {
+        delete sceneSetupNetworkExpandedDocs[docType];
+      });
+    }
     const sceneSetupNetworkScale = computed(() => {
       const layout = sceneSetupNetworkLayout.value || {};
       const viewportW = Math.max(0, sceneSetupNetworkViewportSize.width - 28);
@@ -5233,10 +5246,12 @@ const appOptions = {
       sceneSetupDraft.mainKey = '';
       sceneSetupDraft.docFieldLinks = [];
       sceneSetupDraft.aggregateRuleSettings = {};
+      resetSceneSetupNetworkExpandedDocs();
       clearSceneSetupLinkCheckDisplay();
     }
 
     function loadSceneSetupDraftFromData(data, sceneId = '', sceneName = '') {
+      resetSceneSetupNetworkExpandedDocs();
       sceneSetupDraft.sceneId = sceneId;
       sceneSetupDraft.name = data.scene?.name || sceneName || '新規シーン';
       sceneSetupDraft.description = data.scene?.description || '';
@@ -9769,6 +9784,7 @@ const appOptions = {
       sceneSetupNetworkViewportRef,
       sceneSetupNetworkScaledSize,
       sceneSetupNetworkInnerStyle,
+      toggleSceneSetupNetworkDoc,
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
       confirmSceneSetup,

@@ -10870,6 +10870,16 @@ body.idp-inspector-resizing * {
   background: #fffbfa;
 }
 .wf-network-doc-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   color: #344054;
@@ -10878,6 +10888,20 @@ body.idp-inspector-resizing * {
   margin-bottom: 4px;
   line-height: 1.35;
   word-break: break-all;
+}
+.wf-network-doc-toggle {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-right: 1px solid #98a2b3;
+  border-bottom: 1px solid #98a2b3;
+  transform: rotate(45deg) translateY(-2px);
+  transform-origin: center;
+  transition: transform 160ms ease;
+}
+.wf-network-doc-toggle.is-expanded {
+  transform: rotate(225deg) translate(-1px, -1px);
 }
 .wf-network-doc-node.is-hub .wf-network-doc-title {
   color: #175cd3;

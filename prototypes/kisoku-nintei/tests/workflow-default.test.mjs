@@ -101,6 +101,21 @@ test('shows Japanese output names and focused value tooltips', async () => {
   assert.match(style, /\.workflow-output-var-type\s*\{[^}]*margin-left:\s*auto;/s);
 });
 
+test('collapses relation preview documents to linked fields with straight lines', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
+
+  assert.match(main, /const sceneSetupNetworkExpandedDocs = reactive\(\{\}\)/);
+  assert.match(main, /sceneSetupNetworkExpandedDocs/);
+  assert.match(sceneConfig, /const visibleFields = expandedDocs\?\.\[docType\] \? fields : linkedFields/);
+  assert.match(sceneConfig, /return `M \$\{x1\} \$\{y1\} L \$\{x2\} \$\{y2\}`/);
+  assert.match(index, /@click="toggleSceneSetupNetworkDoc\(node\.docType\)"/);
+  assert.match(index, /v-for="field in node\.visibleFields"/);
+  assert.match(index, /wf-network-doc-toggle[^>]*is-expanded/);
+  assert.doesNotMatch(index, /marker-end="url\(#wf-net-arrow\)"/);
+});
+
 test('uses one regular-weight settings shortcut label', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');

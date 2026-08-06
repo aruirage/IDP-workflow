@@ -312,10 +312,7 @@ const WF_NET_LAYOUT = {
 };
 
 function buildNetEdgePath(x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const cx1 = x1 + dx * 0.42;
-  const cx2 = x1 + dx * 0.58;
-  return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
+  return `M ${x1} ${y1} L ${x2} ${y2}`;
 }
 
 function buildNetBusEdgePath(x1, y1, x2, y2, side) {
@@ -340,7 +337,7 @@ function buildNetBusEdgePath(x1, y1, x2, y2, side) {
   ].join(' ');
 }
 
-function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFields, mainKey = '') {
+function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFields, mainKey = '', expandedDocs = {}) {
   if (!docs.length) {
     return { width: 720, height: 320, nodes: [], edges: [] };
   }
@@ -350,6 +347,18 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
   const leftTypes = related.slice(0, Math.ceil(related.length / 2)).map((d) => d.type);
   const rightTypes = related.slice(Math.ceil(related.length / 2)).map((d) => d.type);
   const L = WF_NET_LAYOUT;
+  const linkedFieldMap = {};
+
+  function markLinked(docType, field) {
+    if (!docType || !field) return;
+    if (!linkedFieldMap[docType]) linkedFieldMap[docType] = new Set();
+    linkedFieldMap[docType].add(field);
+  }
+
+  (links || []).forEach((link) => {
+    markLinked(link.sourceDocType, link.sourceField);
+    markLinked(link.targetDocType, link.targetField);
+  });
 
   function nodeHeight(fieldCount) {
     return L.HEADER_H + fieldCount * (L.FIELD_H + L.FIELD_GAP) + L.NODE_PAD * 2;
@@ -357,6 +366,8 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
 
   function buildNodeMeta(docType, side) {
     const fields = getFields(docType) || [];
+    const linkedFields = linkedFieldMap[docType] ? [...linkedFieldMap[docType]] : [];
+    const visibleFields = expandedDocs?.[docType] ? fields : linkedFields;
     return {
       id: docType,
       docType,
@@ -365,8 +376,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       side,
       isHub: docType === mainType,
       width: docType === mainType ? L.MAIN_W : L.SAT_W,
-      height: nodeHeight(fields.length),
-      linkedFields: [],
+      height: nodeHeight(visibleFields.length),
+      linkedFields,
+      visibleFields,
+      isExpanded: Boolean(expandedDocs?.[docType]),
       isUnlinked: false,
     };
   }
@@ -401,17 +414,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
   const canvasH = Math.max(leftY, rightY, mainMeta.top + mainMeta.height) + L.PAD;
   const canvasW = rightX + L.SAT_W + L.PAD;
   const nodeMap = Object.fromEntries(allNodes.map((n) => [n.id, n]));
-  const linkedFieldMap = {};
-
   function fieldY(node, field) {
-    const idx = node.fields.indexOf(field);
+    const idx = node.visibleFields.indexOf(field);
     if (idx < 0) return null;
     return node.top + L.NODE_PAD + L.HEADER_H + idx * (L.FIELD_H + L.FIELD_GAP) + L.FIELD_H / 2;
-  }
-
-  function markLinked(docType, field) {
-    if (!linkedFieldMap[docType]) linkedFieldMap[docType] = new Set();
-    linkedFieldMap[docType].add(field);
   }
 
   const edges = (links || []).map((link, index) => {
@@ -433,8 +439,6 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       const srcY = fieldY(srcNode, link.sourceField);
       const tgtY = fieldY(tgtNode, link.targetField);
       if (srcY == null || tgtY == null) return null;
-      markLinked(link.sourceDocType, link.sourceField);
-      markLinked(link.targetDocType, link.targetField);
       let x1;
       let y1;
       let x2;
@@ -471,9 +475,6 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
     const mainYPos = fieldY(mainMeta, mainField);
     if (satY == null || mainYPos == null) return null;
 
-    markLinked(satType, satField);
-    markLinked(mainType, mainField);
-
     let x1;
     let y1;
     let x2;
@@ -499,7 +500,6 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
   }).filter(Boolean);
 
   allNodes.forEach((n) => {
-    n.linkedFields = linkedFieldMap[n.docType] ? [...linkedFieldMap[n.docType]] : [];
     if (!n.isHub) {
       n.isUnlinked = !(links || []).some(
         (l) => l.sourceDocType === n.docType || l.targetDocType === n.docType,
