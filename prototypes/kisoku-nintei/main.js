@@ -352,7 +352,7 @@ const appOptions = {
       ['必要書類', '必要资料'],
       ['署名', '签名'],
       ['印鑑', '印章'],
-      ['データマッピング競合検証', '数据映射冲突校验'],
+      ['標準データ整合性', '标准数据一致性'],
       ['マッピング競合', '映射冲突'],
       ['マッピングステータス', '映射状态'],
       ['低信頼', '低置信'],
@@ -2658,8 +2658,6 @@ const appOptions = {
     const sceneSetupPageTitle = '業務シーン・案件集約';
     const sceneSetupSceneIdDisplay = computed(() =>
       (sceneSetupDraft.sceneId ? sceneSetupDraft.sceneId : '保存後に自動採番されます'));
-    const sceneSetupConfirmLabel = computed(() =>
-      (sceneSetupMode.value === 'edit' ? '保存して次へ' : '作成して次へ'));
     const sceneSetupDocTypeOptions = computed(() =>
       sceneSetupDraft.documents.map((d) => ({
         value: d.type,
@@ -5553,7 +5551,12 @@ const appOptions = {
     function validateSceneAggregateDraft(draft) {
       if (!draft.mainDocType) return '主帳票を1件選択してください';
       if (!draft.mainKey) return '業務キーを選択してください';
-      return '';
+      return getSceneLinkValidationError(
+        draft.documents,
+        draft.mainDocType,
+        draft.docFieldLinks,
+        getDocDisplayLabel,
+      );
     }
 
     function setSceneSetupMainDoc(docType) {
@@ -5572,16 +5575,18 @@ const appOptions = {
       }
     }
 
-    function proceedToWorkflowStep() {
-      if (!sceneSetupDraft.documents.length) {
-        ElementPlus.ElMessage.warning('関連帳票を1件以上追加してください');
-        return;
-      }
-      applySceneSetupAggregate();
-      const err = validateSceneAggregateDraft(sceneSetupDraft);
-      if (err) {
-        ElementPlus.ElMessage.warning(err);
-        return;
+    function persistSceneSetupDraft(options = {}) {
+      if (options.validate) {
+        if (!sceneSetupDraft.documents.length) {
+          ElementPlus.ElMessage.warning('関連帳票を1件以上追加してください');
+          return false;
+        }
+        applySceneSetupAggregate();
+        const err = validateSceneAggregateDraft(sceneSetupDraft);
+        if (err) {
+          ElementPlus.ElMessage.warning(err);
+          return false;
+        }
       }
       sceneSetupDraft.docFieldLinks = normalizeDocFieldLinks(
         sceneSetupDraft.docFieldLinks,
@@ -5614,12 +5619,7 @@ const appOptions = {
             Object.assign(form, stored);
           }
         }
-        sceneSetupVisible.value = false;
-        workflowSetupStep.value = 2;
-        enterWorkflowCanvasView();
-        nextTick(() => fitWorkflowToView());
-        ElementPlus.ElMessage.success('業務シーン設定を保存しました');
-        return;
+        return true;
       }
       const id = String(Date.now());
       const data = sceneForm('application');
@@ -5628,10 +5628,24 @@ const appOptions = {
       scenes.value.unshift({ id, name });
       saveStorage(id, data);
       selectScene(id, { skipFinishRename: true, focusScene: true });
+      loadSceneSetupDraftFromData(form, id, name);
+      enterSceneSetupStep('edit');
+      return true;
+    }
+
+    function saveSceneSetupStep1() {
+      if (!persistSceneSetupDraft({ validate: false })) return false;
+      ElementPlus.ElMessage.success('下書きを保存しました');
+      return true;
+    }
+
+    function proceedToWorkflowStep() {
+      if (!persistSceneSetupDraft({ validate: true })) return false;
       sceneSetupVisible.value = false;
       workflowSetupStep.value = 2;
       enterWorkflowCanvasView();
-      ElementPlus.ElMessage.success('業務シーンを作成しました');
+      nextTick(() => fitWorkflowToView());
+      return true;
     }
 
     function applyCurrentSceneSetupDraftIfNeeded() {
@@ -7802,7 +7816,7 @@ const appOptions = {
       const count = getAiVerifyModuleRuleCount(key);
       if (key === 'required_fields') return count ? `必須項目 ${count}` : 'ルール未設定';
       if (key === 'required_documents') return count ? `必要書類 ${count}` : 'ルール未設定';
-      if (key === 'mapping_conflict') return count ? `競合検証 ${count}` : 'ルール未設定';
+      if (key === 'mapping_conflict') return count ? `${count} 件` : 'ルール未設定';
       if (key === 'signature_seal') return count ? `${count} 帳票` : 'ルール未設定';
       return count ? `${count} 件` : 'ルール未設定';
     }
@@ -9739,7 +9753,6 @@ const appOptions = {
       selectedNodeReuseReviewVisible,
       sceneSetupPageTitle,
       sceneSetupSceneIdDisplay,
-      sceneSetupConfirmLabel,
       scenePublishBadge,
       scenePublishStatusKey,
       sceneSetupDocTypeOptions,
@@ -9755,6 +9768,7 @@ const appOptions = {
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
       confirmSceneSetup,
+      saveSceneSetupStep1,
       proceedToWorkflowStep,
       publishWorkflowScene,
       WORKFLOW_NOTIFICATION_NODE_OPTIONS,

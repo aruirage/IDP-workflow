@@ -80,12 +80,12 @@ test('uses local aggregate recommendations without calling the GLM API', async (
   assert.doesNotMatch(autoMatchSource, /fetch\(|\/api\/aggregate-rules/);
 });
 
-test('does not block scene progress on aggregate link validation', async () => {
+test('blocks Step1 navigation when documents cannot reach the main document', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const validateStart = main.indexOf('function validateSceneAggregateDraft');
   const validateEnd = main.indexOf('function setSceneSetupMainDoc', validateStart);
   const validateSource = main.slice(validateStart, validateEnd);
 
-  assert.doesNotMatch(validateSource, /getSceneLinkValidationError|sceneSetupAggregateInvalidGroups/);
+  assert.match(validateSource, /getSceneLinkValidationError/);
   assert.match(main, /text: '関連関係が未設定です。'/);
 });

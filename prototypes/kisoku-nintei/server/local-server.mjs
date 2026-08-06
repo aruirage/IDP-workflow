@@ -56,7 +56,10 @@ createServer(async (request, response) => {
     const filePath = normalize(join(root, requested));
     if (!filePath.startsWith(normalize(root))) return sendJson(response, 403, { error: 'Forbidden' });
     const body = await readFile(filePath).catch(async () => readFile(join(root, 'index.html')));
-    response.writeHead(200, { 'Content-Type': mimeTypes[extname(filePath)] || 'application/octet-stream' });
+    response.writeHead(200, {
+      'Content-Type': mimeTypes[extname(filePath)] || 'application/octet-stream',
+      'Cache-Control': 'no-store',
+    });
     response.end(body);
   } catch (error) {
     sendJson(response, 500, { error: error?.message || 'AI関連ルールの生成に失敗しました' });

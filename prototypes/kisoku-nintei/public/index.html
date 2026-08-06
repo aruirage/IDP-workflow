@@ -327,7 +327,8 @@
                 :disabled="!sceneSetupDraft.documents.length || !sceneSetupDraft.mainDocType"
                 @click="checkSceneDocLinks"
               >{{ t('関連チェック') }}</el-button>
-              <el-button type="primary" @click="proceedToWorkflowStep">{{ sceneSetupConfirmLabel }}</el-button>
+              <el-button @click="proceedToWorkflowStep">次へ</el-button>
+              <el-button type="primary" @click="saveSceneSetupStep1">保存</el-button>
             </div>
             <div v-if="workflowVersionView === 'published'" class="wf-toolbar-right">
               <el-button @click="goToWorkflowSetupStep(2, { readonlyNavigation: true })">次へ</el-button>

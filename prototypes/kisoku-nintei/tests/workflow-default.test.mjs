@@ -311,6 +311,30 @@ test('offers a separate Step2 configuration check without blocking save or navig
   assert.doesNotMatch(nextStep2Source, /validateWorkflowStaticConfiguration/);
 });
 
+test('separates Step1 draft save from validated navigation', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(index, /@click="proceedToWorkflowStep">次へ<\/el-button>[\s\S]*type="primary" @click="saveSceneSetupStep1">保存<\/el-button>/);
+  assert.match(main, /function saveSceneSetupStep1\(\)[\s\S]*persistSceneSetupDraft\(\{ validate: false \}\)[\s\S]*下書きを保存しました/);
+  assert.match(main, /function proceedToWorkflowStep\(\)[\s\S]*persistSceneSetupDraft\(\{ validate: true \}\)[\s\S]*workflowSetupStep\.value = 2/);
+});
+
+test('disables browser caching for local prototype previews', async () => {
+  const server = await readFile(new URL('../server/local-server.mjs', import.meta.url), 'utf8');
+
+  assert.match(server, /'Cache-Control': 'no-store'/);
+});
+
+test('labels the AI verification mapping module as standard data consistency', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  assert.match(workflowCore, /key: 'mapping_conflict', label: '標準データ整合性'/);
+  assert.match(workflowCore, /mapping_conflict: '整合性'/);
+  assert.match(main, /key === 'mapping_conflict'\) return count \? `\$\{count\} 件`/);
+});
+
 test('explains the publishable status beside every workflow status badge', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');

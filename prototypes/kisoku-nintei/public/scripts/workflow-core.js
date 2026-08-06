@@ -570,7 +570,7 @@ const WORKFLOW_NODE_META = {
     icon: 'AI',
     title: 'AI検証',
     desc: '必須フィールド・必要書類・各種検証',
-    tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', 'データマッピング競合検証', '署名・印鑑検証'],
+    tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', '標準データ整合性', '署名・印鑑検証'],
     input: 'Case Data Pool',
     output: 'Validation Result',
     accent: '#0891b2',
@@ -691,7 +691,7 @@ const AI_VERIFY_MODULE_OPTIONS = [
   { key: 'required_documents', label: '必要書類' },
   { key: 'text', label: 'テキスト検証' },
   { key: 'data', label: 'データ検証' },
-  { key: 'mapping_conflict', label: 'データマッピング競合検証' },
+  { key: 'mapping_conflict', label: '標準データ整合性' },
   { key: 'signature_seal', label: '署名・印鑑検証' },
 ];
 
@@ -1493,7 +1493,7 @@ const AI_VERIFY_CANVAS_SHORT_LABELS = {
   required_documents: '必要書類',
   text: 'テキスト',
   data: 'データ',
-  mapping_conflict: '競合',
+  mapping_conflict: '整合性',
   signature_seal: '署名',
 };
 
