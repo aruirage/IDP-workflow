@@ -233,7 +233,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/6 09:59:41</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/6 17:55:51</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -416,7 +416,7 @@
 <p>条件运算子统一使用英文：</p>
 <table><thead><tr><th>类型</th><th>可用运算子</th><th>默认</th><th>说明</th></tr></thead><tbody><tr><td>Enum</td><td><code>=</code> / <code>≠</code></td><td><code>=</code></td><td>节点 Result 枚举字段</td></tr><tr><td>String</td><td><code>=</code> / <code>≠</code> / <code>contains</code> / <code>not contains</code> / <code>is empty</code> / <code>is not empty</code></td><td><code>=</code></td><td>模板字段类型为 string 的 OCR 字段和标准字段</td></tr><tr><td>Number</td><td><code>=</code> / <code>≠</code> / <code>&gt;</code> / <code>≥</code> / <code>&lt;</code> / <code>≤</code></td><td><code>=</code></td><td>模板字段类型为 number 的 OCR 字段和标准字段</td></tr></tbody></table>
 <p>级联选择与变量生成规则：</p>
-<table><thead><tr><th>字段来源</th><th>选择层级</th><th>生成的条件左值</th><th>类型</th><th>运行时取值</th></tr></thead><tbody><tr><td>Step1 账票 OCR 字段</td><td><code>帳票フィールド</code> → <code>{帳票タイプ}</code> → <code>{OCR字段名}</code></td><td><code>docTypes.{账票类型}.{OCR字段名}</code></td><td>String / Number</td><td>从当前案件匹配账票的 OCR 抽出结果聚合；类型来自 Step1 账票模板字段类型</td></tr><tr><td>数据映射标准字段</td><td><code>{映射节点}</code> → <code>標準フィールド</code> → <code>{标准字段名}</code></td><td><code>standardFields.{标准字段名}</code></td><td>String / Number</td><td>从映射节点标准字段结果读取单值；类型来自标准字段模板类型</td></tr><tr><td>字段组容器</td><td><code>standardFields</code></td><td>不生成条件左值</td><td>—</td><td>仅作为分组，不作为系统变量输出</td></tr></tbody></table>
+<table><thead><tr><th>字段来源</th><th>选择层级</th><th>生成的条件左值</th><th>类型</th><th>运行时取值</th></tr></thead><tbody><tr><td>Step1 账票 OCR 字段</td><td><code>帳票フィールド</code> → <code>{帳票タイプ}</code> → <code>{OCR字段名}</code></td><td><code>docTypes.{账票类型}.{OCR字段名}</code></td><td>String / Number</td><td>从当前案件匹配账票的 OCR 抽出结果聚合；类型来自 Step1 账票模板字段类型</td></tr><tr><td>数据映射标准字段</td><td><code>{映射节点}</code> → <code>標準フィールド</code> → <code>{标准字段名}</code></td><td><code>standardFields.{标准字段名}</code></td><td>String / Number</td><td>从映射节点标准字段结果读取单值；类型来自标准字段模板类型</td></tr><tr><td>标准变量对象</td><td><code>standardFields</code></td><td>不直接生成条件左值</td><td>Object</td><td>节点输出变量；标准字段名为键、映射后值为值，条件选择时继续选择具体标准字段叶子</td></tr></tbody></table>
 <p>条件变量 catalog：</p>
 <table><thead><tr><th>来源</th><th>变量键</th><th>类型</th><th>取值范围</th><th>典型条件场景</th></tr></thead><tbody><tr><td>AI 前处理节点</td><td><code>preprocessResult</code></td><td>Enum</td><td><code>passed / reviewRequired</code></td><td><code>= reviewRequired</code> → 前处理确认</td></tr><tr><td>OCR 抽出节点</td><td><code>ocrResult</code></td><td>Enum</td><td><code>passed / reviewRequired</code></td><td><code>= reviewRequired</code> → OCR 确认</td></tr><tr><td>数据映射节点</td><td><code>mappingResult</code></td><td>Enum</td><td><code>passed / reviewRequired</code></td><td><code>= reviewRequired</code> → 人工确认</td></tr><tr><td>数据映射节点</td><td><code>standardFields.{field}</code></td><td>String / Number</td><td>按模板字段类型的运算子</td><td>关键字分岔或金额阈值分岔</td></tr><tr><td>AI 检证节点</td><td><code>verifyResult</code></td><td>Enum</td><td><code>passed / reviewRequired</code></td><td><code>= reviewRequired</code> → 确认或补件路由</td></tr><tr><td>Step1 账票模板字段</td><td><code>docTypes.{账票类型}.{OCR字段名}</code></td><td>String / Number</td><td>按模板字段类型的运算子</td><td>String 字段做关键字或空值分岔；Number 字段做金额阈值分岔</td></tr></tbody></table>
 <p>条件变量选择器展示约定：</p>

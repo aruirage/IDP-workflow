@@ -87,6 +87,7 @@ test('uses a compact required badge for the scene name', async () => {
 test('shows Japanese output names and focused value tooltips', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
   const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
 
   assert.match(index, /workflow-output-var-name[\s\S]*item\.displayName[\s\S]*aria-label="取値範囲"[\s\S]*workflow-output-var-type/);
@@ -94,6 +95,8 @@ test('shows Japanese output names and focused value tooltips', async () => {
   assert.match(main, /item\?\.valueSpec \? `取値範囲：\$\{t\(item\.valueSpec\)\}`/);
   assert.doesNotMatch(main, /`変数名：\$\{name\}`/);
   assert.match(main, /return `\$\{base\}\\n\\n例：\\n\$\{example\}`/);
+  assert.match(workflowCore, /id: 'case\.standardFields', label: '標準変数', scope: '案件', type: 'Object'/);
+  assert.doesNotMatch(workflowCore, /WORKFLOW_STANDARD_FIELDS_OBJECT_EXAMPLE/);
   assert.match(style, /\.workflow-output-var-item\s*\{[^}]*justify-content:\s*space-between;/s);
   assert.match(style, /\.workflow-output-var-type\s*\{[^}]*margin-left:\s*auto;/s);
 });

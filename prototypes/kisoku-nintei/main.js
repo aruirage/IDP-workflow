@@ -3278,8 +3278,12 @@ const appOptions = {
     }
 
     function formatWorkflowOutputInfo(item) {
+      const id = String(item?.localId || item?.id || item?.name || '');
+      const isStandardFields = /standardFields/i.test(id);
       const parts = [
-        item?.valueSpec ? `取値範囲：${t(item.valueSpec)}` : '',
+        isStandardFields
+          ? '取値範囲：標準フィールド名をキー、マッピング後の値を値とするオブジェクト'
+          : item?.valueSpec ? `取値範囲：${t(item.valueSpec)}` : '',
       ].filter(Boolean);
       const base = [...new Set(parts)].join('\n') || '取値範囲：指定なし';
       const example = typeof getWorkflowOutputVarExample === 'function'

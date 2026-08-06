@@ -931,9 +931,6 @@ function getWorkflowOutputVarExample(item) {
   if (bare === 'files[]' || bare === 'files') {
     return JSON.stringify(WORKFLOW_FILES_ARRAY_TOOLTIP_EXAMPLE, null, 2);
   }
-  if (/standardFields/i.test(bare)) {
-    return JSON.stringify(WORKFLOW_STANDARD_FIELDS_ARRAY_EXAMPLE, null, 2);
-  }
   return JSON.stringify([{ id: 'item_1', value: 'example' }], null, 2);
 }
 
@@ -954,6 +951,7 @@ const WORKFLOW_NODE_OUTPUT_VAR_DEFS = {
   data_mapping: [
     { id: 'case.mappingStatus', label: '処理状態', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.nodeStatus, description: '本ノードの実行進捗。対象ルールなし、または設定 OFF の場合も success とし、skip は別値として出力しない。業務上通過したかは「処理結果」を見る。' },
     { id: 'case.mappingResult', label: '処理結果', scope: '案件', type: 'Enum', valueSpec: WORKFLOW_OUTPUT_VALUE_SPECS.processResult, description: '業務結論。通過は主フローへ進み、要確認（競合など）は人工確認へ進む。' },
+    { id: 'case.standardFields', label: '標準変数', scope: '案件', type: 'Object', valueSpec: '標準フィールド名をキー、マッピング後の値を値とするオブジェクト', description: 'データマッピングで生成した標準変数。' },
   ],
   decision: [],
   ai_verify: [
