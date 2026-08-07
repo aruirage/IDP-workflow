@@ -3551,6 +3551,7 @@ code.export-config-meta-value {
   letter-spacing: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  box-sizing: border-box;
 }
 
 .workflow-notification-token-backdrop {
@@ -3562,11 +3563,12 @@ code.export-config-meta-value {
 }
 
 .workflow-notification-token-backdrop mark {
-  padding: 1px 3px;
+  padding: 0;
   border-radius: 3px;
   background: #eaf2ff;
   color: #175cd3;
-  font-weight: 600;
+  font-weight: 400;
+  box-shadow: 2px 0 0 #eaf2ff, -2px 0 0 #eaf2ff;
 }
 
 .workflow-notification-token-editor input,

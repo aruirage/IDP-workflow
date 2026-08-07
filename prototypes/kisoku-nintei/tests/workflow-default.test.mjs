@@ -101,6 +101,19 @@ test('shows Japanese output names and focused value tooltips', async () => {
   assert.match(style, /\.workflow-output-var-type\s*\{[^}]*margin-left:\s*auto;/s);
 });
 
+test('keeps data mapping output limited to status and standard variables', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const dataMappingOutputStart = workflowCore.indexOf('  data_mapping: [');
+  const dataMappingOutputEnd = workflowCore.indexOf('  decision: [],', dataMappingOutputStart);
+  const dataMappingOutput = workflowCore.slice(dataMappingOutputStart, dataMappingOutputEnd);
+
+  assert.match(dataMappingOutput, /case\.mappingStatus/);
+  assert.match(dataMappingOutput, /case\.standardFields/);
+  assert.doesNotMatch(dataMappingOutput, /case\.mappingResult/);
+  assert.doesNotMatch(main, /value: 'mappingResult'/);
+});
+
 test('collapses relation preview documents to linked fields with straight lines', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
@@ -110,6 +123,10 @@ test('collapses relation preview documents to linked fields with straight lines'
   assert.match(main, /sceneSetupNetworkExpandedDocs/);
   assert.match(sceneConfig, /const visibleFields = expandedDocs\?\.\[docType\] \? fields : linkedFields/);
   assert.match(sceneConfig, /return `M \$\{x1\} \$\{y1\} L \$\{x2\} \$\{y2\}`/);
+  assert.match(sceneConfig, /function buildNetSameColumnEdgePath/);
+  assert.match(sceneConfig, /path: buildNetSameColumnEdgePath\(srcNode, tgtNode, srcY, tgtY\)/);
+  assert.match(sceneConfig, /isLeftColumn\s*\?\s*Math\.max\(sourceNode\.left \+ sourceNode\.width/);
+  assert.match(sceneConfig, /: Math\.min\(sourceNode\.left, targetNode\.left\) - 24/);
   assert.match(index, /@click="toggleSceneSetupNetworkDoc\(node\.docType\)"/);
   assert.match(index, /v-for="field in node\.visibleFields"/);
   assert.match(index, /wf-network-doc-toggle[^>]*is-expanded/);

@@ -315,6 +315,16 @@ function buildNetEdgePath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} L ${x2} ${y2}`;
 }
 
+function buildNetSameColumnEdgePath(sourceNode, targetNode, sourceY, targetY) {
+  const isLeftColumn = sourceNode.side === 'left';
+  const edgeX = isLeftColumn
+    ? Math.max(sourceNode.left + sourceNode.width, targetNode.left + targetNode.width) + 24
+    : Math.min(sourceNode.left, targetNode.left) - 24;
+  const sourceX = isLeftColumn ? sourceNode.left + sourceNode.width : sourceNode.left;
+  const targetX = isLeftColumn ? targetNode.left + targetNode.width : targetNode.left;
+  return `M ${sourceX} ${sourceY} L ${edgeX} ${sourceY} L ${edgeX} ${targetY} L ${targetX} ${targetY}`;
+}
+
 function buildNetBusEdgePath(x1, y1, x2, y2, side) {
   const dir = side === 'left' ? -1 : 1;
   const gap = Math.abs(x2 - x1);
@@ -454,10 +464,11 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
         x2 = tgtNode.left + tgtNode.width;
         y2 = tgtY;
       } else if (srcNode.side === tgtNode.side) {
-        x1 = srcNode.left + (srcNode.side === 'left' ? srcNode.width : 0);
-        y1 = srcY;
-        x2 = tgtNode.left + (tgtNode.side === 'left' ? tgtNode.width : 0);
-        y2 = tgtY;
+        return {
+          id: link.id || `edge-${index}`,
+          path: buildNetSameColumnEdgePath(srcNode, tgtNode, srcY, tgtY),
+          label: `${link.sourceField} → ${link.targetField}`,
+        };
       } else {
         return null;
       }

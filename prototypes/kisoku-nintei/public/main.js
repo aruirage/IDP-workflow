@@ -1027,7 +1027,6 @@ const appOptions = {
       ['OCR抽出状態', 'OCR抽出状态'],
       ['OCR抽出結果', 'OCR抽出结果'],
       ['データマッピング状態', '数据映射状态'],
-      ['データマッピング結果', '数据映射结果'],
       ['標準フィールド', '标准字段'],
       ['AI検証状態', 'AI检证状态'],
       ['AI検証結果', 'AI检证结果'],
@@ -1986,7 +1985,7 @@ const appOptions = {
     const WORKFLOW_NOTIFICATION_NODE_VARIABLES = {
       preprocess: { status: 'preprocessStatus', result: 'preprocessResult' },
       ocr: { status: 'ocrStatus', result: 'ocrResult' },
-      data_mapping: { status: 'mappingStatus', result: 'mappingResult' },
+      data_mapping: { status: 'mappingStatus' },
       ai_verify: { status: 'verifyStatus', result: 'verifyResult' },
     };
     const WORKFLOW_NOTIFICATION_HITL_EVENTS = [
@@ -2151,7 +2150,6 @@ const appOptions = {
         { value: 'ocrStatus', label: 'ocrStatus', desc: 'ノード出力定義 · OCR抽出 status' },
         { value: 'ocrResult', label: 'ocrResult', desc: 'ノード出力定義 · OCR抽出 result' },
         { value: 'mappingStatus', label: 'mappingStatus', desc: 'ノード出力定義 · データマッピング status' },
-        { value: 'mappingResult', label: 'mappingResult', desc: 'ノード出力定義 · データマッピング result' },
         { value: 'verifyStatus', label: 'verifyStatus', desc: 'ノード出力定義 · AI検証 status' },
         { value: 'verifyResult', label: 'verifyResult', desc: 'ノード出力定義 · AI検証 result' },
         { value: 'hitlStatus', label: 'hitlStatus', desc: 'ノード出力定義 · 人工確認 status' },
@@ -3280,7 +3278,6 @@ const appOptions = {
         ocrStatus: 'OCR抽出状態',
         ocrResult: 'OCR抽出結果',
         mappingStatus: 'データマッピング状態',
-        mappingResult: 'データマッピング結果',
         standardFields: '標準フィールド',
         verifyStatus: 'AI検証状態',
         verifyResult: 'AI検証結果',
