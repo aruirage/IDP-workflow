@@ -318,10 +318,10 @@ function buildNetEdgePath(x1, y1, x2, y2) {
 function buildNetSameColumnEdgePath(sourceNode, targetNode, sourceY, targetY) {
   const isLeftColumn = sourceNode.side === 'left';
   const edgeX = isLeftColumn
-    ? Math.max(sourceNode.left + sourceNode.width, targetNode.left + targetNode.width) + 24
-    : Math.min(sourceNode.left, targetNode.left) - 24;
-  const sourceX = isLeftColumn ? sourceNode.left + sourceNode.width : sourceNode.left;
-  const targetX = isLeftColumn ? targetNode.left + targetNode.width : targetNode.left;
+    ? Math.max(8, Math.min(sourceNode.left, targetNode.left) - 24)
+    : Math.max(sourceNode.left + sourceNode.width, targetNode.left + targetNode.width) + 24;
+  const sourceX = isLeftColumn ? sourceNode.left : sourceNode.left + sourceNode.width;
+  const targetX = isLeftColumn ? targetNode.left : targetNode.left + targetNode.width;
   return `M ${sourceX} ${sourceY} L ${edgeX} ${sourceY} L ${edgeX} ${targetY} L ${targetX} ${targetY}`;
 }
 
@@ -422,7 +422,7 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
 
   const allNodes = [...leftMetas, mainMeta, ...rightMetas];
   const canvasH = Math.max(leftY, rightY, mainMeta.top + mainMeta.height) + L.PAD;
-  const canvasW = rightX + L.SAT_W + L.PAD;
+  const canvasW = rightX + L.SAT_W + L.PAD + 32;
   const nodeMap = Object.fromEntries(allNodes.map((n) => [n.id, n]));
   function fieldY(node, field) {
     const idx = node.visibleFields.indexOf(field);

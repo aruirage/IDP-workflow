@@ -125,8 +125,9 @@ test('collapses relation preview documents to linked fields with straight lines'
   assert.match(sceneConfig, /return `M \$\{x1\} \$\{y1\} L \$\{x2\} \$\{y2\}`/);
   assert.match(sceneConfig, /function buildNetSameColumnEdgePath/);
   assert.match(sceneConfig, /path: buildNetSameColumnEdgePath\(srcNode, tgtNode, srcY, tgtY\)/);
-  assert.match(sceneConfig, /isLeftColumn\s*\?\s*Math\.max\(sourceNode\.left \+ sourceNode\.width/);
-  assert.match(sceneConfig, /: Math\.min\(sourceNode\.left, targetNode\.left\) - 24/);
+  assert.match(sceneConfig, /isLeftColumn\s*\?\s*Math\.max\(8, Math\.min\(sourceNode\.left, targetNode\.left\) - 24\)/);
+  assert.match(sceneConfig, /: Math\.max\(sourceNode\.left \+ sourceNode\.width, targetNode\.left \+ targetNode\.width\) \+ 24/);
+  assert.match(sceneConfig, /const sourceX = isLeftColumn \? sourceNode\.left : sourceNode\.left \+ sourceNode\.width/);
   assert.match(index, /@click="toggleSceneSetupNetworkDoc\(node\.docType\)"/);
   assert.match(index, /v-for="field in node\.visibleFields"/);
   assert.match(index, /wf-network-doc-toggle[^>]*is-expanded/);
