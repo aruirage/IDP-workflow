@@ -3688,17 +3688,13 @@ code.export-config-meta-value {
   border-bottom: none;
 }
 .export-config--step .export-field-table .col-name {
-  width: 28%;
+  width: 38%;
 }
-.export-config--step .export-field-table .col-value,
-.export-config--step .export-field-table .col-match {
-  width: 32%;
+.export-config--step .export-field-table .col-value {
+  width: 54%;
 }
 .export-config--step .export-field-table .col-value {
   color: #344054;
-}
-.export-config--step .export-field-table .col-match {
-  color: #667085;
 }
 .export-task-header--setup {
   gap: 12px;
@@ -10292,10 +10288,24 @@ body.idp-inspector-resizing * {
 .wf-setup-stepper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  position: relative;
   padding: 16px 20px;
   border-bottom: 1px solid #eaecf0;
   background: #fff;
+}
+.wf-setup-stepper-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(860px, calc(100% - 112px));
+}
+.wf-setup-stepper-actions {
+  position: absolute;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .wf-setup-fullscreen-btn {
   display: inline-flex;
@@ -10304,7 +10314,6 @@ body.idp-inspector-resizing * {
   width: 28px;
   height: 28px;
   min-height: 28px;
-  margin-left: auto;
   padding: 0;
   border: none;
   border-radius: 4px;

@@ -233,7 +233,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/7 10:32:55</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/10 16:34:38</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -321,9 +321,9 @@
   logMissing --&gt; send
   send --&gt; continueFlow[&quot;工作流继续&quot;]</div>
 <h4 class="subsection-heading">6.01.9 Step4 输出字段与发布</h4>
-<p>Step4 负责配置导出字段和发布。侧栏展示 Step2 OCR 抽出已开启的账票类型；右侧按「普通字段」和「表格」分区展示。普通字段区是一张字段表；表格区按 OCR 表格分块展示，多表格时每个表格一块。普通字段表和每个表格块的列名一致，固定为字段、OCR 抽出样例、照合结果样例；普通字段行可在普通字段区内拖动排序，表格列行可在所属表格块内拖动排序。只有勾选和排序是配置项；OCR 抽出列和照合结果列都是样例预览，用于帮助配置人员判断字段含义，不作为独立导出配置。允许 0 个字段，表示用户确认本场景不导出 OCR 字段。</p>
+<p>Step4 负责配置导出字段和发布。侧栏展示 Step2 OCR 抽出已开启的账票类型；右侧按「普通字段」和「表格」分区展示。普通字段区是一张字段表；表格区按 OCR 表格分块展示，多表格时每个表格一块。普通字段表和每个表格块的列名一致，固定为字段、OCR 抽出样例；普通字段行可在普通字段区内拖动排序，表格列行可在所属表格块内拖动排序。只有勾选和排序是配置项；OCR 抽出列是样例预览，用于帮助配置人员判断字段含义，不作为独立导出配置。允许 0 个字段，表示用户确认本场景不导出 OCR 字段。</p>
 <p>Step4 没有测试。点击「保存」固化当前勾选并记为已保存；保存不改写 Step1～Step3，也不重验工作流。<ins class="change-added">保存与公开均使用蓝底主按钮。点击公开时，若场景不是可发布状态，系统直接执行 Step2 设置检查；失败时用 Toast 提示首条原因并自动跳转 Step2，成功时更新为可发布并继续显示公开确认。</ins>发布成功后生成新版本号并标记已发布。</p>
-<table><thead><tr><th>规则 ID</th><th>检查项</th><th>通过条件</th><th>失败条件 / 处理</th></tr></thead><tbody><tr><td>S4-01</td><td>进入 Step4</td><td>点击 Step3「次へ」或从步骤条进入</td><td>Step3 通知配置未保存不阻断进入</td></tr><tr><td>S4-02</td><td>候选来源</td><td>侧栏仅展示 Step2 OCR 抽出已开启账票类型；右侧普通字段与表格分区展示；普通字段表和每个表格块都使用字段、OCR 抽出样例、照合结果样例三列；普通字段区和各表格块分别支持拖动排序；允许 0 勾选</td><td>无 OCR 候选时保留 Step4 两栏布局，侧栏和预览区无项目，仅提示「出力可能な項目がありません」；不因此阻断保存</td></tr><tr><td>S4-03</td><td>保存</td><td>用户点保存即固化当前勾选并记为已保存</td><td>保存失败时保持未保存</td></tr><tr><td>S4-04</td><td>公开</td><td><mark class="change-modified">主状态为可发布；不是可发布时自动执行 Step2 设置检查</mark></td><td><ins class="change-added">检查失败时 Toast 提示首条原因并自动跳转 Step2；检查通过时更新状态并显示公开确认弹窗；</ins>Step4 是否保存不阻断发布</td></tr></tbody></table>
+<table><thead><tr><th>规则 ID</th><th>检查项</th><th>通过条件</th><th>失败条件 / 处理</th></tr></thead><tbody><tr><td>S4-01</td><td>进入 Step4</td><td>点击 Step3「次へ」或从步骤条进入</td><td>Step3 通知配置未保存不阻断进入</td></tr><tr><td>S4-02</td><td>候选来源</td><td>侧栏仅展示 Step2 OCR 抽出已开启账票类型；右侧普通字段与表格分区展示；普通字段表和每个表格块都使用字段、OCR 抽出样例两列；普通字段区和各表格块分别支持拖动排序；允许 0 勾选</td><td>无 OCR 候选时保留 Step4 两栏布局，侧栏和预览区无项目，仅提示「出力可能な項目がありません」；不因此阻断保存</td></tr><tr><td>S4-03</td><td>保存</td><td>用户点保存即固化当前勾选并记为已保存</td><td>保存失败时保持未保存</td></tr><tr><td>S4-04</td><td>公开</td><td><mark class="change-modified">主状态为可发布；不是可发布时自动执行 Step2 设置检查</mark></td><td><ins class="change-added">检查失败时 Toast 提示首条原因并自动跳转 Step2；检查通过时更新状态并显示公开确认弹窗；</ins>Step4 是否保存不阻断发布</td></tr></tbody></table>
 <h4 class="subsection-heading">6.01.10 步骤跳转、引用保护与联动</h4>
 <p>Step1 提供关联检查；<mark class="change-modified">Step2 负责工作流画布配置，并通过独立的设置检查更新可发布状态；</mark>Step3 保存通知配置；Step4 保存输出勾选并发起公开。<ins class="change-added">保存、下一步和步骤条跳转均不触发 Step2 设置检查。点击 Step4 的公开时，若当前不是可发布状态则自动执行同一检查；通过后显示确认弹窗，确认后直接公开。</ins></p>
 <p>四步依赖图：</p>

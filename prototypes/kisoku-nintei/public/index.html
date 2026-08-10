@@ -229,6 +229,7 @@
             :class="{ 'is-applied-view': workflowVersionView === 'published' }"
           >
           <div class="wf-setup-stepper" role="navigation" aria-label="ワークフロー設定ステップ">
+            <div class="wf-setup-stepper-track">
             <button
               type="button"
               class="wf-setup-step"
@@ -268,6 +269,8 @@
               <span class="wf-setup-step-index">4</span>
               <span class="wf-setup-step-label">エクスポート設定</span>
             </button>
+            </div>
+            <div class="wf-setup-stepper-actions">
             <button
               type="button"
               class="wf-setup-fullscreen-btn"
@@ -302,6 +305,7 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            </div>
           </div>
 
           <template v-if="workflowSetupStep === 1">
@@ -2163,7 +2167,6 @@
                             <th class="col-check"></th>
                             <th class="col-name">フィールド</th>
                             <th class="col-value">OCR抽出（サンプル）</th>
-                            <th class="col-match">照合結果（サンプル）</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2200,9 +2203,6 @@
                             <td class="col-value">
                               <span class="export-sample-value">{{ row.extractValue || '—' }}</span>
                             </td>
-                            <td class="col-match">
-                              <span class="export-match-value">{{ row.matchValue || '—' }}</span>
-                            </td>
                           </tr>
                         </tbody>
                       </table>
@@ -2232,7 +2232,6 @@
                                 <th class="col-check"></th>
                                 <th class="col-name">フィールド</th>
                                 <th class="col-value">OCR抽出（サンプル）</th>
-                                <th class="col-match">照合結果（サンプル）</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2268,9 +2267,6 @@
                                 </td>
                                 <td class="col-value">
                                   <span class="export-sample-value">{{ row.extractValue || '—' }}</span>
-                                </td>
-                                <td class="col-match">
-                                  <span class="export-match-value">{{ row.matchValue || '—' }}</span>
                                 </td>
                               </tr>
                             </tbody>

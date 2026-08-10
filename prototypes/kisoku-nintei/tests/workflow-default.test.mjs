@@ -114,6 +114,24 @@ test('keeps data mapping output limited to status and standard variables', async
   assert.doesNotMatch(main, /value: 'mappingResult'/);
 });
 
+test('removes match-result columns from Step4 export tables', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(index, /照合結果（サンプル）/);
+  assert.doesNotMatch(index, /class="col-match"/);
+  assert.doesNotMatch(index, /row\.matchValue/);
+});
+
+test('centers the workflow setup step track independently from actions', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /class="wf-setup-stepper-track"/);
+  assert.match(index, /class="wf-setup-stepper-actions"/);
+  assert.match(style, /\.wf-setup-stepper\s*\{[^}]*justify-content:\s*center;/s);
+  assert.match(style, /\.wf-setup-stepper-actions\s*\{[^}]*position:\s*absolute;[^}]*right:\s*20px;/s);
+});
+
 test('collapses relation preview documents to linked fields with straight lines', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
