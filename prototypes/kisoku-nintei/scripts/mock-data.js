@@ -2030,7 +2030,6 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
         data_mapping: 'S2-15',
         ai_verify: 'S2-16',
         hitl_gate: 'S2-17',
-        code: 'S2-19',
         decision: 'S2-10',
       })[node.type] || 'S2-13';
       push(rule, 'ノード設定', cfg, node.id);
@@ -2113,21 +2112,6 @@ function collectWorkflowTestDimensionErrors(workflow, testCase, sceneContext = {
           push('S2-20', '変数参照', `条件変数「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id, '削除・改線後に参照が残っていないか確認してください');
         }
       });
-    });
-  });
-  nodes.filter((n) => n.type === 'code' && reachable.has(n.id)).forEach((node) => {
-    const normalized = typeof normalizeCodeNode === 'function' ? normalizeCodeNode(node, wf) : node;
-    const options = typeof getDecisionVariableOptions === 'function'
-      ? getDecisionVariableOptions(wf, node.id, sceneContext.verify || null, varSceneCtx)
-      : [];
-    (normalized?.inputs || node.inputs || []).forEach((row) => {
-      if (row.source !== 'reference') return;
-      const raw = String(row.variable || '').trim();
-      if (!raw) return;
-      const ok = !options.length || options.some((o) => o.value === raw || o.value?.endsWith(`.${raw}`));
-      if (!ok) {
-        push('S2-22', '変数参照', `関数入力「${raw}」が上流から到達できません（改線・削除後の無効参照含む）`, node.id);
-      }
     });
   });
   if (errors.some((e) => e.dimension === '変数参照')) return { errors, blockedDimension: '変数参照' };
@@ -2668,14 +2652,8 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
     }
     case 'hitl_gate':
       return '';
-    case 'code': {
-      if (typeof normalizeCodeNode !== 'function') return '';
-      const normalized = normalizeCodeNode(node, wf);
-      if (!String(normalized.pythonCode || '').trim()) {
-        return 'JavaScript を入力してください';
-      }
+    case 'code':
       return '';
-    }
     default:
       return '';
   }

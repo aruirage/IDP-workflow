@@ -132,6 +132,14 @@ test('centers the workflow setup step track independently from actions', async (
   assert.match(style, /\.wf-setup-stepper-actions\s*\{[^}]*position:\s*absolute;[^}]*right:\s*20px;/s);
 });
 
+test('excludes custom functions from Step2 configuration checks', async () => {
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(mockData, /JavaScript を入力してください/);
+  assert.doesNotMatch(mockData, /関数入力「\$\{raw\}」が上流から到達できません/);
+  assert.match(mockData, /case 'code':\s*return '';/);
+});
+
 test('collapses relation preview documents to linked fields with straight lines', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
