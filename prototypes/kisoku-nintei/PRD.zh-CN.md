@@ -478,7 +478,7 @@ Step1～4 顶部工具栏在场景名后同步展示同一状态徽章（下書�
 | 节点配置 | 前处理至少开启一个选项 | 同上 | <ins class="change-added">前処理オプションを1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个前处理选项。</ins> |
 | 节点配置 | OCR 抽出至少开启一个对象账票 | 同上 | <ins class="change-added">OCR対象帳票を1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个 OCR 对象账票。</ins> |
 | 节点配置 | AI 检证至少开启一个模块 | 同上 | <ins class="change-added">検証モジュールを1件以上有効にしてください。</ins> | <ins class="change-added">请至少启用一个检证模块。</ins> |
-| 节点配置 | 条件分支已设置 | 同上 | <ins class="change-added">未設定の条件分岐があります。</ins> | <ins class="change-added">存在尚未设置的条件分支。</ins> |
+| 节点配置 | 条件判断节点不存在配置未完成的条件表达式 | 同上 | <ins class="change-added">条件分岐ノードに設定未完了の条件式があります。</ins> | <ins class="change-added">条件判断节点中存在配置未完成的条件表达式。</ins> |
 | 引用有效性 | <mark class="change-modified">Step1 删除账票或字段，或画布删除节点、修改连线后，条件变量不存在失效引用；不检查自定义函数输入</mark> | 同上 | <ins class="change-added">「{ノード名}」に無効な参照があります。設定内容を確認してください。</ins> | <ins class="change-added">“{节点名称}”中存在无效引用，请检查设置内容。</ins> |
 | 执行前提 | 人工确认只连接在前处理、OCR 抽出或 AI 检证结果对应的条件分支后 | 同上 | <ins class="change-added">「{処理ノード名}」の結果を判定する条件分岐には、人工確認ノードを接続できません。</ins> | <ins class="change-added">判断“{处理节点名称}”结果的条件分支不能连接人工确认节点。</ins> |
 

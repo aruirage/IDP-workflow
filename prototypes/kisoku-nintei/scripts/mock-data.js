@@ -2343,7 +2343,7 @@ function buildWorkflowTestDecisionDetail(step, workflow, testCase = null) {
   });
 
   if ((node.cases || []).some((decisionCase) => !decisionCase.conditions?.some((c) => c.variable))) {
-    issues.push('未設定の条件分岐があります。公開前に IF/ELIF 条件を確認してください。');
+    issues.push('条件分岐ノードに設定未完了の条件式があります。公開前に IF/ELIF 条件を確認してください。');
   }
 
   return {
@@ -2647,7 +2647,7 @@ function validateWorkflowTestNodeConfig(workflow, step, sceneContext = {}) {
     case 'decision': {
       const hasEmptyBranch = (node.cases || []).some((decisionCase) =>
         !(decisionCase.conditions || []).some((cond) => cond.variable));
-      if (hasEmptyBranch) return '未設定の条件分岐があります';
+      if (hasEmptyBranch) return '条件分岐ノードに設定未完了の条件式があります';
       return '';
     }
     case 'hitl_gate':
