@@ -357,7 +357,7 @@ test('offers a separate Step2 configuration check without blocking save or navig
   assert.match(mockData, /if \(!options\.skipTestInput/);
   assert.match(main, /function validateWorkflowStaticConfiguration\(options = \{\}\)/);
   assert.match(main, /collectWorkflowTestDimensionErrors\([\s\S]*skipTestInput: true/);
-  assert.match(main, /function checkWorkflowStep2Configuration\(\)[\s\S]*validateWorkflowStaticConfiguration\(\)[\s\S]*markWorkflowReadyAfterStaticValidation\(\)/);
+  assert.match(main, /function checkWorkflowStep2Configuration\(\)[\s\S]*handleSave\(\{ silent: true \}\)[\s\S]*validateWorkflowStaticConfiguration\(\)[\s\S]*markWorkflowReadyAfterStaticValidation\(\)/);
   assert.match(main, /function saveWorkflowStep2\(\)/);
   assert.match(main, /function goToWorkflowStep3\(\)/);
   assert.match(index, /@click="goToWorkflowStep3">次へ<\/el-button>/);
@@ -371,6 +371,16 @@ test('offers a separate Step2 configuration check without blocking save or navig
   const nextStep2Source = main.slice(main.indexOf('function goToWorkflowStep3()'), main.indexOf('function checkWorkflowStep2Configuration()'));
   assert.doesNotMatch(saveStep2Source, /validateWorkflowStaticConfiguration/);
   assert.doesNotMatch(nextStep2Source, /validateWorkflowStaticConfiguration/);
+  const checkStep2Source = main.slice(main.indexOf('function checkWorkflowStep2Configuration()'), main.indexOf('function markWorkflowReadyAfterStaticValidation()'));
+  assert.match(checkStep2Source, /if \(!handleSave\(\{ silent: true \}\)\) return false;/);
+});
+
+test('requires human-review supplement exits to loop back to a prior node', async () => {
+  const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
+
+  assert.match(mockData, /補件出口を前述ノードへ回流接続してください/);
+  assert.match(mockData, /workflowCanReach\(wf, supplementEdge\.to, node\.id, supplementEdge\)/);
+  assert.match(mockData, /normalizeHitlGateActionValue\(edge\.branch\) === 'request_supplement'/);
 });
 
 test('separates Step1 draft save from validated navigation', async () => {

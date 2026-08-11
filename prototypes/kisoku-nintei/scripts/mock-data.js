@@ -2964,6 +2964,7 @@ function collectWorkflowTestHitlSourceTypes(workflow, hitlNodeId) {
 function validateWorkflowTestHitlContext(workflow) {
   const wf = workflow || { nodes: [], edges: [] };
   const hitlNodes = (wf.nodes || []).filter((node) => node.type === 'hitl_gate');
+  const nodeMap = Object.fromEntries((wf.nodes || []).map((node) => [node.id, node]));
   const issues = [];
   const allowedTypes = ['preprocess', 'ocr', 'ai_verify'];
   hitlNodes.forEach((node) => {
@@ -2978,6 +2979,23 @@ function validateWorkflowTestHitlContext(workflow) {
       issues.push({
         nodeId: node.id,
         message: `${node.label || '人工確認'}：条件ノードを挟んだ直前上流が前処理・OCR・AI検証のいずれかになるよう接続してください。現在の上流は ${sourceLabels} です。`,
+      });
+    }
+    const supplementEdge = (wf.edges || []).find((edge) => (
+      edge.from === node.id
+      && normalizeHitlGateActionValue(edge.branch) === 'request_supplement'
+      && !edge.visualHidden
+    ));
+    if (!supplementEdge) {
+      issues.push({
+        nodeId: node.id,
+        message: `${node.label || '人工確認'}：補件出口を前述ノードへ回流接続してください。`,
+      });
+    } else if (!workflowCanReach(wf, supplementEdge.to, node.id, supplementEdge)) {
+      const target = nodeMap[supplementEdge.to];
+      issues.push({
+        nodeId: node.id,
+        message: `${node.label || '人工確認'}：補件出口は前述ノードへ回流接続してください。現在の接続先は ${target?.label || supplementEdge.to} です。`,
       });
     }
   });

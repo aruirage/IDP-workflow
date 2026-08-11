@@ -9011,6 +9011,7 @@ const appOptions = {
     }
 
     function checkWorkflowStep2Configuration() {
+      if (!handleSave({ silent: true })) return false;
       if (!validateWorkflowStaticConfiguration()) return false;
       markWorkflowReadyAfterStaticValidation();
       ElementPlus.ElMessage.success('設定チェックが完了し、公開可能になりました。');
