@@ -1291,6 +1291,7 @@ function normalizeLoadedForm(form) {
     }
   }
   if (!Array.isArray(form.publishedVersions)) form.publishedVersions = [];
+  if (!Array.isArray(form.publishHistory)) form.publishHistory = [];
   if (form.publishedVersions.length > 1) {
     form.publishedVersions = [form.publishedVersions[form.publishedVersions.length - 1]];
   }

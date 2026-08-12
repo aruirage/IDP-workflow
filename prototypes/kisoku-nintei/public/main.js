@@ -53,6 +53,8 @@ const appOptions = {
     const workflowSetupStep = ref(1);
     const workflowVersionView = ref('draft');
     const selectedPublishedVersionId = ref('');
+    const scenePublishHistoryVisible = ref(false);
+    const scenePublishHistoryRows = ref([]);
     let draftVersionBuffer = null;
     const workflowTestDialogVisible = ref(false);
     const workflowTestRunning = ref(false);
@@ -5533,25 +5535,42 @@ const appOptions = {
       }).catch(() => {});
     }
 
-    function openSceneHistory(scene) {
+    function formatScenePublishHistoryTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '日時不明';
+      const parts = new Intl.DateTimeFormat('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).formatToParts(date);
+      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second}`;
+    }
+
+    function openScenePublishHistory(scene) {
       if (!scene) return;
       if (scene.id !== currentSceneId.value) {
         selectScene(scene.id, { skipFinishRename: true, focusScene: true });
       }
-      workflowSetupStep.value = 2;
-      sceneSetupVisible.value = false;
-      enterWorkflowCanvasView();
-      nextTick(() => {
-        fitWorkflowToView();
-        wfChangeHistoryVisible.value = true;
-      });
+      const entries = Array.isArray(form.publishHistory) ? form.publishHistory : [];
+      scenePublishHistoryRows.value = [...entries]
+        .sort((left, right) => new Date(right.publishedAt) - new Date(left.publishedAt))
+        .map((entry) => ({
+          ...entry,
+          publishedAtLabel: formatScenePublishHistoryTime(entry.publishedAt),
+        }));
+      scenePublishHistoryVisible.value = true;
     }
 
     function onSceneMenuCommand(command, scene) {
       if (command === 'copy') copySceneFromMenu(scene);
       if (command === 'edit') editSceneSettings(scene);
       if (command === 'rename') startRenameScene(scene);
-      if (command === 'history') openSceneHistory(scene);
+      if (command === 'history') openScenePublishHistory(scene);
       if (command === 'delete') deleteScene(scene);
     }
 
@@ -5753,6 +5772,11 @@ const appOptions = {
       ).then(() => {
         form.scene.publishStatus = 'published';
         form.scene.publishedAt = new Date().toISOString();
+        if (!Array.isArray(form.publishHistory)) form.publishHistory = [];
+        form.publishHistory.push({
+          publishedBy: 'test202604010001',
+          publishedAt: form.scene.publishedAt,
+        });
         if (!Array.isArray(form.publishedVersions)) form.publishedVersions = [];
         const publishedVersion = {
           id: `v${form.publishedVersions.length + 1}`,
@@ -9546,6 +9570,8 @@ const appOptions = {
       currentProduct,
       form,
       workflowTestDialogVisible,
+      scenePublishHistoryVisible,
+      scenePublishHistoryRows,
       workflowTestRunning,
       workflowTestTimelineRef,
       workflowTestDraft,

@@ -296,6 +296,18 @@ test('keeps draft and published workflow history separate', async () => {
   assert.match(index, /class="wf-export-step-page" :inert="workflowVersionView === 'published'"/);
 });
 
+test('records scene publish history only after successful publication', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(index, /<el-dropdown-item command="history">公開履歴<\/el-dropdown-item>/);
+  assert.match(index, /title="公開履歴"/);
+  assert.match(index, /label="公開者"[\s\S]*label="公開日時"/);
+  assert.match(main, /function openScenePublishHistory\(scene\)/);
+  assert.match(main, /form\.publishHistory\.push\(\{[\s\S]*publishedBy:[\s\S]*publishedAt:/);
+  assert.doesNotMatch(main, /function handleSave\(options = \{\}\)[\s\S]*publishHistory\.push/);
+});
+
 test('runs the Step2 configuration check before publishing from Step4', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
