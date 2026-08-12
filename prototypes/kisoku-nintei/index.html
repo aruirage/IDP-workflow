@@ -60,7 +60,7 @@
                     <el-dropdown-item command="copy">コピー</el-dropdown-item>
                     <el-dropdown-item command="rename">名称変更</el-dropdown-item>
                     <el-dropdown-item command="delete" class="scene-menu-danger">削除</el-dropdown-item>
-                    <el-dropdown-item command="history">公開履歴</el-dropdown-item>
+                    <el-dropdown-item command="history">変更履歴</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -2299,7 +2299,7 @@
 
     <el-dialog
       v-model="scenePublishHistoryVisible"
-      title="公開履歴"
+      title="変更履歴"
       width="520px"
       class="scene-publish-history-dialog"
     >
@@ -2307,7 +2307,7 @@
         <el-table-column prop="publishedBy" label="公開者" min-width="210" />
         <el-table-column prop="publishedAtLabel" label="公開日時" min-width="210" />
       </el-table>
-      <el-empty v-else description="公開履歴はありません" :image-size="72" />
+      <el-empty v-else description="変更履歴はありません" :image-size="72" />
       <template #footer>
         <el-button @click="scenePublishHistoryVisible = false">閉じる</el-button>
       </template>
