@@ -82,10 +82,12 @@ test('uses local aggregate recommendations without calling the GLM API', async (
 
 test('blocks Step1 navigation when documents cannot reach the main document', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
   const validateStart = main.indexOf('function validateSceneAggregateDraft');
   const validateEnd = main.indexOf('function setSceneSetupMainDoc', validateStart);
   const validateSource = main.slice(validateStart, validateEnd);
 
   assert.match(validateSource, /getSceneLinkValidationError/);
-  assert.match(main, /text: '関連関係が未設定です。'/);
+  assert.match(main, /text: `関連関係が設定されていない帳票があります：\$\{sceneSetupUnlinkedDocLabels\.value\}`/);
+  assert.match(sceneConfig, /return `関連関係が設定されていない帳票があります：\$\{labels\.join\('、'\)\}`/);
 });

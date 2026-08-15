@@ -420,7 +420,13 @@
                             link
                             @click="setSceneSetupMainDoc(doc.type)"
                           >主帳票に設定</el-button>
-                        <el-button type="danger" link @click="removeSceneSetupDoc(i)">削除</el-button>
+                        <button
+                          type="button"
+                          class="case-link-doc-remove"
+                          title="削除"
+                          aria-label="削除"
+                          @click="removeSceneSetupDoc(i)"
+                        >×</button>
                         </div>
                       </div>
                     </div>
@@ -448,7 +454,7 @@
                     </div>
                     <div v-if="sceneSetupAggregateRuleGroups.length" class="case-aggregate-rule-list">
                       <div
-                        v-for="group in sceneSetupAggregateRuleGroups"
+                        v-for="(group, pairIndex) in sceneSetupAggregateRuleGroups"
                         :key="'agg-' + group.pairKey"
                         class="case-aggregate-rule-card"
                         :class="{ 'is-missing': group.status === 'missing' }"
@@ -456,6 +462,7 @@
                         <div class="case-aggregate-rule-head">
                           <div class="case-aggregate-rule-main">
                             <div class="case-aggregate-pair-row">
+                              <span class="case-aggregate-pair-index">3.{{ pairIndex + 1 }}</span>
                               <div class="case-aggregate-rule-title case-aggregate-pair-matrix">
                                 <el-select
                                   :model-value="group.sourceDocType"
@@ -490,6 +497,13 @@
                               <div class="case-aggregate-rule-actions">
                                 <button
                                   type="button"
+                                  class="case-aggregate-pair-remove"
+                                  title="削除"
+                                  aria-label="削除"
+                                  @click="removeSceneSetupAggregateGroup(group)"
+                                >×</button>
+                                <button
+                                  type="button"
                                   class="case-aggregate-detail-toggle"
                                   :class="{ 'is-open': isSceneSetupAggregateDetailOpen(group) }"
                                   :title="isSceneSetupAggregateDetailOpen(group) ? '折りたたむ' : '展開'"
@@ -499,20 +513,12 @@
                                 >
                                   <span class="case-aggregate-detail-chevron" aria-hidden="true"></span>
                                 </button>
-                                <el-button
-                                  type="danger"
-                                  link
-                                  class="case-aggregate-delete"
-                                  @click="removeSceneSetupAggregateGroup(group)"
-                                >
-                                  削除
-                                </el-button>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <template v-if="isSceneSetupAggregateDetailOpen(group)">
+                        <div v-if="isSceneSetupAggregateDetailOpen(group)" class="case-aggregate-detail-panel">
                           <div v-if="group.conditionGroups?.length" class="case-aggregate-condition-list">
                             <template
                               v-for="(conditionGroup, groupIndex) in group.conditionGroups"
@@ -587,7 +593,7 @@
                               @click="addSceneSetupAggregateConditionGroup(group)"
                             >+ グループ追加</el-button>
                           </div>
-                        </template>
+                        </div>
                       </div>
                       <button type="button" class="wf-doc-link-add case-aggregate-pair-add" @click="addSceneSetupAggregateGroup">+ 帳票間関連を追加</button>
                     </div>
@@ -610,6 +616,17 @@
                     >{{ sceneSetupLinkCheckSummary.text }}</span>
                   </div>
                   <div ref="sceneSetupNetworkViewportRef" class="wf-network-canvas-wrap">
+                    <div class="wf-network-zoom-toolbar" role="toolbar" aria-label="関連プレビュー表示操作">
+                      <button type="button" class="wf-network-zoom-btn" title="縮小" aria-label="縮小" @click.stop="zoomSceneSetupNetworkOut">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                      </button>
+                      <button type="button" class="wf-network-zoom-btn" title="拡大" aria-label="拡大" @click.stop="zoomSceneSetupNetworkIn">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                      </button>
+                      <button type="button" class="wf-network-zoom-btn" title="画面に合わせる" aria-label="画面に合わせる" @click.stop="fitSceneSetupNetwork">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.8 6V2.8H6M10 2.8h3.2V6M13.2 10v3.2H10M6 13.2H2.8V10" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                    </div>
                     <template v-if="sceneSetupNetworkLayout.nodes.length">
                       <div
                         class="wf-network-scale-space"
@@ -629,6 +646,10 @@
                         :key="edge.id"
                             :d="edge.path"
                         class="wf-network-edge"
+                        :class="{
+                          'is-active': isSceneSetupNetworkEdgeActive(edge),
+                          'is-muted': sceneSetupNetworkSelectedFieldKey && !isSceneSetupNetworkEdgeActive(edge),
+                        }"
                       />
                     </svg>
                         <div class="wf-network-stage">
@@ -661,7 +682,14 @@
                                 :class="{
                                   'is-linked': node.linkedFields.includes(field),
                                   'is-main-key': node.isHub && node.mainKey === field,
+                                  'is-active': isSceneSetupNetworkFieldActive(node.docType, field),
+                                  'is-muted': sceneSetupNetworkSelectedFieldKey && !isSceneSetupNetworkFieldActive(node.docType, field),
                                 }"
+                                role="button"
+                                tabindex="0"
+                                @click="toggleSceneSetupNetworkField(node.docType, field)"
+                                @keydown.enter.prevent="toggleSceneSetupNetworkField(node.docType, field)"
+                                @keydown.space.prevent="toggleSceneSetupNetworkField(node.docType, field)"
                               >
                                 <span v-if="node.isHub && node.mainKey === field" class="wf-network-main-key-mark" aria-hidden="true">※</span>{{ field }}
                               </div>

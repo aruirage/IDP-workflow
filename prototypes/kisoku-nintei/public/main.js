@@ -88,6 +88,8 @@ const appOptions = {
     const sceneSetupAiMatching = ref(false);
     const sceneSetupAggregateDetailOpen = reactive({});
     const sceneSetupNetworkExpandedDocs = reactive({});
+    const sceneSetupNetworkSelectedFieldKey = ref('');
+    const sceneSetupNetworkZoom = ref(null);
     const sceneSetupNetworkViewportRef = ref(null);
     const sceneSetupNetworkViewportSize = reactive({ width: 0, height: 0 });
     let sceneSetupNetworkResizeObserver = null;
@@ -2695,9 +2697,9 @@ const appOptions = {
     const sceneSetupLinkCheckSummary = computed(() => {
       const stats = sceneSetupLinkStats.value;
       if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
-        return { tone: 'warn', text: '関連関係が未設定です。' };
+        return { tone: 'warn', text: `関連関係が設定されていない帳票があります：${sceneSetupUnlinkedDocLabels.value}` };
       }
-      return { tone: 'ok', text: 'すべての帳票に関連関係が設定されています' };
+      return { tone: 'ok', text: 'すべての帳票が主帳票へ到達できます' };
     });
     const sceneSetupNetworkLayout = computed(() =>
       buildSceneSetupNetworkLayout(
@@ -2716,12 +2718,40 @@ const appOptions = {
       sceneSetupNetworkExpandedDocs[docType] = !sceneSetupNetworkExpandedDocs[docType];
     }
 
+    function getSceneSetupNetworkFieldKey(docType, field) {
+      return `${docType}::${field}`;
+    }
+
+    function toggleSceneSetupNetworkField(docType, field) {
+      const key = getSceneSetupNetworkFieldKey(docType, field);
+      sceneSetupNetworkSelectedFieldKey.value = sceneSetupNetworkSelectedFieldKey.value === key ? '' : key;
+    }
+
+    function isSceneSetupNetworkEdgeActive(edge) {
+      const selected = sceneSetupNetworkSelectedFieldKey.value;
+      if (!selected) return false;
+      return selected === getSceneSetupNetworkFieldKey(edge.sourceDocType, edge.sourceField)
+        || selected === getSceneSetupNetworkFieldKey(edge.targetDocType, edge.targetField);
+    }
+
+    function isSceneSetupNetworkFieldActive(docType, field) {
+      const selected = sceneSetupNetworkSelectedFieldKey.value;
+      if (!selected) return false;
+      const key = getSceneSetupNetworkFieldKey(docType, field);
+      if (key === selected) return true;
+      return sceneSetupNetworkLayout.value.edges.some((edge) =>
+        isSceneSetupNetworkEdgeActive(edge)
+          && (key === getSceneSetupNetworkFieldKey(edge.sourceDocType, edge.sourceField)
+            || key === getSceneSetupNetworkFieldKey(edge.targetDocType, edge.targetField))
+      );
+    }
+
     function resetSceneSetupNetworkExpandedDocs() {
       Object.keys(sceneSetupNetworkExpandedDocs).forEach((docType) => {
         delete sceneSetupNetworkExpandedDocs[docType];
       });
     }
-    const sceneSetupNetworkScale = computed(() => {
+    const sceneSetupNetworkFitScale = computed(() => {
       const layout = sceneSetupNetworkLayout.value || {};
       const viewportW = Math.max(0, sceneSetupNetworkViewportSize.width - 28);
       const viewportH = Math.max(0, sceneSetupNetworkViewportSize.height - 28);
@@ -2729,6 +2759,27 @@ const appOptions = {
       const fit = Math.min(viewportW / layout.width, viewportH / layout.height, 1);
       return Math.max(0.48, Math.min(1, fit));
     });
+    const sceneSetupNetworkScale = computed(() =>
+      sceneSetupNetworkZoom.value == null
+        ? sceneSetupNetworkFitScale.value
+        : sceneSetupNetworkZoom.value
+    );
+
+    function setSceneSetupNetworkZoom(nextScale) {
+      sceneSetupNetworkZoom.value = Math.max(0.48, Math.min(1.6, Number(nextScale) || 1));
+    }
+
+    function zoomSceneSetupNetworkIn() {
+      setSceneSetupNetworkZoom(sceneSetupNetworkScale.value + 0.1);
+    }
+
+    function zoomSceneSetupNetworkOut() {
+      setSceneSetupNetworkZoom(sceneSetupNetworkScale.value - 0.1);
+    }
+
+    function fitSceneSetupNetwork() {
+      sceneSetupNetworkZoom.value = null;
+    }
     const sceneSetupNetworkScaledSize = computed(() => {
       const layout = sceneSetupNetworkLayout.value || {};
       const scale = sceneSetupNetworkScale.value;
@@ -5815,7 +5866,6 @@ const appOptions = {
       const err = validateSceneAggregateDraft(sceneSetupDraft);
       if (err) {
         flashSceneSetupLinkCheckResult();
-        ElementPlus.ElMessage.warning(err);
         return;
       }
       const linkErr = getSceneLinkValidationError(
@@ -9808,7 +9858,14 @@ const appOptions = {
       sceneSetupNetworkViewportRef,
       sceneSetupNetworkScaledSize,
       sceneSetupNetworkInnerStyle,
+      zoomSceneSetupNetworkIn,
+      zoomSceneSetupNetworkOut,
+      fitSceneSetupNetwork,
       toggleSceneSetupNetworkDoc,
+      toggleSceneSetupNetworkField,
+      isSceneSetupNetworkEdgeActive,
+      isSceneSetupNetworkFieldActive,
+      sceneSetupNetworkSelectedFieldKey,
       sceneSetupAggregateRuleGroups,
       sceneSetupMainKeyOptions,
       confirmSceneSetup,

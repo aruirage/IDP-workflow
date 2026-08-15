@@ -312,17 +312,67 @@ const WF_NET_LAYOUT = {
 };
 
 function buildNetEdgePath(x1, y1, x2, y2) {
-  return `M ${x1} ${y1} L ${x2} ${y2}`;
+  const bend = Math.max(28, Math.abs(x2 - x1) * 0.45);
+  const direction = x2 >= x1 ? 1 : -1;
+  return `M ${x1} ${y1} C ${x1 + direction * bend} ${y1}, ${x2 - direction * bend} ${y2}, ${x2} ${y2}`;
 }
 
 function buildNetSameColumnEdgePath(sourceNode, targetNode, sourceY, targetY) {
   const isLeftColumn = sourceNode.side === 'left';
+  const sourceX = isLeftColumn ? sourceNode.left + sourceNode.width : sourceNode.left;
+  const targetX = isLeftColumn ? targetNode.left + targetNode.width : targetNode.left;
   const edgeX = isLeftColumn
-    ? Math.max(8, Math.min(sourceNode.left, targetNode.left) - 24)
-    : Math.max(sourceNode.left + sourceNode.width, targetNode.left + targetNode.width) + 24;
-  const sourceX = isLeftColumn ? sourceNode.left : sourceNode.left + sourceNode.width;
-  const targetX = isLeftColumn ? targetNode.left : targetNode.left + targetNode.width;
-  return `M ${sourceX} ${sourceY} L ${edgeX} ${sourceY} L ${edgeX} ${targetY} L ${targetX} ${targetY}`;
+    ? Math.max(sourceX, targetX) + 24
+    : Math.min(sourceX, targetX) - 24;
+  const controlOffset = Math.max(18, Math.abs(edgeX - sourceX) * 0.7);
+  const direction = isLeftColumn ? 1 : -1;
+  return `M ${sourceX} ${sourceY} C ${sourceX + direction * controlOffset} ${sourceY}, ${edgeX} ${sourceY}, ${edgeX} ${(sourceY + targetY) / 2} C ${edgeX} ${targetY}, ${targetX + direction * controlOffset} ${targetY}, ${targetX} ${targetY}`;
+}
+
+function partitionRelatedDocTypes(relatedTypes, mainType, links) {
+  const relatedSet = new Set(relatedTypes);
+  const adjacency = Object.fromEntries(relatedTypes.map((type) => [type, new Set()]));
+  (links || []).forEach((link) => {
+    if (link.sourceDocType === mainType || link.targetDocType === mainType) return;
+    if (!relatedSet.has(link.sourceDocType) || !relatedSet.has(link.targetDocType)) return;
+    adjacency[link.sourceDocType].add(link.targetDocType);
+    adjacency[link.targetDocType].add(link.sourceDocType);
+  });
+
+  const components = [];
+  const visited = new Set();
+  relatedTypes.forEach((type) => {
+    if (visited.has(type)) return;
+    const component = [];
+    const queue = [type];
+    visited.add(type);
+    while (queue.length) {
+      const current = queue.shift();
+      component.push(current);
+      adjacency[current].forEach((next) => {
+        if (visited.has(next)) return;
+        visited.add(next);
+        queue.push(next);
+      });
+    }
+    components.push(component);
+  });
+
+  components.sort((a, b) => b.length - a.length || relatedTypes.indexOf(a[0]) - relatedTypes.indexOf(b[0]));
+  let leftTypes = [];
+  let rightTypes = [];
+  components.forEach((component) => {
+    if (leftTypes.length <= rightTypes.length) leftTypes = leftTypes.concat(component);
+    else rightTypes = rightTypes.concat(component);
+  });
+
+  const sideOf = (type) => leftTypes.includes(type) ? 'left' : 'right';
+  const crossingCount = (links || []).filter((link) =>
+    relatedSet.has(link.sourceDocType)
+      && relatedSet.has(link.targetDocType)
+      && sideOf(link.sourceDocType) !== sideOf(link.targetDocType)
+  ).length;
+  return { leftTypes, rightTypes, crossingCount };
 }
 
 function buildNetBusEdgePath(x1, y1, x2, y2, side) {
@@ -354,8 +404,8 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
 
   const mainType = mainDocType || docs[0]?.type;
   const related = docs.filter((d) => d.type !== mainType);
-  const leftTypes = related.slice(0, Math.ceil(related.length / 2)).map((d) => d.type);
-  const rightTypes = related.slice(Math.ceil(related.length / 2)).map((d) => d.type);
+  const relatedTypes = related.map((d) => d.type);
+  const { leftTypes, rightTypes } = partitionRelatedDocTypes(relatedTypes, mainType, links);
   const L = WF_NET_LAYOUT;
   const linkedFieldMap = {};
 
@@ -468,6 +518,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
           id: link.id || `edge-${index}`,
           path: buildNetSameColumnEdgePath(srcNode, tgtNode, srcY, tgtY),
           label: `${link.sourceField} → ${link.targetField}`,
+          sourceDocType: link.sourceDocType,
+          sourceField: link.sourceField,
+          targetDocType: link.targetDocType,
+          targetField: link.targetField,
         };
       } else {
         return null;
@@ -477,6 +531,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
         id: link.id || `edge-${index}`,
         path: buildNetEdgePath(x1, y1, x2, y2),
         label: `${link.sourceField} → ${link.targetField}`,
+        sourceDocType: link.sourceDocType,
+        sourceField: link.sourceField,
+        targetDocType: link.targetDocType,
+        targetField: link.targetField,
       };
     }
 
@@ -507,6 +565,10 @@ function buildSceneSetupNetworkLayout(docs, mainDocType, links, getLabel, getFie
       id: link.id || `edge-${index}`,
       path: buildNetEdgePath(x1, y1, x2, y2),
       label: `${mainField} → ${satField}`,
+      sourceDocType: link.sourceDocType,
+      sourceField: link.sourceField,
+      targetDocType: link.targetDocType,
+      targetField: link.targetField,
     };
   }).filter(Boolean);
 
@@ -531,7 +593,8 @@ function getSceneLinkValidationError(documents, mainDocType, docFieldLinks, getD
     docFieldLinks,
   );
   if (stats.noRelationCount > 0 || stats.unlinkedCount > 0) {
-    return '関連関係が未設定です。';
+    const labels = stats.unlinkedDocs.map((docType) => getDocDisplayLabel(docType));
+    return `関連関係が設定されていない帳票があります：${labels.join('、')}`;
   }
   return '';
 }

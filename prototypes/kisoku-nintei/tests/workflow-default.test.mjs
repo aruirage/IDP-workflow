@@ -140,24 +140,42 @@ test('excludes custom functions from Step2 configuration checks', async () => {
   assert.match(mockData, /case 'code':\s*return '';/);
 });
 
-test('collapses relation preview documents to linked fields with straight lines', async () => {
+test('collapses relation preview and highlights curved field relations', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
 
   assert.match(main, /const sceneSetupNetworkExpandedDocs = reactive\(\{\}\)/);
+  assert.match(main, /const sceneSetupNetworkSelectedFieldKey = ref\(''\)/);
   assert.match(main, /sceneSetupNetworkExpandedDocs/);
   assert.match(sceneConfig, /const visibleFields = expandedDocs\?\.\[docType\] \? fields : linkedFields/);
-  assert.match(sceneConfig, /return `M \$\{x1\} \$\{y1\} L \$\{x2\} \$\{y2\}`/);
+  assert.match(sceneConfig, /return `M \$\{x1\} \$\{y1\} C/);
+  assert.match(sceneConfig, /function partitionRelatedDocTypes/);
+  assert.match(sceneConfig, /components\.forEach\(\(component\) => \{[\s\S]*leftTypes\.length <= rightTypes\.length/);
+  assert.match(sceneConfig, /crossingCount/);
   assert.match(sceneConfig, /function buildNetSameColumnEdgePath/);
   assert.match(sceneConfig, /path: buildNetSameColumnEdgePath\(srcNode, tgtNode, srcY, tgtY\)/);
-  assert.match(sceneConfig, /isLeftColumn\s*\?\s*Math\.max\(8, Math\.min\(sourceNode\.left, targetNode\.left\) - 24\)/);
-  assert.match(sceneConfig, /: Math\.max\(sourceNode\.left \+ sourceNode\.width, targetNode\.left \+ targetNode\.width\) \+ 24/);
-  assert.match(sceneConfig, /const sourceX = isLeftColumn \? sourceNode\.left : sourceNode\.left \+ sourceNode\.width/);
+  assert.match(sceneConfig, /const sourceX = isLeftColumn \? sourceNode\.left \+ sourceNode\.width : sourceNode\.left/);
+  assert.match(sceneConfig, /const targetX = isLeftColumn \? targetNode\.left \+ targetNode\.width : targetNode\.left/);
+  assert.match(sceneConfig, /const direction = isLeftColumn \? 1 : -1/);
   assert.match(index, /@click="toggleSceneSetupNetworkDoc\(node\.docType\)"/);
+  assert.match(index, /@click="toggleSceneSetupNetworkField\(node\.docType, field\)"/);
+  assert.match(index, /isSceneSetupNetworkEdgeActive\(edge\)/);
+  assert.match(index, /isSceneSetupNetworkFieldActive\(node\.docType, field\)/);
+  assert.match(index, /class="wf-network-zoom-toolbar"/);
+  assert.match(index, /@click\.stop="zoomSceneSetupNetworkOut"/);
+  assert.match(index, /@click\.stop="zoomSceneSetupNetworkIn"/);
+  assert.match(index, /@click\.stop="fitSceneSetupNetwork"/);
+  assert.match(main, /const sceneSetupNetworkZoom = ref\(null\)/);
+  assert.match(main, /function fitSceneSetupNetwork\(\)/);
   assert.match(index, /v-for="field in node\.visibleFields"/);
   assert.match(index, /wf-network-doc-toggle[^>]*is-expanded/);
   assert.doesNotMatch(index, /marker-end="url\(#wf-net-arrow\)"/);
+  assert.match(index, /class="wf-network-stat"/);
+  const checkStart = main.indexOf('function checkSceneDocLinks()');
+  const checkEnd = main.indexOf('function removeSceneSetupDoc', checkStart);
+  const checkSource = main.slice(checkStart, checkEnd);
+  assert.doesNotMatch(checkSource, /ElementPlus\.ElMessage\.warning\(err\)/);
 });
 
 test('uses one regular-weight settings shortcut label', async () => {
@@ -306,6 +324,26 @@ test('records scene publish history only after successful publication', async ()
   assert.match(main, /function openScenePublishHistory\(scene\)/);
   assert.match(main, /form\.publishHistory\.push\(\{[\s\S]*publishedBy:[\s\S]*publishedAt:/);
   assert.doesNotMatch(main, /function handleSave\(options = \{\}\)[\s\S]*publishHistory\.push/);
+});
+
+test('uses aligned delete icons and highlights the complete document-pair group', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /class="case-link-doc-remove"[\s\S]*@click="removeSceneSetupDoc\(i\)"[\s\S]*>×<\/button>/);
+  assert.match(index, /class="case-aggregate-pair-remove"[\s\S]*@click="removeSceneSetupAggregateGroup\(group\)"[\s\S]*>×<\/button>/);
+  assert.match(index, /class="case-aggregate-pair-index">3\.\{\{ pairIndex \+ 1 \}\}<\/span>/);
+  assert.match(index, /class="case-aggregate-detail-panel"[\s\S]*case-aggregate-condition-list/);
+  assert.match(style, /\.case-aggregate-rule-card:has\(\.case-aggregate-pair-remove:hover\) \.case-aggregate-detail-panel/);
+  assert.match(style, /\.case-link-doc-remove,[\s\S]*\.case-aggregate-pair-remove/);
+  assert.doesNotMatch(style, /\.case-aggregate-condition-list::before/);
+  assert.doesNotMatch(style, /\.case-aggregate-rule-card:has\(\.case-aggregate-pair-remove:hover\) \.case-aggregate-condition-group/);
+  assert.match(style, /\.case-aggregate-pair-row[\s\S]*grid-template-columns: 18px minmax\(0, 1fr\) auto;[\s\S]*gap: 5px;/);
+  assert.match(style, /\.case-aggregate-detail-panel[\s\S]*padding: 10px 11px 12px;/);
+  assert.match(style, /\.case-aggregate-title-select,[\s\S]*\.case-aggregate-field-select[\s\S]*width: 100%;/);
+  assert.match(style, /\.case-aggregate-group-remove,[\s\S]*\.case-aggregate-link-row \.wf-doc-link-remove[\s\S]*background: transparent;[\s\S]*color: #f04438;/);
+  assert.match(style, /\.case-aggregate-link-row[\s\S]*width: calc\(100% - 8px\);[\s\S]*margin-left: 1px;/);
+  assert.match(style, /\.case-aggregate-link-row \.wf-doc-link-remove[\s\S]*transform: translateX\(-3px\);/);
 });
 
 test('runs the Step2 configuration check before publishing from Step4', async () => {
