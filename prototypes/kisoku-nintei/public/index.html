@@ -1649,11 +1649,10 @@
                 </div>
 
                 <!-- カスタム関数（JavaScript） -->
-                <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section">
+                <div v-if="inspectorPanel === 'code' && selectedWorkflowNode" class="inspector-panel-section code-node-inspector">
                   <inspector-module>
                     <inspector-module-card
-                      title="入力変数"
-                      hint="ファイル名生成で使用する入力名と参照元を定義します。上流変数を複製せず、参照元が変わると無効になります。"
+                      :title="`入力変数 ${selectedCodeInputRows.length}`"
                     >
                       <template #action>
                         <el-button type="primary" link @click="openCodeParamDialog()">＋ 追加</el-button>
@@ -1663,11 +1662,10 @@
                         <li v-for="row in selectedCodeInputRows" :key="row.id" class="code-param-list-item">
                           <div class="code-param-list-main">
                             <span class="code-param-list-name">{{ row.name }}</span>
-                            <span class="code-param-source-display">{{ formatCodeInputSourceWithType(row.variable) }}</span>
+                            <span class="code-param-source-display">{{ formatCodeInputSourceLabel(row.variable) }}</span>
                           </div>
                           <div class="code-param-list-actions">
-                            <el-button link @click="openCodeParamDialog(row)">編集</el-button>
-                            <el-button link type="danger" @click="removeCodeInputParam(row.id)">削除</el-button>
+                            <el-button link type="danger" @click="removeCodeInputParam(row)">削除</el-button>
                           </div>
                         </li>
                       </ul>
@@ -1675,7 +1673,7 @@
                     <inspector-module-card title="JavaScript スクリプト">
                       <div class="inspector-field">
                         <el-input
-                          v-model="selectedWorkflowNode.pythonCode"
+                          v-model="selectedWorkflowCode"
                           type="textarea"
                           :rows="12"
                           resize="vertical"

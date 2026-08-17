@@ -233,7 +233,7 @@
       </div>
     </aside>
     <main class="main">
-      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/17 11:58:43</div>
+      <div class="main__meta">由 PRD.zh-CN.md 生成 · 2026/8/17 12:35:40</div>
       <article class="paper">
 <h1>NeosAI 日本保险 IDP 工作流配置 — 产品需求文档（PRD）</h1>
 <h2 id="chapter-6" class="chapter-heading">第 6 章｜功能详细说明</h2>
@@ -508,6 +508,8 @@
 <p>「入力変数」弹窗用于声明脚本会读取哪些上游变量。它不是新建变量池变量，也不是配置出参；<mark class="change-modified">自定义函数脚本和入参不纳入设置检查，参照元变化导致的问题在运行时记录。</mark></p>
 <table><thead><tr><th>作用</th><th>说明</th></tr></thead><tbody><tr><td>多变量声明</td><td>文件命名脚本可能同时读取案件 ID、文件列表、账票类型、标准字段、OCR 字段、连番等多项输入，弹窗用于逐条声明这些输入</td></tr><tr><td>代码内别名</td><td>字段级变量显示名可能是日文；配置人员可把参照元绑定成 JavaScript 里的英文变量名，例如 <code>policyNo</code></td></tr><tr><td><mark class="change-modified">依赖处理</mark></td><td><mark class="change-modified">平台保存每条入参的参照元路径；上游节点、字段或连线变更导致参照元不可达时，运行时按缺失值处理并记录日志</mark></td></tr><tr><td>类型提示</td><td>参照元选定后只读展示类型，帮助配置人员在 JavaScript 里做字符串、数组或枚举处理</td></tr></tbody></table>
 <ol><li>右侧 inspector 的「入力変数」区只展示已添加入参列表；点击「追加」打开入参弹窗。</li><li>入参弹窗填写变量名，并从 Source 下拉选择一个数据来源；不允许手工选择数据类型。</li><li>变量名由配置人员自定义，作为 JavaScript 读取键；同一自定义节点内不可重复。字段级变量的显示名可能是日文，因此允许用英文变量名做代码内参照名。</li><li>添加完成后，入参列表展示变量名和绑定 Source；每条支持编辑和删除。</li><li>Source 选择器展示规则与条件变量一致：一级只显示节点名称或账票类型名称，二级只显示裸变量键或字段名，不展示内部节点标识。下拉列表的叶子变量在变量名右侧只读展示数据类型，例如 String、Enum、Array。</li><li>代码内用 <code>inputs.变量名</code> 或 <code>inputs[&quot;变量名&quot;]</code> 读取已定义输入变量；例如变量名为 <code>claimFiles</code> 时，用 <code>inputs.claimFiles</code> 读取。变量类型由代码自行判断和转换，平台不在入参弹窗里要求选择类型。</li></ol>
+<p>原型中新建自定义函数节点预置以下输入变量；用户可以编辑或删除：</p>
+<table><thead><tr><th>变量名</th><th>参照元</th></tr></thead><tbody><tr><td><code>files</code></td><td>开始节点 <code>files[]</code></td></tr><tr><td><code>claimno</code></td><td><code>保険請求書 / 証券番号</code></td></tr><tr><td><code>requestNo</code></td><td><code>保険請求書 / 請求番号</code></td></tr></tbody></table>
 <p>入参范围：</p>
 <table><thead><tr><th>来源类型</th><th>可选范围</th><th>说明</th></tr></thead><tbody><tr><td>开始节点输出变量</td><td>开始节点 <code>caseId</code>、<code>files[]</code></td><td>自定义节点可额外读取工作流入口案件 ID 和文件列表；条件节点不可选开始节点输出</td></tr><tr><td>条件节点可选变量</td><td>与条件节点变量选择器一致</td><td>包含上游可达节点输出、Step1 OCR 字段叶子、标准字段叶子等</td></tr></tbody></table>
 <p>文件命名参考既有连携批处理规则。典型命名由时间戳、连番、集合编号、案件/请求编号、账票 ID、枝番、OCR 要否等片段组成。时间戳通常由 JavaScript 直接生成；如果业务要求使用扫描时间或上传时间，则从 <code>files[]</code> 的文件基础信息读取。</p>
@@ -517,31 +519,65 @@
 <p><del class="change-deleted">废弃：Step2 对自定义函数执行代码必填、入参可达性和返回格式等专用校验。</del></p>
 <p><mark class="change-modified">运行规则：自定义函数不参加 Step2 设置检查。运行时按 Source 解析入参值，JavaScript 用 <code>inputs.变量名</code> 或 <code>inputs[&quot;变量名&quot;]</code> 读取。空值、缺失值和业务兜底由脚本处理；编译失败、运行异常、超时或返回格式非法时写执行日志，并输出 <code>codeStatus=failed</code>。</mark></p>
 <p>脚本示例：文件命名规则</p>
-<pre><code>const files = inputs.files || [];
+<pre><code>function main(inputs) {
+  const files = Array.isArray(inputs.files) ? inputs.files : [];
+  const documentCodeMap = {
+    &quot;2080100341838004224&quot;: &quot;HA21-002&quot;,
+    &quot;2080101367659905024&quot;: &quot;HE06-001&quot;,
+    &quot;2080103253066661888&quot;: &quot;HM01-001&quot;,
+    &quot;2079754599596376064&quot;: &quot;HE02-001&quot;
+  };
 
-const safe = (value, fallback = &quot;&quot;) =&gt;
-  String(value ?? fallback)
-    .trim()
-    .replace(/[\/:*?&quot;&lt;&gt;|\s]+/g, &quot;_&quot;);
+  const safe = (value, fallback) =&gt; {
+    const result = String(value == null ? &quot;&quot; : value)
+      .trim()
+      .replace(/[\\/:*?&quot;&lt;&gt;|\s]+/g, &quot;_&quot;)
+      .replace(/^_+|_+$/g, &quot;&quot;);
+    return result || fallback;
+  };
 
-const timestamp = new Date().toISOString().slice(2, 19).replace(/[-T:]/g, &quot;&quot;);
-const setNo = safe(inputs.setNo, &quot;001&quot;);
-const claimNo = safe(inputs.claimNo, inputs.caseId || &quot;00000000-000&quot;);
-const requestNo = safe(inputs.requestNo, &quot;00000000-000-000&quot;);
-const docId = safe(inputs.docId, &quot;UNKNOWN&quot;);
-const branchNo = safe(inputs.branchNo, &quot;00&quot;);
-const ocrFlag = safe(inputs.ocrFlag, &quot;1&quot;);
+  const now = new Date();
+  const timestamp = [
+    String(now.getFullYear()).slice(-2),
+    String(now.getMonth() + 1).padStart(2, &quot;0&quot;),
+    String(now.getDate()).padStart(2, &quot;0&quot;),
+    String(now.getHours()).padStart(2, &quot;0&quot;),
+    String(now.getMinutes()).padStart(2, &quot;0&quot;),
+    String(now.getSeconds()).padStart(2, &quot;0&quot;)
+  ].join(&quot;&quot;);
 
-return files.map((file, index) =&gt; {
-  const seq = safe(file.sequenceNo, String(index + 1).padStart(4, &quot;0&quot;));
-  const ext = file.extension || &quot;.pdf&quot;;
+  const claimNo = safe(inputs.claimNo || inputs.claimno, &quot;NO-CLAIM&quot;);
+  const requestNo = safe(inputs.requestNo, &quot;NO-REQUEST&quot;);
+  const branchCounts = {};
+
+  const renamedFiles = files.map((file) =&gt; {
+    const caseFileId = file.caseFileId != null ? file.caseFileId : file.id;
+    const documentTypeId = String(file.documentTypeId || &quot;UNKNOWN&quot;);
+    const documentCode = documentCodeMap[documentTypeId]
+      || &quot;DOC-&quot; + safe(documentTypeId, &quot;UNKNOWN&quot;).slice(-8);
+    branchCounts[documentCode] = (branchCounts[documentCode] || 0) + 1;
+    const branchNo = String(branchCounts[documentCode]).padStart(2, &quot;0&quot;);
+    const originalFileName = String(file.fileName || &quot;&quot;);
+    const extensionIndex = originalFileName.lastIndexOf(&quot;.&quot;);
+    const extension = extensionIndex &gt;= 0
+      ? originalFileName.slice(extensionIndex)
+      : &quot;.pdf&quot;;
+
+    return {
+      caseFileId,
+      fileId: caseFileId,
+      aiFileId: file.aiFileId,
+      documentTypeId,
+      originalFileName,
+      fileName: [timestamp, claimNo, requestNo, documentCode, branchNo].join(&quot;_&quot;) + extension
+    };
+  });
 
   return {
-    fileId: file.id,
-    fileName:
-      `${timestamp}_${seq}_${setNo}_${claimNo}_${requestNo}_${docId}_${branchNo}_${ocrFlag}${ext}`
+    files: renamedFiles,
+    renamedFileCount: renamedFiles.length
   };
-});</code></pre>
+}</code></pre>
 <p>输出变量（配置端不折叠；行内显示变量键、日文显示名和 i，类型右对齐；i 只显示日文取值范围）：</p>
 <table><thead><tr><th>变量键</th><th>类型</th><th>消费分类</th><th>取值范围</th><th>定义</th></tr></thead><tbody><tr><td><code>codeStatus</code></td><td>Enum</td><td>运行时</td><td><code>processing / success / failed</code></td><td>JavaScript 处理状态；保留为节点输出，不进入条件变量选择器</td></tr></tbody></table>
       </article>

@@ -34,17 +34,32 @@ test('labels the built-in workflow test fixture as mock data', async () => {
   assert.doesNotMatch(index, />ファイル固定</);
 });
 
-test('routes workflow backflow curves through compact bottom lanes', async () => {
+test('routes workflow edges with the supplied obstacle-aware reference algorithm', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
 
-  assert.match(main, /const WF_EDGE_ROUTE_GAP = 40;/);
-  assert.match(main, /const WF_EDGE_ROUTE_STEP = 24;/);
-  assert.match(main, /if \(draft\.isBackflow \|\| draft\.x2 < draft\.x1\) return 'bottom';/);
-  assert.match(main, /Math\.min\(72, absDx \* 0\.28\)/);
-  assert.match(main, /const sideX = Math\.min\(x1, x2\) - curve;/);
-  assert.match(main, /`C \$\{x1 \+ curve\} \$\{y1\}, \$\{x1 \+ curve\} \$\{laneY\}, \$\{x1\} \$\{laneY\}`/);
-  assert.match(main, /`C \$\{x1 - curve\} \$\{laneY\}, \$\{sideX\} \$\{laneY\}, \$\{sideX\} \$\{laneY\}`/);
-  assert.match(main, /`C \$\{sideX\} \$\{y2\}, \$\{x2 - curve\} \$\{y2\}, \$\{x2\} \$\{y2\}`/);
+  assert.match(main, /function getWorkflowReferenceBezierControls\(start, end\)/);
+  assert.match(main, /function workflowReferenceSegmentIntersectsRect\(segment, rect\)/);
+  assert.match(main, /function getWorkflowReferenceSegmentConflictPenalty\(first, second\)/);
+  assert.match(main, /function getWorkflowReferenceRouteScore\(points, routedSegments\)/);
+  assert.match(main, /function buildWorkflowReferenceRoundedPath\(points\)/);
+  assert.match(main, /function canUseWorkflowReferenceDirectCurve\(start, end, obstacles, sourceNodeId, targetNodeId\)/);
+  assert.match(main, /function buildWorkflowReferenceRoutedPath\(draft, obstacles, routedSegments, edgeIndex\)/);
+  assert.match(main, /\.filter\(\(points\) => isWorkflowReferenceRouteClear\(points, obstacles\)\)/);
+  assert.match(main, /routedSegments\.push\(\.\.\.routed\.segments\.slice\(2, -2\)\)/);
+});
+
+test('uses horizontal main-chain layout after adding custom nodes', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+
+  assert.match(workflowCore, /function hasOnlyCanonicalDefaultCaseWorkflowNodes\(workflow\)/);
+  assert.match(workflowCore, /nodes\.length !== STRAIGHT_CASE_WORKFLOW_NODE_IDS\.length/);
+  assert.match(workflowCore, /if \(!hasOnlyCanonicalDefaultCaseWorkflowNodes\(workflow\)\) return false;/);
+  assert.match(workflowCore, /function layoutWorkflowByStage\(workflow, sizes\)/);
+  assert.match(workflowCore, /edge\.branch !== 'request_supplement'/);
+  assert.match(workflowCore, /const mainNodes = rankNodes\.filter\(\(node\) => !isHitlGateNode\(node\)\);/);
+  assert.match(workflowCore, /const hitlNodes = rankNodes\.filter\(\(node\) => isHitlGateNode\(node\)\);/);
+  assert.match(workflowCore, /node\.y = branchY \+ index \* \(sizes\.get\(node\.id\)\.h \+ 32\);/);
+  assert.match(workflowCore, /if \(layoutWorkflowByStage\(workflow, sizes\)\) return workflow;/);
 });
 
 test('uses current document names and a distinct test-input error step', async () => {
@@ -141,6 +156,71 @@ test('excludes custom functions from Step2 configuration checks', async () => {
   assert.doesNotMatch(mockData, /JavaScript を入力してください/);
   assert.doesNotMatch(mockData, /関数入力「\$\{raw\}」が上流から到達できません/);
   assert.match(mockData, /case 'code':\s*return '';/);
+});
+
+test('uses an executable file-renaming function as the custom node default', async () => {
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const appMain = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+  const source = workflowCore.match(/const DEFAULT_CODE_PYTHON = `([\s\S]*?)`;\n/)?.[1] || '';
+  const main = new Function(`${source}\nreturn main;`)();
+  const result = main({
+    claimno: 'CLM/001',
+    requestNo: 'REQ:002',
+    files: [
+      { id: 'file-1', documentTypeId: '2080100341838004224', fileName: 'before.pdf' },
+      { id: 'file-2', documentTypeId: '2080100341838004224', fileName: 'before.jpg' },
+    ],
+  });
+
+  assert.equal(result.renamedFileCount, 2);
+  assert.equal(result.files[0].fileId, 'file-1');
+  assert.match(result.files[0].fileName, /^\d{12}_CLM_001_REQ_002_HA21-002_01\.pdf$/);
+  assert.match(result.files[1].fileName, /^\d{12}_CLM_001_REQ_002_HA21-002_02\.jpg$/);
+  assert.match(workflowCore, /name: 'files',[\s\S]*variable: CODE_UPSTREAM_FILES_JSON/);
+  assert.match(workflowCore, /name: 'claimno',[\s\S]*variable: 'docTypes\.保険請求書\.証券番号'/);
+  assert.match(workflowCore, /name: 'requestNo',[\s\S]*variable: 'docTypes\.保険請求書\.請求番号'/);
+  assert.match(workflowCore, /: createDefaultCodeInputRows\(\);/);
+  assert.match(workflowCore, /function isLegacyDefaultCodeScript\(code\)/);
+  assert.match(workflowCore, /source\.includes\('\/\/ Excel の命名例:'\)/);
+  assert.match(workflowCore, /source\.includes\('timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag\.pdf'\)/);
+  assert.match(workflowCore, /source\.includes\('\/\/ 已确认的账票类型 ID 与文件代码。'\)/);
+  assert.match(workflowCore, /return legacyExcelTemplate \|\| chineseCommentTemplate;/);
+  assert.match(workflowCore, /function localizeDefaultCodeScriptComments\(code\)/);
+  assert.match(workflowCore, /未配置代码时使用稳定的账票类型\\s\*ID/);
+  assert.match(workflowCore, /localizeDefaultCodeScriptComments\(node\.pythonCode\)/);
+  assert.match(workflowCore, /const migrateLegacyDefault = isLegacyDefaultCodeScript\(node\.pythonCode\);/);
+  assert.match(workflowCore, /Array\.isArray\(node\.inputs\) && \(node\.inputs\.length \|\| !migrateLegacyDefault\)/);
+  assert.match(workflowCore, /pythonCode: !migrateLegacyDefault && node\.pythonCode/);
+  assert.match(index, /:title="`入力変数 \$\{selectedCodeInputRows\.length\}`"/);
+  assert.match(index, /class="inspector-panel-section code-node-inspector"/);
+  assert.match(index, /formatCodeInputSourceLabel\(row\.variable\)/);
+  assert.match(index, /v-model="selectedWorkflowCode"/);
+  assert.doesNotMatch(index, /openCodeParamDialog\(row\)/);
+  assert.match(appMain, /保険金請求書（変更禁止） \/ 証券番号/);
+  assert.match(appMain, /保険金請求書（変更禁止） \/ 請求番号/);
+  assert.match(appMain, /const selectedWorkflowCode = computed\(\{/);
+  assert.match(appMain, /if \(localizedCode !== node\.pythonCode\) node\.pythonCode = localizedCode;/);
+  assert.match(style, /\.code-param-list-item\s*\{[^}]*border-bottom:\s*1px solid #eaecf0;[^}]*background:\s*transparent;/s);
+  assert.match(workflowCore, /function newCodeParamId\(prefix\)/);
+  assert.match(workflowCore, /codeParamIdSequence \+= 1;/);
+  assert.match(workflowCore, /function ensureUniqueCodeParamIds\(rows, prefix\)/);
+  assert.match(workflowCore, /const inputs = ensureUniqueCodeParamIds\(normalizedInputs, 'cin'\);/);
+  assert.match(index, /@click="removeCodeInputParam\(row\)"/);
+  assert.match(appMain, /node\.inputs = node\.inputs\.filter\(\(candidate\) => candidate !== row\);/);
+  assert.match(style, /\.code-node-inspector \.inspector-section-block:first-child \.inspector-section-block__head\s*\{[^}]*border-bottom:\s*none;/s);
+
+  const legacyMarker = [
+    '// Excel の命名例:',
+    '// timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag.pdf',
+    'const files = inputs.files || [];',
+  ].join('\n');
+  assert.equal(
+    legacyMarker.includes('// Excel の命名例:')
+      && legacyMarker.includes('timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag.pdf'),
+    true,
+  );
 });
 
 test('collapses relation preview and highlights curved field relations', async () => {
@@ -366,6 +446,13 @@ test('uses aligned delete icons and highlights the complete document-pair group'
   assert.match(style, /\.case-aggregate-group-remove,[\s\S]*\.case-aggregate-link-row \.wf-doc-link-remove[\s\S]*background: transparent;[\s\S]*color: #f04438;/);
   assert.match(style, /\.case-aggregate-link-row[\s\S]*width: calc\(100% - 8px\);[\s\S]*margin-left: 1px;/);
   assert.match(style, /\.case-aggregate-link-row \.wf-doc-link-remove[\s\S]*transform: translateX\(-3px\);/);
+});
+
+test('keeps related document rows neutral when hovering delete', async () => {
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(style, /\.case-link-doc-item:has\(\.case-link-doc-remove:hover\)/);
+  assert.match(style, /\.case-link-doc-remove:hover,[\s\S]*background:\s*#fef3f2;/);
 });
 
 test('runs the Step2 configuration check before publishing from Step4', async () => {

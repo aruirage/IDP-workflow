@@ -895,6 +895,14 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 5. Source 选择器展示规则与条件变量一致：一级只显示节点名称或账票类型名称，二级只显示裸变量键或字段名，不展示内部节点标识。下拉列表的叶子变量在变量名右侧只读展示数据类型，例如 String、Enum、Array。
 6. 代码内用 `inputs.变量名` 或 `inputs["变量名"]` 读取已定义输入变量；例如变量名为 `claimFiles` 时，用 `inputs.claimFiles` 读取。变量类型由代码自行判断和转换，平台不在入参弹窗里要求选择类型。
 
+原型中新建自定义函数节点预置以下输入变量；用户可以编辑或删除：
+
+| 变量名 | 参照元 |
+| ----- | ----- |
+| `files` | 开始节点 `files[]` |
+| `claimno` | `保険請求書 / 証券番号` |
+| `requestNo` | `保険請求書 / 請求番号` |
+
 入参范围：
 
 | 来源类型     | 可选范围                    | 说明                                       |
@@ -928,31 +936,65 @@ Step3 通知规则模板只消费通知变量白名单里的变量。触发条�
 脚本示例：文件命名规则
 
 ```javascript
-const files = inputs.files || [];
+function main(inputs) {
+  const files = Array.isArray(inputs.files) ? inputs.files : [];
+  const documentCodeMap = {
+    "2080100341838004224": "HA21-002",
+    "2080101367659905024": "HE06-001",
+    "2080103253066661888": "HM01-001",
+    "2079754599596376064": "HE02-001"
+  };
 
-const safe = (value, fallback = "") =>
-  String(value ?? fallback)
-    .trim()
-    .replace(/[\/:*?"<>|\s]+/g, "_");
+  const safe = (value, fallback) => {
+    const result = String(value == null ? "" : value)
+      .trim()
+      .replace(/[\\/:*?"<>|\s]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return result || fallback;
+  };
 
-const timestamp = new Date().toISOString().slice(2, 19).replace(/[-T:]/g, "");
-const setNo = safe(inputs.setNo, "001");
-const claimNo = safe(inputs.claimNo, inputs.caseId || "00000000-000");
-const requestNo = safe(inputs.requestNo, "00000000-000-000");
-const docId = safe(inputs.docId, "UNKNOWN");
-const branchNo = safe(inputs.branchNo, "00");
-const ocrFlag = safe(inputs.ocrFlag, "1");
+  const now = new Date();
+  const timestamp = [
+    String(now.getFullYear()).slice(-2),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0")
+  ].join("");
 
-return files.map((file, index) => {
-  const seq = safe(file.sequenceNo, String(index + 1).padStart(4, "0"));
-  const ext = file.extension || ".pdf";
+  const claimNo = safe(inputs.claimNo || inputs.claimno, "NO-CLAIM");
+  const requestNo = safe(inputs.requestNo, "NO-REQUEST");
+  const branchCounts = {};
+
+  const renamedFiles = files.map((file) => {
+    const caseFileId = file.caseFileId != null ? file.caseFileId : file.id;
+    const documentTypeId = String(file.documentTypeId || "UNKNOWN");
+    const documentCode = documentCodeMap[documentTypeId]
+      || "DOC-" + safe(documentTypeId, "UNKNOWN").slice(-8);
+    branchCounts[documentCode] = (branchCounts[documentCode] || 0) + 1;
+    const branchNo = String(branchCounts[documentCode]).padStart(2, "0");
+    const originalFileName = String(file.fileName || "");
+    const extensionIndex = originalFileName.lastIndexOf(".");
+    const extension = extensionIndex >= 0
+      ? originalFileName.slice(extensionIndex)
+      : ".pdf";
+
+    return {
+      caseFileId,
+      fileId: caseFileId,
+      aiFileId: file.aiFileId,
+      documentTypeId,
+      originalFileName,
+      fileName: [timestamp, claimNo, requestNo, documentCode, branchNo].join("_") + extension
+    };
+  });
 
   return {
-    fileId: file.id,
-    fileName:
-      `${timestamp}_${seq}_${setNo}_${claimNo}_${requestNo}_${docId}_${branchNo}_${ocrFlag}${ext}`
+    files: renamedFiles,
+    renamedFileCount: renamedFiles.length
   };
-});
+}
 ```
 
 输出变量（配置端不折叠；行内显示变量键、日文显示名和 i，类型右对齐；i 只显示日文取值范围）：

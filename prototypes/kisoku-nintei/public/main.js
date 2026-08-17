@@ -3017,6 +3017,21 @@ const appOptions = {
       return node.inputs;
     });
 
+    const selectedWorkflowCode = computed({
+      get() {
+        const node = selectedWorkflowNode.value;
+        if (!node || node.type !== 'code') return '';
+        const localizedCode = localizeDefaultCodeScriptComments(node.pythonCode);
+        if (localizedCode !== node.pythonCode) node.pythonCode = localizedCode;
+        return localizedCode;
+      },
+      set(value) {
+        const node = selectedWorkflowNode.value;
+        if (!node || node.type !== 'code') return;
+        node.pythonCode = value;
+      },
+    });
+
     const codeVariableOptions = computed(() => {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code') return [];
@@ -3074,10 +3089,10 @@ const appOptions = {
       markWorkflowConfigEdited();
     }
 
-    function removeCodeInputParam(rowId) {
+    function removeCodeInputParam(row) {
       const node = selectedWorkflowNode.value;
       if (!node || node.type !== 'code' || !Array.isArray(node.inputs)) return;
-      node.inputs = node.inputs.filter((row) => row.id !== rowId);
+      node.inputs = node.inputs.filter((candidate) => candidate !== row);
       markWorkflowConfigEdited();
     }
 
@@ -3089,6 +3104,9 @@ const appOptions = {
     }
 
     function formatCodeInputSourceLabel(variable) {
+      if (variable === 'docTypes.保険請求書.証券番号') return '保険金請求書（変更禁止） / 証券番号';
+      if (variable === 'docTypes.保険請求書.請求番号') return '保険金請求書（変更禁止） / 請求番号';
+      if (isCodeUpstreamFilesJsonSource(variable)) return 'files[]';
       const option = codeVariableOptions.value.find((item) => item.value === variable);
       return option?.label || formatCodeInputRowDisplay({ variable });
     }
@@ -3721,31 +3739,36 @@ const appOptions = {
       };
     }
 
+    function buildWorkflowSmoothLaneEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
+      const sign = direction === 'top' ? -1 : 1;
+      const laneY = direction === 'bottom'
+        ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
+        : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
+      const horizontalSpan = Math.abs(x2 - x1);
+      const turn = Math.max(28, Math.min(64, horizontalSpan * 0.18));
+      const exitX = x1 + turn;
+      const entryX = x2 - turn;
+      const laneStartX = exitX + (x2 >= x1 ? turn : -turn);
+      const laneEndX = entryX - (x2 >= x1 ? turn : -turn);
+      const d = [
+        `M ${x1} ${y1}`,
+        `C ${exitX} ${y1}, ${exitX} ${laneY}, ${laneStartX} ${laneY}`,
+        `C ${(laneStartX + laneEndX) / 2} ${laneY}, ${(laneStartX + laneEndX) / 2} ${laneY}, ${laneEndX} ${laneY}`,
+        `C ${entryX} ${laneY}, ${entryX} ${y2}, ${x2} ${y2}`,
+      ].join(' ');
+      const mid = { x: (laneStartX + laneEndX) / 2, y: laneY };
+      return { d, mid, labelAnchor: mid };
+    }
+
     function buildWorkflowDifyCurveEdgePath(x1, y1, x2, y2, direction = 'bottom', laneOffset = 0, clearance = null) {
       const dx = x2 - x1;
       const backflow = x2 < x1 - 20;
       const absDx = Math.abs(dx);
       const maxForwardCurve = Math.max(8, Math.abs(dx) / 2 - 6);
-      const curve = backflow
-        ? Math.max(32, Math.min(72, absDx * 0.28))
-        : Math.min(maxForwardCurve, Math.max(16, Math.min(84, absDx * 0.32)));
+      const curve = Math.min(maxForwardCurve, Math.max(16, Math.min(84, absDx * 0.32)));
       const sign = direction === 'top' ? -1 : 1;
       if (backflow) {
-        const laneY = direction === 'bottom'
-          ? Math.max(y1, y2, clearance?.maxBottom ?? 0) + WF_EDGE_ROUTE_GAP + laneOffset
-          : Math.max(16, Math.min(y1, y2, clearance?.minTop ?? Infinity) - WF_EDGE_ROUTE_GAP - laneOffset);
-        const sideX = Math.min(x1, x2) - curve;
-        const d = [
-          `M ${x1} ${y1}`,
-          `C ${x1 + curve} ${y1}, ${x1 + curve} ${laneY}, ${x1} ${laneY}`,
-          `C ${x1 - curve} ${laneY}, ${sideX} ${laneY}, ${sideX} ${laneY}`,
-          `C ${sideX} ${y2}, ${x2 - curve} ${y2}, ${x2} ${y2}`,
-        ].join(' ');
-        return {
-          d,
-          mid: { x: sideX, y: laneY },
-          labelAnchor: { x: sideX, y: laneY },
-        };
+        return buildWorkflowSmoothLaneEdgePath(x1, y1, x2, y2, direction, laneOffset, clearance);
       }
       const yBias = laneOffset ? sign * laneOffset : 0;
       const c1x = x1 + curve;
@@ -3805,6 +3828,229 @@ const appOptions = {
         drafts.filter((draft) => draft.isBackflow),
         (draft) => `backflow:${draft.routeDirection}`,
       );
+    }
+
+    function getWorkflowReferenceBezierControls(start, end) {
+      const distanceX = Math.abs(end.x - start.x);
+      const distanceY = Math.abs(end.y - start.y);
+      const offset = Math.max(64, Math.min(220, distanceX * 0.48 + distanceY * 0.16));
+      return {
+        control1: { x: start.x + offset, y: start.y },
+        control2: { x: end.x - offset, y: end.y },
+      };
+    }
+
+    function buildWorkflowReferenceBezierPath(start, end) {
+      const { control1, control2 } = getWorkflowReferenceBezierControls(start, end);
+      return {
+        d: `M ${start.x} ${start.y} C ${control1.x} ${control1.y}, ${control2.x} ${control2.y}, ${end.x} ${end.y}`,
+        mid: wfCubicPoint(
+          start.x, start.y, control1.x, control1.y, control2.x, control2.y, end.x, end.y, 0.5,
+        ),
+        segments: [],
+      };
+    }
+
+    function getWorkflowReferenceRouteSegments(points) {
+      return points.slice(1).map((point, index) => ({ start: points[index], end: point }));
+    }
+
+    function simplifyWorkflowReferenceRoute(points) {
+      const deduplicated = points.filter((point, index) => {
+        const previous = points[index - 1];
+        return !previous || point.x !== previous.x || point.y !== previous.y;
+      });
+      return deduplicated.filter((point, index) => {
+        const previous = deduplicated[index - 1];
+        const next = deduplicated[index + 1];
+        if (!previous || !next) return true;
+        return !((previous.x === point.x && point.x === next.x)
+          || (previous.y === point.y && point.y === next.y));
+      });
+    }
+
+    function workflowReferenceSegmentIntersectsRect(segment, rect) {
+      if (segment.start.y === segment.end.y) {
+        const y = segment.start.y;
+        if (y <= rect.top || y >= rect.bottom) return false;
+        const left = Math.min(segment.start.x, segment.end.x);
+        const right = Math.max(segment.start.x, segment.end.x);
+        return right > rect.left && left < rect.right;
+      }
+      const x = segment.start.x;
+      if (x <= rect.left || x >= rect.right) return false;
+      const top = Math.min(segment.start.y, segment.end.y);
+      const bottom = Math.max(segment.start.y, segment.end.y);
+      return bottom > rect.top && top < rect.bottom;
+    }
+
+    function isWorkflowReferenceRouteClear(points, obstacles) {
+      return getWorkflowReferenceRouteSegments(points).every(
+        (segment) => !obstacles.some((rect) => workflowReferenceSegmentIntersectsRect(segment, rect)),
+      );
+    }
+
+    function getWorkflowReferenceSegmentConflictPenalty(first, second) {
+      const firstHorizontal = first.start.y === first.end.y;
+      const secondHorizontal = second.start.y === second.end.y;
+      if (firstHorizontal !== secondHorizontal) {
+        const horizontal = firstHorizontal ? first : second;
+        const vertical = firstHorizontal ? second : first;
+        const horizontalLeft = Math.min(horizontal.start.x, horizontal.end.x);
+        const horizontalRight = Math.max(horizontal.start.x, horizontal.end.x);
+        const verticalTop = Math.min(vertical.start.y, vertical.end.y);
+        const verticalBottom = Math.max(vertical.start.y, vertical.end.y);
+        const crossesInside = vertical.start.x > horizontalLeft
+          && vertical.start.x < horizontalRight
+          && horizontal.start.y > verticalTop
+          && horizontal.start.y < verticalBottom;
+        return crossesInside ? 320 : 0;
+      }
+      if (firstHorizontal) {
+        if (first.start.y !== second.start.y) return 0;
+        const overlap = Math.min(Math.max(first.start.x, first.end.x), Math.max(second.start.x, second.end.x))
+          - Math.max(Math.min(first.start.x, first.end.x), Math.min(second.start.x, second.end.x));
+        return overlap > 0 ? 220 + overlap * 1.5 : 0;
+      }
+      if (first.start.x !== second.start.x) return 0;
+      const overlap = Math.min(Math.max(first.start.y, first.end.y), Math.max(second.start.y, second.end.y))
+        - Math.max(Math.min(first.start.y, first.end.y), Math.min(second.start.y, second.end.y));
+      return overlap > 0 ? 220 + overlap * 1.5 : 0;
+    }
+
+    function getWorkflowReferenceRouteScore(points, routedSegments) {
+      const segments = getWorkflowReferenceRouteSegments(points);
+      const length = segments.reduce((total, segment) => total
+        + Math.abs(segment.end.x - segment.start.x)
+        + Math.abs(segment.end.y - segment.start.y), 0);
+      const conflictPenalty = segments.reduce((total, segment) => total + routedSegments.reduce(
+        (sum, routedSegment) => sum + getWorkflowReferenceSegmentConflictPenalty(segment, routedSegment),
+        0,
+      ), 0);
+      return length + Math.max(0, points.length - 2) * 40 + conflictPenalty;
+    }
+
+    function getWorkflowReferencePointToward(start, end, distance) {
+      if (start.x === end.x) {
+        return { x: start.x, y: start.y + Math.sign(end.y - start.y) * distance };
+      }
+      return { x: start.x + Math.sign(end.x - start.x) * distance, y: start.y };
+    }
+
+    function buildWorkflowReferenceRoundedPath(points) {
+      if (points.length < 2) return '';
+      let d = `M ${points[0].x} ${points[0].y}`;
+      for (let index = 1; index < points.length - 1; index += 1) {
+        const previous = points[index - 1];
+        const current = points[index];
+        const next = points[index + 1];
+        const previousDistance = Math.abs(current.x - previous.x) + Math.abs(current.y - previous.y);
+        const nextDistance = Math.abs(next.x - current.x) + Math.abs(next.y - current.y);
+        const radius = Math.min(56, previousDistance * 0.42, nextDistance * 0.42);
+        const entry = getWorkflowReferencePointToward(current, previous, radius);
+        const exit = getWorkflowReferencePointToward(current, next, radius);
+        d += ` L ${entry.x} ${entry.y} C ${current.x} ${current.y}, ${current.x} ${current.y}, ${exit.x} ${exit.y}`;
+      }
+      const end = points[points.length - 1];
+      return `${d} L ${end.x} ${end.y}`;
+    }
+
+    function getWorkflowReferenceRouteMidPoint(points) {
+      const segments = getWorkflowReferenceRouteSegments(points);
+      const totalLength = segments.reduce((total, segment) => total
+        + Math.abs(segment.end.x - segment.start.x)
+        + Math.abs(segment.end.y - segment.start.y), 0);
+      let remaining = totalLength / 2;
+      for (const segment of segments) {
+        const length = Math.abs(segment.end.x - segment.start.x)
+          + Math.abs(segment.end.y - segment.start.y);
+        if (remaining <= length) {
+          const ratio = length ? remaining / length : 0;
+          return {
+            x: segment.start.x + (segment.end.x - segment.start.x) * ratio,
+            y: segment.start.y + (segment.end.y - segment.start.y) * ratio,
+          };
+        }
+        remaining -= length;
+      }
+      return points[Math.floor(points.length / 2)];
+    }
+
+    function canUseWorkflowReferenceDirectCurve(start, end, obstacles, sourceNodeId, targetNodeId) {
+      if (end.x - start.x < 72) return false;
+      const { control1, control2 } = getWorkflowReferenceBezierControls(start, end);
+      const blocking = obstacles.filter(
+        (rect) => rect.nodeId !== sourceNodeId && rect.nodeId !== targetNodeId,
+      );
+      for (let index = 1; index < 48; index += 1) {
+        const point = wfCubicPoint(
+          start.x, start.y, control1.x, control1.y, control2.x, control2.y, end.x, end.y, index / 48,
+        );
+        if (blocking.some((rect) => workflowPointInRect(point, rect))) return false;
+      }
+      return true;
+    }
+
+    function buildWorkflowReferenceRoutedPath(draft, obstacles, routedSegments, edgeIndex) {
+      const start = { x: draft.x1, y: draft.y1 };
+      const end = { x: draft.x2, y: draft.y2 };
+      const sourceRect = obstacles.find((rect) => rect.nodeId === draft.edge.from);
+      const targetRect = obstacles.find((rect) => rect.nodeId === draft.edge.to);
+      if (!sourceRect || !targetRect
+        || canUseWorkflowReferenceDirectCurve(start, end, obstacles, draft.edge.from, draft.edge.to)) {
+        return buildWorkflowReferenceBezierPath(start, end);
+      }
+
+      const channelOffset = (edgeIndex % 3) * 6;
+      const routeStart = { x: sourceRect.right, y: start.y };
+      const routeEnd = { x: targetRect.left, y: end.y };
+      const routeCandidates = [
+        [routeStart, { x: routeEnd.x, y: routeStart.y }, routeEnd],
+        [routeStart, { x: routeStart.x, y: routeEnd.y }, routeEnd],
+      ];
+      const candidateXs = new Set([routeStart.x, routeEnd.x]);
+      const candidateYs = new Set([routeStart.y, routeEnd.y]);
+      obstacles.forEach((rect) => {
+        candidateXs.add(rect.left - channelOffset);
+        candidateXs.add(rect.right + channelOffset);
+        candidateYs.add(rect.top - channelOffset);
+        candidateYs.add(rect.bottom + channelOffset);
+      });
+      candidateXs.forEach((x) => {
+        routeCandidates.push([routeStart, { x, y: routeStart.y }, { x, y: routeEnd.y }, routeEnd]);
+      });
+      candidateYs.forEach((y) => {
+        routeCandidates.push([routeStart, { x: routeStart.x, y }, { x: routeEnd.x, y }, routeEnd]);
+      });
+      candidateXs.forEach((x) => candidateYs.forEach((y) => {
+        routeCandidates.push([
+          routeStart,
+          { x, y: routeStart.y },
+          { x, y },
+          { x: routeEnd.x, y },
+          routeEnd,
+        ]);
+      }));
+
+      const validRoutes = routeCandidates
+        .map(simplifyWorkflowReferenceRoute)
+        .filter((points) => isWorkflowReferenceRouteClear(points, obstacles))
+        .map((points) => ({ points, score: getWorkflowReferenceRouteScore(points, routedSegments) }))
+        .sort((first, second) => first.score - second.score);
+      const fallbackY = Math.min(...obstacles.map((rect) => rect.top)) - 40 - channelOffset;
+      const corePoints = validRoutes[0]?.points || simplifyWorkflowReferenceRoute([
+        routeStart,
+        { x: routeStart.x, y: fallbackY },
+        { x: routeEnd.x, y: fallbackY },
+        routeEnd,
+      ]);
+      const points = simplifyWorkflowReferenceRoute([start, ...corePoints, end]);
+      const mid = getWorkflowReferenceRouteMidPoint(points);
+      return {
+        d: buildWorkflowReferenceRoundedPath(points),
+        mid,
+        segments: getWorkflowReferenceRouteSegments(points),
+      };
     }
 
     const workflowEdgePaths = computed(() => {
@@ -3873,44 +4119,27 @@ const appOptions = {
                   : '',
         };
         const span = Math.abs(x2 - x1);
-        // 正向主链不因轻微纵向偏移绕路；回流 / 分支 / 穿节点才绕
         draft.shouldRoute = draft.isBackflow
           || x2 < x1 - 24
-          || !!edge.branch
           || workflowEdgeIntersectsNode(draft, nodes);
         draft.shouldOffset = !draft.shouldRoute && span > 48 && Math.abs(y2 - y1) > 36;
         draft.routeDirection = getWorkflowEdgeRouteDirection(draft);
         return draft;
       }).filter(Boolean);
 
-      assignWorkflowRouteLaneOffsets(drafts);
-
-      return drafts.map((draft) => {
-        const clearance = draft.shouldRoute
-          ? getWorkflowEdgeClearance(
-            nodes,
-            Math.min(draft.x1, draft.x2),
-            Math.max(draft.x1, draft.x2),
-            new Set([draft.edge.from, draft.edge.to]),
-          )
-          : null;
-        const routed = buildWorkflowDifyCurveEdgePath(
-          draft.x1,
-          draft.y1,
-          draft.x2,
-          draft.y2,
-          draft.routeDirection,
-          draft.laneOffset,
-          clearance,
-        );
-        const { d, mid, labelAnchor } = routed;
+      const obstacles = nodes.map((node) => ({ nodeId: node.id, ...getWorkflowEdgeNodeRect(node) }));
+      const routedSegments = [];
+      return drafts.map((draft, edgeIndex) => {
+        const routed = buildWorkflowReferenceRoutedPath(draft, obstacles, routedSegments, edgeIndex);
+        const { d, mid } = routed;
+        if (routed.segments?.length) routedSegments.push(...routed.segments.slice(2, -2));
 
         return {
           d,
           label: draft.branchLabel,
           labelClass: draft.labelClass,
-          lx: labelAnchor.x,
-          ly: labelAnchor.y - 14,
+          lx: mid.x,
+          ly: mid.y - 14,
           mx: mid.x,
           my: mid.y,
           key: draft.key,
@@ -9710,6 +9939,7 @@ const appOptions = {
       codeParamDialogMode,
       codeParamDialogDraft,
       selectedCodeInputRows,
+      selectedWorkflowCode,
       codeVariableOptions,
       codeVariableCascaderOptions,
       openCodeParamDialog,

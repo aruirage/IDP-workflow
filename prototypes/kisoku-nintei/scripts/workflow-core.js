@@ -2485,34 +2485,103 @@ function isCodeUpstreamFilesJsonSource(variable) {
   return !variable || variable === CODE_UPSTREAM_FILES_JSON;
 }
 
-const DEFAULT_CODE_PYTHON = `// Excel の命名例:
-// timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag.pdf
-const files = inputs.files || [];
+const DEFAULT_CODE_PYTHON = `function main(inputs) {
+  const files = Array.isArray(inputs.files) ? inputs.files : [];
 
-const safe = (value, fallback = "") =>
-  String(value ?? fallback).trim().replace(/[\\\\/:*?"<>|\\s]+/g, "_");
-
-const timestamp = new Date().toISOString().slice(2, 19).replace(/[-T:]/g, "");
-const setNo = safe(inputs.setNo, "001");
-const claimNo = safe(inputs.claimNo, inputs.caseId || "00000000-000");
-const requestNo = safe(inputs.requestNo, "00000000-000-000");
-const docId = safe(inputs.docId, "UNKNOWN");
-const branchNo = safe(inputs.branchNo, "00");
-const ocrFlag = safe(inputs.ocrFlag, "1");
-
-return files.map((file, index) => {
-  const seq = safe(file.sequenceNo, String(index + 1).padStart(4, "0"));
-  const ext = file.extension || ".pdf";
-  return {
-    fileId: file.id,
-    fileName: \`\${timestamp}_\${seq}_\${setNo}_\${claimNo}_\${requestNo}_\${docId}_\${branchNo}_\${ocrFlag}\${ext}\`,
+  // 確認済みの帳票タイプ ID とファイルコード。
+  const documentCodeMap = {
+    "2080100341838004224": "HA21-002", // 保険金請求書
+    "2080101367659905024": "HE06-001", // 診断書
+    "2080103253066661888": "HM01-001", // 診療明細書
+    "2079754599596376064": "HE02-001" // 入院・通院・手術状況報告書
   };
-});
+
+  const safe = (value, fallback) => {
+    const result = String(value == null ? "" : value)
+      .trim()
+      .replace(/[\\\\/:*?"<>|\\s]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+    return result || fallback;
+  };
+
+  const now = new Date();
+  const timestamp = [
+    String(now.getFullYear()).slice(-2),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0")
+  ].join("");
+
+  // 現在の設定名 claimno と、将来の claimNo の両方に対応する。
+  const claimNo = safe(
+    inputs.claimNo || inputs.claimno,
+    "NO-CLAIM"
+  );
+  const requestNo = safe(inputs.requestNo, "NO-REQUEST");
+
+  const branchCounts = {};
+
+  const renamedFiles = files.map((file) => {
+    const caseFileId =
+      file.caseFileId != null ? file.caseFileId : file.id;
+
+    const documentTypeId = String(file.documentTypeId || "UNKNOWN");
+
+    // コード未設定時は帳票タイプ ID を使用し、ノードの実行失敗を防ぐ。
+    const documentCode =
+      documentCodeMap[documentTypeId] ||
+      "DOC-" + safe(documentTypeId, "UNKNOWN").slice(-8);
+
+    branchCounts[documentCode] =
+      (branchCounts[documentCode] || 0) + 1;
+
+    const branchNo = String(
+      branchCounts[documentCode]
+    ).padStart(2, "0");
+
+    const originalFileName = String(file.fileName || "");
+    const extensionIndex = originalFileName.lastIndexOf(".");
+    const extension =
+      extensionIndex >= 0
+        ? originalFileName.slice(extensionIndex)
+        : ".pdf";
+
+    return {
+      caseFileId: caseFileId,
+      fileId: caseFileId,
+      aiFileId: file.aiFileId,
+      documentTypeId: documentTypeId,
+      originalFileName: originalFileName,
+      fileName: [
+        timestamp,
+        claimNo,
+        requestNo,
+        documentCode,
+        branchNo
+      ].join("_") + extension
+    };
+  });
+
+  return {
+    files: renamedFiles,
+    renamedFileCount: renamedFiles.length
+  };
+}
 `;
+
+let codeParamIdSequence = 0;
+
+function newCodeParamId(prefix) {
+  codeParamIdSequence += 1;
+  return `${newRuleId(prefix)}_${codeParamIdSequence.toString(36)}`;
+}
 
 function createCodeInputRow(index = 0) {
   return {
-    id: newRuleId('cin'),
+    id: newCodeParamId('cin'),
     name: `input_${index + 1}`,
     dataType: 'dict',
     source: 'upstream_files_json',
@@ -2520,8 +2589,34 @@ function createCodeInputRow(index = 0) {
   };
 }
 
+function createDefaultCodeInputRows() {
+  return [
+    {
+      id: newCodeParamId('cin'),
+      name: 'files',
+      dataType: 'array',
+      source: 'upstream_files_json',
+      variable: CODE_UPSTREAM_FILES_JSON,
+    },
+    {
+      id: newCodeParamId('cin'),
+      name: 'claimno',
+      dataType: 'string',
+      source: 'reference',
+      variable: 'docTypes.保険請求書.証券番号',
+    },
+    {
+      id: newCodeParamId('cin'),
+      name: 'requestNo',
+      dataType: 'string',
+      source: 'reference',
+      variable: 'docTypes.保険請求書.請求番号',
+    },
+  ];
+}
+
 function createCodeOutputRow() {
-  return { id: newRuleId('cout'), name: 'result', dataType: 'dict' };
+  return { id: newCodeParamId('cout'), name: 'result', dataType: 'dict' };
 }
 
 function createCodeParamDialogDraft(mode = 'input') {
@@ -2542,7 +2637,7 @@ function normalizeCodeInputRow(row, index = 0) {
   const filesJson = isCodeUpstreamFilesJsonSource(variable)
     || row?.source === 'upstream_files_json';
   return {
-    id: row?.id || newRuleId('cin'),
+    id: row?.id || newCodeParamId('cin'),
     name: (row?.name || '').trim() || `input_${index + 1}`,
     dataType: migrateCodeDataType(row?.dataType || row?.type || (filesJson ? 'dict' : 'string')),
     source: filesJson ? 'upstream_files_json' : 'reference',
@@ -2553,24 +2648,52 @@ function normalizeCodeInputRow(row, index = 0) {
 function normalizeCodeOutputRow(row, index = 0) {
   const dataType = migrateCodeDataType(row?.dataType || row?.type || 'dict');
   return {
-    id: row?.id || newRuleId('cout'),
+    id: row?.id || newCodeParamId('cout'),
     name: (row?.name || '').trim() || (index === 0 ? 'result' : `output_${index + 1}`),
     dataType,
   };
 }
 
+function ensureUniqueCodeParamIds(rows, prefix) {
+  const usedIds = new Set();
+  return rows.map((row) => {
+    const id = row.id && !usedIds.has(row.id) ? row.id : newCodeParamId(prefix);
+    usedIds.add(id);
+    return id === row.id ? row : { ...row, id };
+  });
+}
+
+function isLegacyDefaultCodeScript(code) {
+  const source = String(code || '');
+  const legacyExcelTemplate = source.includes('// Excel の命名例:')
+    && source.includes('timestamp_seq_setNo_claimNo_requestNo_docId_branch_ocrFlag.pdf');
+  const chineseCommentTemplate = source.includes('// 已确认的账票类型 ID 与文件代码。')
+    && source.includes('"2080100341838004224": "HA21-002"')
+    && source.includes('renamedFileCount: renamedFiles.length');
+  return legacyExcelTemplate || chineseCommentTemplate;
+}
+
+function localizeDefaultCodeScriptComments(code) {
+  return String(code || '')
+    .replace(/\/\/\s*已确认的账票类型\s*ID\s*与文件代码。?/g, '// 確認済みの帳票タイプ ID とファイルコード。')
+    .replace(/\/\/\s*当前配置保存的是\s*claimno，兼容后续改成\s*claimNo\s*的情况。?/g, '// 現在の設定名 claimno と、将来の claimNo の両方に対応する。')
+    .replace(/\/\/\s*未配置代码时使用稳定的账票类型\s*ID，避免节点执行失败。?/g, '// コード未設定時は帳票タイプ ID を使用し、ノードの実行失敗を防ぐ。');
+}
+
 function normalizeCodeNode(node, workflow = null) {
   if (node?.type !== 'code') return node;
-  const inputs = Array.isArray(node.inputs)
+  const migrateLegacyDefault = isLegacyDefaultCodeScript(node.pythonCode);
+  const normalizedInputs = Array.isArray(node.inputs) && (node.inputs.length || !migrateLegacyDefault)
     ? node.inputs.map((row, index) => normalizeCodeInputRow(row, index))
-    : [];
+    : createDefaultCodeInputRows();
+  const inputs = ensureUniqueCodeParamIds(normalizedInputs, 'cin');
   const outputParams = [];
   const withVar = ensureWorkflowNodeVarName({
     ...node,
     type: 'code',
     label: node.label || 'カスタム関数',
-    pythonCode: node.pythonCode != null && String(node.pythonCode).trim() !== ''
-      ? node.pythonCode
+    pythonCode: !migrateLegacyDefault && node.pythonCode != null && String(node.pythonCode).trim() !== ''
+      ? localizeDefaultCodeScriptComments(node.pythonCode)
       : DEFAULT_CODE_PYTHON,
     inputs,
     outputParams,
@@ -4051,6 +4174,13 @@ function hasCanonicalDefaultCaseWorkflowNodes(workflow) {
   return workflowHasTemplateNodeIds(workflow, STRAIGHT_CASE_WORKFLOW_NODE_IDS);
 }
 
+function hasOnlyCanonicalDefaultCaseWorkflowNodes(workflow) {
+  const nodes = workflow?.nodes || [];
+  if (nodes.length !== STRAIGHT_CASE_WORKFLOW_NODE_IDS.length) return false;
+  const canonicalIds = new Set(STRAIGHT_CASE_WORKFLOW_NODE_IDS);
+  return nodes.every((node) => canonicalIds.has(node.id));
+}
+
 function isDefaultCaseWorkflowTemplate(workflow) {
   if (workflow?.topologyCustomized) return false;
   return hasCanonicalDefaultCaseWorkflowNodes(workflow)
@@ -4707,10 +4837,29 @@ function pickWorkflowMainChainEdge(workflow, fromId) {
   if (!edges.length) return null;
   const from = (workflow.nodes || []).find((n) => n.id === fromId);
   if (from?.type === 'decision') {
-    return edges.find((e) => e.branch === 'if')
-      || edges.find((e) => e.branch && String(e.branch).startsWith('elif'))
-      || edges.find((e) => !e.branch)
-      || edges[0];
+    const nodeMap = Object.fromEntries((workflow.nodes || []).map((node) => [node.id, node]));
+    const getForwardDepth = (nodeId, visited = new Set()) => {
+      if (!nodeId || visited.has(nodeId)) return 0;
+      const node = nodeMap[nodeId];
+      if (!node || node.type === 'end') return 0;
+      const nextVisited = new Set(visited);
+      nextVisited.add(nodeId);
+      const nextEdges = (workflow.edges || []).filter(
+        (edge) => edge.from === nodeId && edge.branch !== 'request_supplement',
+      );
+      const nodeWeight = isHitlGateNode(node) ? 0 : 1;
+      return nodeWeight + Math.max(0, ...nextEdges.map((edge) => getForwardDepth(edge.to, nextVisited)));
+    };
+    return [...edges].sort((first, second) => {
+      const depthDiff = getForwardDepth(second.to) - getForwardDepth(first.to);
+      if (depthDiff) return depthDiff;
+      const priority = (edge) => edge.branch === 'if'
+        ? 0
+        : edge.branch && String(edge.branch).startsWith('elif')
+          ? 1
+          : !edge.branch ? 2 : 3;
+      return priority(first) - priority(second);
+    })[0];
   }
   if (isHitlGateNode(from)) {
     return edges.find((e) => e.branch === 'approve') || edges[0];
@@ -4854,6 +5003,7 @@ function applyCanonicalCaseWorkflowLayout(workflow) {
 function layoutStraightCaseWorkflow(workflow, sizes) {
   const nodes = workflow?.nodes || [];
   if (!isStraightCaseWorkflowLayoutTarget(workflow)) return false;
+  if (!hasOnlyCanonicalDefaultCaseWorkflowNodes(workflow)) return false;
   ensureCanonicalCaseWorkflowEndNode(workflow);
   if (hasCanonicalDefaultCaseWorkflowNodes(workflow)) {
     applyDefaultCaseWorkflowStaticLayout(workflow);
@@ -4943,12 +5093,72 @@ function layoutStraightCaseWorkflow(workflow, sizes) {
   return true;
 }
 
+function layoutWorkflowByStage(workflow, sizes) {
+  const nodes = workflow?.nodes || [];
+  const edges = (workflow?.edges || []).filter((edge) => edge.branch !== 'request_supplement');
+  const start = getWorkflowStartNode(workflow);
+  if (!start) return false;
+  const nodeMap = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  const rankById = new Map([[start.id, 0]]);
+
+  function visit(nodeId, rank, path = new Set()) {
+    if (path.has(nodeId)) return;
+    const previousRank = rankById.get(nodeId);
+    if (previousRank != null && previousRank > rank) return;
+    rankById.set(nodeId, Math.max(previousRank ?? 0, rank));
+    const nextPath = new Set(path);
+    nextPath.add(nodeId);
+    edges
+      .filter((edge) => edge.from === nodeId)
+      .forEach((edge) => visit(edge.to, rank + 1, nextPath));
+  }
+
+  visit(start.id, 0);
+  let fallbackRank = Math.max(0, ...rankById.values()) + 1;
+  nodes.forEach((node) => {
+    if (!rankById.has(node.id)) {
+      rankById.set(node.id, fallbackRank);
+      fallbackRank += 1;
+    }
+  });
+
+  const ranks = [...new Set(rankById.values())].sort((first, second) => first - second);
+  const xByRank = new Map();
+  let x = WF_LAYOUT_PAD.x;
+  ranks.forEach((rank) => {
+    xByRank.set(rank, x);
+    const rankNodes = nodes.filter((node) => rankById.get(node.id) === rank);
+    const maxWidth = Math.max(...rankNodes.map((node) => sizes.get(node.id).w));
+    x += maxWidth + WF_NODE_GAP;
+  });
+
+  const mainY = WF_LAYOUT_PAD.y;
+  const branchY = mainY + 212;
+  ranks.forEach((rank) => {
+    const rankNodes = nodes.filter((node) => rankById.get(node.id) === rank);
+    const mainNodes = rankNodes.filter((node) => !isHitlGateNode(node));
+    const hitlNodes = rankNodes.filter((node) => isHitlGateNode(node));
+    mainNodes.forEach((node, index) => {
+      node.x = xByRank.get(rank);
+      node.y = mainY + index * 112;
+    });
+    hitlNodes.forEach((node, index) => {
+      node.x = xByRank.get(rank);
+      node.y = branchY + index * (sizes.get(node.id).h + 32);
+    });
+  });
+
+  workflow.layoutVersion = CANONICAL_CASE_WORKFLOW_LAYOUT_VERSION;
+  return true;
+}
+
 function layoutWorkflowGraph(workflow) {
   if (!workflow?.nodes?.length) return workflow;
   const nodes = workflow.nodes;
   const edges = workflow.edges || [];
   const sizes = new Map(nodes.map((n) => [n.id, getWorkflowNodeLayoutSize(n)]));
   if (layoutStraightCaseWorkflow(workflow, sizes)) return workflow;
+  if (layoutWorkflowByStage(workflow, sizes)) return workflow;
   const mainChain = buildWorkflowMainChain(workflow);
   const mainIds = new Set(mainChain.map((n) => n.id));
 
