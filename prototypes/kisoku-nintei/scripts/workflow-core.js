@@ -530,7 +530,7 @@ const WORKFLOW_NODE_META = {
     title: '開始',
     desc: '集約完了による初回起動・既存案件への帰属、補件ファイル帰属後の続行、処理中止後の再実行',
     tasks: [],
-    accent: '#067647',
+    accent: '#16a34a',
   },
   end: {
     icon: '■',
@@ -546,7 +546,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['画像補正', '画像回転', '画像整列'],
     input: 'Physical Files',
     output: 'Logical Document Set',
-    accent: '#00857a',
+    accent: '#006afa',
   },
   ocr: {
     icon: 'OC',
@@ -555,7 +555,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['OCR実行', 'フィールド抽出'],
     input: 'Logical Document',
     output: 'Extracted Fields',
-    accent: '#2563eb',
+    accent: '#08b5d7',
   },
   data_mapping: {
     icon: 'MAP',
@@ -564,7 +564,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['標準フィールド', '競合検出'],
     input: 'Case · OCR Fields',
     output: 'Standard Fields',
-    accent: '#4f46e5',
+    accent: '#1f398b',
   },
   ai_verify: {
     icon: 'AI',
@@ -573,7 +573,7 @@ const WORKFLOW_NODE_META = {
     tasks: ['必須フィールド', '必要書類', 'テキスト検証', 'データ検証', '標準データ整合性', '署名・印鑑検証'],
     input: 'Case Data Pool',
     output: 'Validation Result',
-    accent: '#0891b2',
+    accent: '#01a46d',
   },
   decision: {
     icon: 'IF',
@@ -582,7 +582,7 @@ const WORKFLOW_NODE_META = {
     tasks: [],
     input: 'Node Result',
     output: 'Branch',
-    accent: '#b54708',
+    accent: '#f79009',
   },
   hitl_gate: {
     icon: '人',
@@ -591,7 +591,7 @@ const WORKFLOW_NODE_META = {
     tasks: [],
     input: 'Process Result',
     output: 'Confirmed',
-    accent: '#dc6803',
+    accent: '#ff898b',
   },
   notify: {
     icon: 'NT',
@@ -609,7 +609,7 @@ const WORKFLOW_NODE_META = {
     tasks: [],
     input: 'Upstream Variables',
     output: 'Result',
-    accent: '#6f7d1f',
+    accent: '#6236ff',
   },
 };
 
@@ -1393,9 +1393,9 @@ function countNotifyTemplateVarRefs(subject = '', body = '') {
 }
 
 const WORKFLOW_NODE_SIZE = {
-  default: { w: 208, h: 56 },
+  default: { w: 205, h: 44 },
   decision: { w: 240, h: 56 },
-  terminal: { w: 88, h: 44 },
+  terminal: { w: 107, h: 44 },
 };
 
 function isWorkflowTerminalNode(node) {
@@ -1684,15 +1684,30 @@ function getWorkflowNodePickerSummary(type) {
   return getWorkflowNodeMeta(type).desc || '';
 }
 
+const WORKFLOW_NODE_PICKER_DESCRIPTIONS = {
+  preprocess: '画像回転、画像補正、画像整列などの前処理を実行します。',
+  ocr: '帳票タイプごとに OCR テンプレートを実行し、抽出項目を出力します。',
+  data_mapping: 'OCR 抽出項目を標準項目へ変換します。',
+  ai_verify: '必須フィールド、必要書類、テキスト検証、データ検証、標準データ整合性、署名・印鑑検証を実行します。',
+  decision: '条件式と入力値に基づいて後続処理を分岐します。',
+  hitl_gate: '人工確認タスクを作成し、担当者の処理を待ちます。',
+  code: '入力変数を参照し、JavaScript を実行します。',
+  end: 'Workflow の実行を終了します。',
+};
+
+function getWorkflowNodePickerDescription(type) {
+  return WORKFLOW_NODE_PICKER_DESCRIPTIONS[type] || getWorkflowNodePickerSummary(type);
+}
+
 const WORKFLOW_NODE_ICON_SVG = {
   start: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5.5 14 10l-7 4.5v-9Z" fill="currentColor"/></svg>',
   end: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="6" width="8" height="8" rx="1.8" fill="currentColor"/></svg>',
-  preprocess: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h7M14 6h2M4 14h2M9 14h7M11 4v4M7 12v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  preprocess: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3.5h6l2.5 2.5v10.5h-9V3.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M12 3.5V6h2.5M7.5 9h5M7.5 12h3.5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>',
   ocr: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 8h6M7 11h4M4 2.8V6M16 2.8V6M4 14v3.2M16 14v3.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
   data_mapping: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h4M12 5h4M4 15h4M12 15h4M8 5c2.2 0 2.8 2 4 5 1.2 3 1.8 5 4 5M8 15c2.2 0 2.8-2 4-5 1.2-3 1.8-5 4-5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
-  ai_verify: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5 15.5 6v4.2c0 3.2-2.1 5.3-5.5 6.3-3.4-1-5.5-3.1-5.5-6.3V6L10 3.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="m7.5 10.2 1.7 1.7 3.5-3.8" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  decision: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4v4.2a3 3 0 0 0 3 3h1M5 8.2a3 3 0 0 1 3-3h1M12 5h4M12 11.2h4M12 16h4M9 11.2a3 3 0 0 1-3 3H5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
-  hitl_gate: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4.8 16c.7-2.4 2.5-3.7 5.2-3.7 1 0 1.8.2 2.5.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="m13 15 1.5 1.5 3-3.4" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  ai_verify: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.45"/><circle cx="10" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.45"/><path d="m12.6 14.2 1.2 1.2 2.4-2.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  decision: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7 12.5 2.2-2.2 1.8 1.8 2.5-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  hitl_gate: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.8 16c.7-2.6 2.5-4 5.2-4s4.5 1.4 5.2 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   notify: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8.5a4 4 0 1 1 8 0c0 4 1.6 4.4 1.6 5.6H4.4C4.4 12.9 6 12.5 6 8.5Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M8.4 16a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></svg>',
   code: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.2 6-3.5 4 3.5 4M12.8 6l3.5 4-3.5 4M11 4.8 9 15.2" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
@@ -2288,16 +2303,16 @@ function getHitlGateBranchEdgeLabel(branch, node = null) {
 }
 
 const HITL_GATE_LAYOUT = {
-  minW: 224,
-  headerH: 46,
+  minW: 280,
+  headerH: 56,
   // 画布已去掉节点摘要行，出口「+」须按 header + branches 对齐，不再预留 summary 高度
   summaryH: 0,
-  bodyPadTop: 4,
-  bodyPadBottom: 8,
-  rowGap: 4,
-  rowH: 28,
-  labelCharW: 14,
-  summaryCharW: 12,
+  bodyPadTop: 0,
+  bodyPadBottom: 22,
+  rowGap: 8,
+  rowH: 40,
+  labelCharW: 8,
+  summaryCharW: 7,
 };
 
 function getHitlGateNodeLayoutMetrics(node, canvasSummary = '') {
@@ -3544,17 +3559,17 @@ function getHitlGateNoRule(node) {
 }
 
 const DECISION_NODE_LAYOUT = {
-  w: 360,
-  minW: 280,
-  maxW: 520,
-  headerH: 44,
-  bodyPadTop: 4,
-  bodyPadBottom: 8,
-  rowGap: 4,
-  rowBaseH: 34,
-  condLineH: 15,
-  elseRowH: 32,
-  charW: 5.2,
+  w: 320,
+  minW: 320,
+  maxW: 420,
+  headerH: 56,
+  bodyPadTop: 0,
+  bodyPadBottom: 20,
+  rowGap: 8,
+  rowBaseH: 44,
+  condLineH: 18,
+  elseRowH: 44,
+  charW: 6.2,
 };
 
 function estimateDecisionConditionTextLines(text, contentWidth = 220) {

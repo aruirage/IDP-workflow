@@ -409,7 +409,6 @@ const appOptions = {
       ['ノードをクリックすると設定パネルが表示されます。', '点击节点后显示设置面板。'],
       ['開始ノードを挿入', '插入开始节点'],
       ['ロジックノードを挿入', '插入逻辑节点'],
-      ['ノードを挿入', '插入节点'],
       ['設定ページへ', '前往设定页面'],
       ['関連プレビュー', '关联预览'],
       ['検証モジュール', '校验模块'],
@@ -601,7 +600,6 @@ const appOptions = {
       ['関連キーを追加', '添加关联 Key'],
       ['主帳票と関連帳票を追加すると案件集約ルールを設定できます', '添加主账票和关联账票后，可设定案件集约规则'],
       ['関連帳票を追加するとネットワーク図が表示されます', '添加关联账票后会显示关系图'],
-      ['ここにノードを挿入', '在这里插入节点'],
       ['後にノードを追加 / ドラッグして接続', '在后方添加节点 / 拖拽连接'],
       ['元に戻す', '撤销'],
       ['やり直し', '重做'],
@@ -661,11 +659,11 @@ const appOptions = {
       ['設定モード：Workflow 固定・ノード内パラメータのみ変更', '设定模式：Workflow 固定，仅修改节点内参数'],
       ['編集モード：ノード追加・削除・接続を自由に変更', '编辑模式：可自由新增、删除、连接节点'],
       ['起始ノード（入力）から 前処理 → OCR → 外部API → AI検証 → 出力 の順を推奨。編集モードで N キーまたはツールバー + でノード追加。', '建议从起始节点（输入）开始，按前处理 → OCR → 外部 API → AI 校验 → 输出的顺序配置。编辑模式下可用 N 键或工具栏 + 添加节点。'],
-      ['出力ポートをドラッグしてノード間を接続します。ノード前後または連線上の + でノードを追加・挿入できます。', '拖拽输出端口连接节点。可通过节点前后或连线上的 + 添加/插入节点。'],
+      ['出力ポートをドラッグしてノード間を接続します。ノード出口の「＋」から後続ノードを追加できます。', '拖拽输出端口连接节点。可通过节点出口的“＋”添加后续节点。'],
       ['MCP サーバー管理', 'MCP 服务器管理'],
       ['Server 接続・Tool 定義・入力変数を集中管理。Workflow では Server / Tool の選択のみ行います。', '集中管理 Server 连接、Tool 定义和输入变量。Workflow 中只选择 Server / Tool。'],
-      ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。連線上の + で途中にノードを挿入できます。', '拖拽输出端口连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
-      ['出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。連線上の + で途中にノードを挿入できます。', '拖拽输出端口可连接到任意节点输入端口，也支持连到上游形成回流。可通过连线上的 + 在中途插入节点。'],
+      ['出力ポートをドラッグして下流ノードの入力ポートへ接続します。', '拖拽输出端口连接到下游节点的输入端口。'],
+      ['出力ポートをドラッグして任意ノードの入力ポートへ接続します。上流ノードへの回流も可能です。', '拖拽输出端口可连接到任意节点输入端口，也支持连到上游形成回流。'],
       ['ファイル分割は他製品の既存ルールをそのまま利用します。本 PRD では再定義しません。Step1 では設定しません。', '文件分割沿用其他产品已有规则，本 PRD 不重复定义，不在 Step1 配置。'],
       ['跨批次上传', '跨批次上传'],
       ['人工触点去重', '人工触点去重'],
@@ -1287,6 +1285,7 @@ const appOptions = {
       screenX: 0,
       screenY: 0,
       hoveredLogic: null,
+      search: '',
     });
     const wfNodePlacement = reactive({
       active: false,
@@ -1943,7 +1942,7 @@ const appOptions = {
       return !(ocrNode && enabled.length > 0);
     });
 
-    // 公开：Step2 静态校验通过并保存后开放；Step3/Step4 保存不作为发布门禁
+    // 公开：当前草稿通过 Step2 静态校验后开放
     const canPublishWorkflowScene = computed(() => scenePublishStatusKey.value === 'ready');
 
     const outputExportFieldMode = computed({
@@ -1993,9 +1992,9 @@ const appOptions = {
       ai_verify: { status: 'verifyStatus', result: 'verifyResult' },
     };
     const WORKFLOW_NOTIFICATION_HITL_EVENTS = [
-      { value: 'approve', label: '完了' },
-      { value: 'request_supplement', label: '補件' },
-      { value: 'reject', label: '案件中止' },
+      { value: 'approve', label: 'manualAction = approve' },
+      { value: 'request_supplement', label: 'manualAction = request_supplement' },
+      { value: 'reject', label: 'manualAction = reject' },
     ];
 
     const notificationRuleDraft = reactive({
@@ -2019,6 +2018,7 @@ const appOptions = {
     const notificationRuleEditDialogVisible = ref(false);
     const workflowNotificationInsertTarget = ref('body');
     const workflowNotificationEditInsertTarget = ref('body');
+    const workflowNotificationSearch = ref('');
 
     function getWorkflowNotificationEventOptions(nodeType) {
       if (nodeType === 'hitl_gate') return WORKFLOW_NOTIFICATION_HITL_EVENTS;
@@ -2129,6 +2129,18 @@ const appOptions = {
         bodySummary: String(rule.body || '').replace(/\s+/g, ' ').trim(),
       }))
     );
+
+    const filteredWorkflowNotificationRuleRows = computed(() => {
+      const query = workflowNotificationSearch.value.trim().toLowerCase();
+      if (!query) return workflowNotificationRuleRows.value;
+      return workflowNotificationRuleRows.value.filter((rule) =>
+        [rule.subject, rule.body].some((value) => String(value || '').toLowerCase().includes(query))
+      );
+    });
+
+    function resetWorkflowNotificationSearch() {
+      workflowNotificationSearch.value = '';
+    }
 
     watch(() => notificationRuleDraft.nodeType, (nodeType) => {
       const options = getWorkflowNotificationEventOptions(nodeType);
@@ -2354,6 +2366,7 @@ const appOptions = {
         ElementPlus.ElMessage.warning(err);
         return false;
       }
+      markScenePendingReview();
       savedSnapshot.value = JSON.stringify(form);
       saveStorage(currentSceneId.value, form);
       if (!options.silent) ElementPlus.ElMessage.success('保存しました');
@@ -2844,18 +2857,6 @@ const appOptions = {
     const selectedHitlRoleHint = computed(() =>
       HITL_ROLE_OPTIONS.find((item) => item.value === processingForm.value?.hitl?.role)?.hint || '復核ロールを選択してください'
     );
-
-    const selectedHitlGateRoleHint = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || !isHitlGateNode(node)) return '復核ロールを選択してください';
-      return HITL_ROLE_OPTIONS.find((item) => item.value === node.role)?.hint || '復核ロールを選択してください';
-    });
-
-    const selectedHitlGatePreset = computed(() => {
-      const node = selectedWorkflowNode.value;
-      if (!node || !isHitlGateNode(node)) return null;
-      return getHitlGatePreset(node, getActiveWf());
-    });
 
     function getHitlGateBranchCanvasLabel(branchKey) {
       return t(getHitlGateActionLabel(branchKey));
@@ -4391,7 +4392,7 @@ const appOptions = {
       closeWfNodePlacement();
       const rect = resolveWfPickerAnchorRect(event);
       const pickerWidth = 280;
-      const pickerHeight = 336;
+      const pickerHeight = 456;
       wfNodePicker.fromNodeId = null;
       wfNodePicker.toNodeId = null;
       wfNodePicker.edgeKey = null;
@@ -4562,6 +4563,7 @@ const appOptions = {
       wfNodePicker.edgeKey = null;
       wfNodePicker.edgeBranch = null;
       wfNodePicker.hoveredLogic = null;
+      wfNodePicker.search = '';
     }
 
     function openWfNodePickerOnEdge(edge, event) {
@@ -5238,6 +5240,7 @@ const appOptions = {
       const flowKey = getFlowNodeKey();
       const wf = getActiveWf();
       const hasStart = wf?.nodes?.some((n) => n.type === 'start');
+      const query = wfNodePicker.search.trim().toLowerCase();
 
       if (flowKey === 'case') {
         return CASE_FLOW_NODE_GROUPS.map((group) => ({
@@ -5245,7 +5248,9 @@ const appOptions = {
           nodes: [...group.nodes]
             .filter((item) => {
               if (item.type === 'start' && hasStart) return false;
-              return true;
+              if (!query) return true;
+              return [item.label, getWorkflowNodePickerDescription(item.type)]
+                .some((text) => String(text || '').toLowerCase().includes(query));
             })
             .sort((a, b) => {
               const ao = WORKFLOW_MAIN_CHAIN_TYPE_ORDER[a.type];
@@ -5261,7 +5266,8 @@ const appOptions = {
       const nodes = FLOW_NODE_OPTIONS[flowKey] || [];
       if (!nodes.length) return [];
       const grouped = {};
-      nodes.forEach((item) => {
+      nodes.filter((item) => !query || [item.label, getWorkflowNodePickerDescription(item.type)]
+        .some((text) => String(text || '').toLowerCase().includes(query))).forEach((item) => {
         const key = item.category || '処理';
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(item);
@@ -5270,6 +5276,9 @@ const appOptions = {
     });
 
     const wfNodePickerProcessGroups = wfNodePickerAvailableProcessGroups;
+    const wfNodePickerAvailableNodes = computed(() =>
+      wfNodePickerAvailableProcessGroups.value.flatMap((group) => group.nodes)
+    );
 
     const wfNodePickerLogicOptions = computed(() => [...JUDGMENT_CONTEXT_OPTIONS]);
 
@@ -6536,6 +6545,12 @@ const appOptions = {
       syncCurrentNodeFromWorkflow(null);
       markWorkflowEdited('接続を削除');
       ElementPlus.ElMessage.info('接続を削除しました');
+    }
+
+    function removeWorkflowEdge(edge) {
+      if (!edge || !assertWorkflowTopologyEditable()) return;
+      selectedWorkflowEdgeKey.value = workflowEdgeKey(edge);
+      removeSelectedWorkflowEdge();
     }
 
     function connectWorkflowEdge(fromId, toId, branch) {
@@ -9016,13 +9031,8 @@ const appOptions = {
       return '';
     }
 
-    function markSceneConfigChanged(scope = 'workflow') {
+    function markSceneConfigChanged() {
       if (form.scene.publishStatus === 'draft' && !form.scene.documents?.length) return;
-      if (scope === 'output') {
-        // Step4 勾选变更只影响输出配置，不影响可发布状态
-        form.outputConfigStatus = 'unsaved';
-        return;
-      }
       if (['published', 'pending_review', 'ready'].includes(form.scene.publishStatus)) {
         form.scene.publishStatus = 'draft';
       }
@@ -9032,8 +9042,7 @@ const appOptions = {
     }
 
     function markScenePendingReview() {
-      // 兼容旧调用：按当前页判断作用域
-      markSceneConfigChanged(currentNode.value === 'output' ? 'output' : 'workflow');
+      markSceneConfigChanged();
     }
 
     function handleSave(options = {}) {
@@ -9672,8 +9681,6 @@ const appOptions = {
       getSceneMainDocTypes,
       getSceneMainDocType,
       selectedHitlRoleHint,
-      selectedHitlGateRoleHint,
-      selectedHitlGatePreset,
       onJudgmentContextChange,
       onDecisionElseLabelChange,
       getNotifyRecipientsLabel,
@@ -9879,6 +9886,9 @@ const appOptions = {
       workflowNotificationEventOptions,
       workflowNotificationEditEventOptions,
       workflowNotificationRuleRows,
+      filteredWorkflowNotificationRuleRows,
+      workflowNotificationSearch,
+      resetWorkflowNotificationSearch,
       workflowNotificationInsertTarget,
       workflowNotificationEditInsertTarget,
       workflowNotificationVariableOptions,
@@ -10107,6 +10117,7 @@ const appOptions = {
       getWfNodePlacementPreview,
       closeWfNodePlacement,
       wfNodePickerAvailableProcessGroups,
+      wfNodePickerAvailableNodes,
       wfNodePickerProcessGroups,
       wfNodePickerLogicOptions,
       wfNodePickerHoveredLogic,
@@ -10189,6 +10200,7 @@ const appOptions = {
       onWfNodePointerDown,
       getWorkflowNodeMeta,
       getWorkflowNodePickerSummary,
+      getWorkflowNodePickerDescription,
       getWorkflowNodeAccent,
       getWorkflowNodeAccentStyle,
       getWorkflowFlowPreviewNodeStyle,
@@ -10307,6 +10319,7 @@ const appOptions = {
       isSelectedWorkflowEdgeBackflow,
       selectWorkflowEdge,
       removeSelectedWorkflowEdge,
+      removeWorkflowEdge,
       onWfConnectHandleDown,
       onWfNodeAddInClick,
       onWfNodeAddOutClick,

@@ -130,6 +130,9 @@ test('centers the workflow setup step track independently from actions', async (
   assert.match(index, /class="wf-setup-stepper-actions"/);
   assert.match(style, /\.wf-setup-stepper\s*\{[^}]*justify-content:\s*center;/s);
   assert.match(style, /\.wf-setup-stepper-actions\s*\{[^}]*position:\s*absolute;[^}]*right:\s*20px;/s);
+  assert.ok(index.indexOf('class="wf-version-history-btn"') < index.indexOf('class="wf-setup-fullscreen-btn"'));
+  assert.match(style, /\.wf-version-history-btn\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;[^}]*border:\s*1px solid #d0d5dd;/s);
+  assert.match(style, /\.wf-setup-fullscreen-btn\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;[^}]*border:\s*none;/s);
 });
 
 test('excludes custom functions from Step2 configuration checks', async () => {
@@ -185,6 +188,25 @@ test('uses one regular-weight settings shortcut label', async () => {
   assert.equal((index.match(/class="inspector-settings-link"/g) || []).length, 3);
   assert.equal((index.match(/>設定ページへ →<\/el-button>/g) || []).length, 3);
   assert.match(style, /\.idp-inspector-body \.inspector-settings-link\.el-button\.is-link\s*\{[^}]*font-weight:\s*400;/s);
+});
+
+test('shows searchable node descriptions and colored icons in the node picker', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const workflowCore = await readFile(new URL('../scripts/workflow-core.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /v-model="wfNodePicker\.search"[\s\S]*placeholder="検索ノード"/);
+  assert.match(index, /class="wf-node-picker-icon"[\s\S]*getWorkflowNodeAccentStyle\(item\.type\)/);
+  assert.match(index, /class="wf-node-picker-text"[\s\S]*class="wf-node-picker-summary"/);
+  assert.match(index, /getWorkflowNodePickerDescription\(item\.type\)/);
+  assert.doesNotMatch(index, /class="wf-node-picker-category"/);
+  assert.match(index, /v-for="item in wfNodePickerAvailableNodes"/);
+  assert.match(main, /search: ''/);
+  assert.match(main, /getWorkflowNodePickerDescription\(item\.type\)/);
+  assert.match(workflowCore, /const WORKFLOW_NODE_PICKER_DESCRIPTIONS =/);
+  assert.match(workflowCore, /ai_verify: '必須フィールド、必要書類、テキスト検証、データ検証、標準データ整合性、署名・印鑑検証を実行します。'/);
+  assert.match(style, /\.wf-node-picker-search/);
 });
 
 test('aligns OCR extraction switches to the row end', async () => {
@@ -361,6 +383,104 @@ test('runs the Step2 configuration check before publishing from Step4', async ()
   assert.match(main, /selectedPublishedVersionId\.value = publishedVersion\.id;/);
 });
 
+test('returns global Step3 and Step4 saves to draft before publishing', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  const markChangedSource = main.slice(
+    main.indexOf('function markSceneConfigChanged()'),
+    main.indexOf('function markScenePendingReview()'),
+  );
+  assert.match(markChangedSource, /\['published', 'pending_review', 'ready'\]\.includes\(form\.scene\.publishStatus\)/);
+  assert.match(markChangedSource, /form\.scene\.publishStatus = 'draft';/);
+  assert.doesNotMatch(markChangedSource, /scope === 'output'/);
+
+  const notificationSaveSource = main.slice(
+    main.indexOf('function saveWorkflowNotificationConfig(options = {})'),
+    main.indexOf('function goToWorkflowStep4FromNotifications()'),
+  );
+  assert.match(notificationSaveSource, /validateWorkflowNotificationConfig\(\)/);
+  assert.match(notificationSaveSource, /markScenePendingReview\(\);/);
+  assert.ok(
+    notificationSaveSource.indexOf('markScenePendingReview();')
+      > notificationSaveSource.indexOf('if (err)'),
+  );
+
+  const outputSaveSource = main.slice(
+    main.indexOf('function saveOutputConfigFromStep3()'),
+    main.indexOf('function formatWorkflowTestDisplayText'),
+  );
+  assert.match(outputSaveSource, /handleSave\(\{ silent: true \}\)/);
+  assert.doesNotMatch(outputSaveSource, /validateWorkflowStaticConfiguration/);
+
+  const publishSource = main.slice(
+    main.indexOf('function publishWorkflowScene()'),
+    main.indexOf('function confirmPublishWorkflowScene()'),
+  );
+  assert.match(publishSource, /scenePublishStatusKey\.value !== 'ready'/);
+  assert.match(publishSource, /checkWorkflowStep2Configuration\(\)/);
+  assert.match(publishSource, /confirmPublishWorkflowScene\(\);/);
+});
+
+test('filters Step3 notification rules by subject or body and resets the query', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(main, /const workflowNotificationSearch = ref\(''\);/);
+  assert.match(main, /const filteredWorkflowNotificationRuleRows = computed\([\s\S]*rule\.subject, rule\.body/);
+  assert.match(main, /function resetWorkflowNotificationSearch\(\)[\s\S]*workflowNotificationSearch\.value = '';/);
+  assert.match(index, /v-model="workflowNotificationSearch"[\s\S]*placeholder="件名・内容で検索"/);
+  assert.match(index, /@click="resetWorkflowNotificationSearch"[\s\S]*>リセット<\/el-button>/);
+  assert.match(index, /workflow-notification-rule-list-head[\s\S]*通知ルール一覧[\s\S]*workflow-notification-rule-filter/);
+  assert.doesNotMatch(index, /filteredWorkflowNotificationRuleRows\.length \}\}件/);
+  assert.match(index, /v-for="rule in filteredWorkflowNotificationRuleRows"/);
+});
+
+test('uses accent dots and keeps human review configuration role-only', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  const hitlStart = index.indexOf("inspectorPanel === 'hitl_gate'");
+  const hitlEnd = index.indexOf('<!-- 開始ノード', hitlStart);
+  const hitlPanel = index.slice(hitlStart, hitlEnd);
+  assert.match(hitlPanel, /title="ゲート設定" desc="人工確認を担当するロールを指定します。"/);
+  assert.match(hitlPanel, />担当ロール<\/label>/);
+  assert.doesNotMatch(hitlPanel, /確認対象|selectedHitlGatePreset/);
+  assert.match(style, /\.inspector-module-title::before\s*\{[^}]*width:\s*8px;[^}]*height:\s*8px;[^}]*border-radius:\s*50%;/s);
+});
+
+test('keeps manual labels pink and human review branch names neutral', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.equal((index.match(/class="wf-hitl-branch-name"/g) || []).length, 2);
+  assert.match(style, /\.wf-hitl-branch-kind\s*\{[^}]*color:\s*#ff6674;/s);
+  assert.match(style, /\.wf-node--hitl_gate \.wf-hitl-branch-name,[\s\S]*color:\s*#475467;/);
+});
+
+test('uses a rounded-square icon for human review nodes', async () => {
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(style, /\.wf-node--hitl_gate \.wf-node-icon\s*\{\s*border-radius:\s*6px;\s*\}/);
+  assert.doesNotMatch(style, /\.wf-node--hitl_gate \.wf-node-icon\s*\{\s*border-radius:\s*50%;\s*\}/);
+});
+
+test('shows human review notification events as expressions', async () => {
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  assert.match(main, /value: 'approve', label: 'manualAction = approve'/);
+  assert.match(main, /value: 'request_supplement', label: 'manualAction = request_supplement'/);
+  assert.match(main, /value: 'reject', label: 'manualAction = reject'/);
+});
+
+test('keeps Step4 field columns equal and field lists scrollable', async () => {
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(style, /\.export-config--step \.export-field-table-wrap\s*\{[^}]*overflow-y:\s*auto;[^}]*max-height:\s*calc\(100vh - 320px\);/s);
+  assert.match(style, /\.export-config--step \.export-field-table\s*\{[^}]*table-layout:\s*fixed;/s);
+  assert.match(style, /\.export-config--step \.export-field-table \.col-name\s*\{\s*width:\s*46%;/);
+  assert.match(style, /\.export-config--step \.export-field-table \.col-value\s*\{\s*width:\s*46%;/);
+});
+
 test('places workflow reset at the end of the canvas history toolbar', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
@@ -387,6 +507,20 @@ test('places workflow reset at the end of the canvas history toolbar', async () 
   assert.match(main, /ElementPlus\.ElMessageBox\.confirm\('開始ノード以外のすべてのノードと接続を削除します。続行しますか？'/);
 });
 
+test('uses four ordered workflow canvas view controls', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const toolbarStart = index.indexOf('class="wf-canvas-floating-actions wf-canvas-view-actions"');
+  const toolbarEnd = index.indexOf('v-if="wfNodePicker.visible"', toolbarStart);
+  const toolbar = index.slice(toolbarStart, toolbarEnd);
+
+  assert.equal((toolbar.match(/<button/g) || []).length, 4);
+  assert.ok(toolbar.indexOf('title="ノードを追加"') < toolbar.indexOf('title="縮小"'));
+  assert.ok(toolbar.indexOf('title="縮小"') < toolbar.indexOf('title="拡大"'));
+  assert.ok(toolbar.indexOf('title="拡大"') < toolbar.indexOf('title="整列して全体表示"'));
+  assert.doesNotMatch(toolbar, /wf-canvas-tool-divider/);
+  assert.match(toolbar, /title="整列して全体表示"[\s\S]*@click="organizeWorkflowNodes"/);
+});
+
 test('deletes workflow nodes immediately without a confirmation dialog', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
   const removeHandler = main.match(/function confirmRemoveSelectedWorkflowNode\(\)[\s\S]*?\n    }\n\n    function onWfKeyDown/)?.[0] || '';
@@ -395,6 +529,17 @@ test('deletes workflow nodes immediately without a confirmation dialog', async (
   assert.match(removeHandler, /開始ノードは削除できません/);
   assert.match(removeHandler, /removeWorkflowNode\(id\)/);
   assert.match(removeHandler, /ノードを削除しました/);
+});
+
+test('deletes edges from a red midpoint control without inline insertion', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+
+  assert.match(index, /class="wf-edge-delete-btn"[\s\S]*title="接続を削除"[\s\S]*@click\.stop="removeWorkflowEdge\(edge\.edge\)"[\s\S]*>×<\/button>/);
+  assert.doesNotMatch(index, /openWfNodePickerOnEdge\(edge\.edge/);
+  assert.match(main, /function removeWorkflowEdge\(edge\)[\s\S]*selectedWorkflowEdgeKey\.value = workflowEdgeKey\(edge\);[\s\S]*removeSelectedWorkflowEdge\(\)/);
+  assert.match(style, /\.wf-edge-delete-btn\s*\{[^}]*border:\s*1px solid #fda29b;[^}]*color:\s*#f04438;/s);
 });
 
 test('offers a separate Step2 configuration check without blocking save or navigation', async () => {

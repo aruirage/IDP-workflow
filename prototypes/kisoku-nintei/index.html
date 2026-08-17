@@ -271,15 +271,6 @@
             </button>
             </div>
             <div class="wf-setup-stepper-actions">
-            <button
-              type="button"
-              class="wf-setup-fullscreen-btn"
-              :class="{ 'is-active': workflowSetupFullscreen }"
-              :title="workflowSetupFullscreen ? '全画面を解除' : '全画面'"
-              @click="toggleWorkflowSetupFullscreen"
-            >
-              <span class="wf-setup-fullscreen-icon" aria-hidden="true"></span>
-            </button>
             <el-dropdown
               v-if="hasPublishedVersions"
               trigger="click"
@@ -305,6 +296,15 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            <button
+              type="button"
+              class="wf-setup-fullscreen-btn"
+              :class="{ 'is-active': workflowSetupFullscreen }"
+              :title="workflowSetupFullscreen ? '全画面を解除' : '全画面'"
+              @click="toggleWorkflowSetupFullscreen"
+            >
+              <span class="wf-setup-fullscreen-icon" aria-hidden="true"></span>
+            </button>
             </div>
           </div>
 
@@ -794,13 +794,13 @@
                   v-show="isWorkflowTopologyEditable && isWorkflowEdgeInsertVisible(edge.key)"
                   :key="'edge-add-' + idx"
                   type="button"
-                  class="wf-edge-insert-btn"
+                  class="wf-edge-delete-btn"
                   :style="{ left: edge.mx + 'px', top: edge.my + 'px' }"
-                  title="ここにノードを挿入"
+                  title="接続を削除"
                   @mouseenter="onWorkflowEdgeMouseEnter(edge.key)"
                   @mouseleave="onWorkflowEdgeMouseLeave(edge.key)"
-                  @click.stop="openWfNodePickerOnEdge(edge.edge, $event)"
-                >+</button>
+                  @click.stop="removeWorkflowEdge(edge.edge)"
+                >×</button>
                 <div
                   v-if="wfNodePlacementPreview"
                   class="wf-node wf-node-shell wf-node-placement-ghost"
@@ -816,6 +816,31 @@
                       <span class="wf-node-icon" v-html="getWorkflowNodeIconSvg(wfNodePlacementPreview.type)"></span>
                       <div class="wf-node-titles">
                         <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(wfNodePlacementPreview) }}</span>
+                      </div>
+                    </div>
+                    <div v-if="wfNodePlacementPreview.type === 'decision'" class="wf-ifelse-body">
+                      <div class="wf-ifelse-row">
+                        <div class="wf-ifelse-label-col">
+                          <span class="wf-ifelse-kind">IF</span>
+                          <span class="wf-ifelse-case">CASE 1</span>
+                        </div>
+                        <div class="wf-ifelse-row-main">
+                          <span class="wf-ifelse-condition-text wf-ifelse-condition-text--muted">条件未設定</span>
+                        </div>
+                      </div>
+                      <div class="wf-ifelse-row wf-ifelse-row--else">
+                        <div class="wf-ifelse-label-col">
+                          <span class="wf-ifelse-kind wf-ifelse-kind--else">ELSE</span>
+                        </div>
+                        <div class="wf-ifelse-row-main">
+                          <span class="wf-ifelse-condition--muted">未接続</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else-if="wfNodePlacementPreview.type === 'hitl_gate'" class="wf-hitl-branches">
+                      <div v-for="branch in getHitlGateNodeVisibleBranches(wfNodePlacementPreview)" :key="'preview-' + branch.key" class="wf-hitl-branch-row">
+                        <span class="wf-hitl-branch-kind">MANUAL<br><span class="wf-hitl-branch-name">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span></span>
+                        <span class="wf-hitl-branch-value">{{ branch.key }}</span>
                       </div>
                     </div>
                   </div>
@@ -864,7 +889,7 @@
                           <span class="wf-node-terminal-icon" v-html="getWorkflowNodeIconSvg(node.type)"></span>
                           <span class="wf-node-terminal-label">{{ getWorkflowNodeMeta(node.type).title }}</span>
                           <button
-                            v-if="node.type === 'end' && node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                            v-if="node.type === 'end' && isWorkflowTopologyEditable"
                             type="button"
                             class="wf-node-action wf-node-action--terminal"
                             title="削除"
@@ -895,17 +920,7 @@
                     ></span>
                   </template>
                   <template v-else-if="node.type === 'decision'">
-                    <button
-                      v-if="isWorkflowTopologyEditable && !hasWorkflowIncomingEdge(node.id)"
-                      type="button"
-                      class="wf-node-add-btn wf-node-add-btn--in"
-                      data-wf-port="in"
-                      :data-node-id="node.id"
-                      title="前にノードを追加 / ここに接続"
-                      @click.stop="onWfNodeAddInClick(node, $event)"
-                    >+</button>
                     <span
-                      v-else
                       class="wf-node-port wf-node-port--in"
                       data-wf-port="in"
                       :data-node-id="node.id"
@@ -921,7 +936,7 @@
                           <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
                         </div>
                         <button
-                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable && node.type !== 'start' && !node.isStart"
+                          v-if="isWorkflowTopologyEditable && node.type !== 'start' && !node.isStart"
                           type="button"
                           class="wf-node-action"
                           title="削除"
@@ -980,17 +995,7 @@
                     >+</button>
                   </template>
                   <template v-else-if="isHitlGateNode(node)">
-                    <button
-                      v-if="isWorkflowTopologyEditable && !hasWorkflowIncomingEdge(node.id)"
-                      type="button"
-                      class="wf-node-add-btn wf-node-add-btn--in"
-                      data-wf-port="in"
-                      :data-node-id="node.id"
-                      title="前にノードを追加 / ここに接続"
-                      @click.stop="onWfNodeAddInClick(node, $event)"
-                    >+</button>
                     <span
-                      v-else
                       class="wf-node-port wf-node-port--in"
                       data-wf-port="in"
                       :data-node-id="node.id"
@@ -1006,7 +1011,7 @@
                           <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
                         </div>
                         <button
-                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                          v-if="isWorkflowTopologyEditable"
                           type="button"
                           class="wf-node-action"
                           title="削除"
@@ -1022,7 +1027,8 @@
                           :key="branch.key"
                           class="wf-hitl-branch-row"
                         >
-                          <span class="wf-hitl-branch-label">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span>
+                          <span class="wf-hitl-branch-kind">MANUAL<br><span class="wf-hitl-branch-name">{{ getHitlGateBranchCanvasLabel(branch.key) }}</span></span>
+                          <span class="wf-hitl-branch-value">{{ branch.key }}</span>
                         </div>
                       </div>
                     </div>
@@ -1039,17 +1045,7 @@
                     >+</button>
                   </template>
                   <template v-else>
-                    <button
-                      v-if="showWfNodeAddInBtn(node)"
-                      type="button"
-                      class="wf-node-add-btn wf-node-add-btn--in"
-                      data-wf-port="in"
-                      :data-node-id="node.id"
-                      title="前にノードを追加 / ここに接続"
-                      @click.stop="onWfNodeAddInClick(node, $event)"
-                    >+</button>
                     <span
-                      v-else
                       class="wf-node-port wf-node-port--in"
                       data-wf-port="in"
                       :data-node-id="node.id"
@@ -1065,7 +1061,7 @@
                           <span class="wf-node-name">{{ getWorkflowNodeDisplayLabel(node) }}</span>
                         </div>
                         <button
-                          v-if="node.id === selectedWorkflowNodeId && isWorkflowTopologyEditable"
+                          v-if="isWorkflowTopologyEditable"
                           type="button"
                           class="wf-node-action"
                           title="削除"
@@ -1173,20 +1169,19 @@
                   >
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                   </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
+                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                  </button>
                   <button
                     type="button"
                     class="wf-canvas-tool-btn"
                     title="整列して全体表示"
                     @click="organizeWorkflowNodes"
                   >
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.2h3M10 4.2h3M6 4.2c1.2 0 1.8.9 2 2.1.2 1.2.8 2.1 2 2.1M3 11.8h3M10 11.8h3M6 11.8c1.2 0 1.8-.9 2-2.1.2-1.2.8-2.1 2-2.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                  </button>
-                  <span class="wf-canvas-tool-divider" aria-hidden="true"></span>
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="縮小" @click="zoomWorkflowOut">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                  </button>
-                  <button type="button" class="wf-canvas-tool-btn wf-zoom-btn" title="拡大" @click="zoomWorkflowIn">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M10.2 10.2 13 13M5.2 7h3.6M7 5.2v3.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.8 6V2.8H6M10 2.8h3.2V6M13.2 10v3.2H10M6 13.2H2.8V10" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
               </div>
@@ -1198,22 +1193,25 @@
                 @mousedown.stop
                 @click.stop
               >
+                <div class="wf-node-picker-search">
+                  <el-input v-model="wfNodePicker.search" placeholder="検索ノード" clearable size="small" />
+                </div>
                 <div class="wf-node-picker-body">
-                  <template v-for="group in wfNodePickerAvailableProcessGroups" :key="group.category">
-                    <div v-if="group.category" class="wf-node-picker-category">{{ group.category }}</div>
                     <button
-                      v-for="item in group.nodes"
+                      v-for="item in wfNodePickerAvailableNodes"
                       :key="item.defaultPreset ? item.type + '-' + item.defaultPreset : (item.defaultCondition ? item.type + '-' + item.defaultCondition : item.type)"
                       type="button"
                       class="wf-node-picker-item"
                       @click="pickWorkflowProcessNode(item)"
                       @mouseenter="wfNodePicker.hoveredLogic = item.type === 'decision' ? null : (item.defaultJudgmentContext || null)"
                     >
-                      <span class="wf-node-picker-icon" v-html="getWorkflowNodeIconSvg(item.type)"></span>
-                      <span class="wf-node-picker-label">{{ item.label }}</span>
+                      <span class="wf-node-picker-icon" :style="getWorkflowNodeAccentStyle(item.type)" v-html="getWorkflowNodeIconSvg(item.type)"></span>
+                      <span class="wf-node-picker-text">
+                        <span class="wf-node-picker-label">{{ item.label }}</span>
+                        <span class="wf-node-picker-summary">{{ getWorkflowNodePickerDescription(item.type) }}</span>
+                      </span>
                     </button>
-                  </template>
-                  <p v-if="!wfNodePickerAvailableProcessGroups.length" class="wf-node-picker-empty">追加できるノードがありません</p>
+                  <p v-if="!wfNodePickerAvailableNodes.length" class="wf-node-picker-empty">追加できるノードがありません</p>
                 </div>
               </div>
             </main>
@@ -1735,13 +1733,9 @@
                 <!-- 人工確認（ワークフローノード） -->
                 <div v-if="inspectorPanel === 'hitl_gate' && selectedWorkflowNode" class="inspector-panel-section hitl-gate-inspector">
                   <inspector-module>
-                    <inspector-module-card title="ゲート設定">
-                      <div class="inspector-field inspector-field--inline-readonly">
-                        <label class="inspector-field-label">確認対象</label>
-                        <span class="inspector-inline-readonly-value">{{ selectedHitlGatePreset?.label || '—' }}</span>
-                      </div>
+                    <inspector-module-card title="ゲート設定" desc="人工確認を担当するロールを指定します。">
                       <div class="inspector-field">
-                        <label class="inspector-field-label">審査ロール</label>
+                        <label class="inspector-field-label">担当ロール</label>
                         <el-select v-model="selectedWorkflowNode.role" class="inspector-field-control" size="small">
                           <el-option v-for="r in hitlRoleOptions" :key="r.value" :label="r.label" :value="r.value" />
                         </el-select>
@@ -2046,10 +2040,23 @@
             <section class="workflow-notification-rule-list">
               <div class="workflow-notification-rule-list-head">
                 <h3 class="workflow-notification-section-title">通知ルール一覧</h3>
-                <span>{{ workflowNotificationRuleRows.length }}件</span>
+                <div class="workflow-notification-rule-filter">
+                  <el-input
+                    v-model="workflowNotificationSearch"
+                    placeholder="件名・内容で検索"
+                    clearable
+                  ></el-input>
+                  <el-button
+                    :disabled="!workflowNotificationSearch"
+                    @click="resetWorkflowNotificationSearch"
+                  >リセット</el-button>
+                </div>
               </div>
               <div v-if="!workflowNotificationRuleRows.length" class="workflow-notification-empty">
                 通知ルールはまだありません
+              </div>
+              <div v-else-if="!filteredWorkflowNotificationRuleRows.length" class="workflow-notification-empty">
+                該当する通知ルールはありません
               </div>
               <div v-else class="workflow-notification-table-wrap">
                 <table class="workflow-notification-table">
@@ -2066,7 +2073,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="rule in workflowNotificationRuleRows" :key="rule.id">
+                    <tr v-for="rule in filteredWorkflowNotificationRuleRows" :key="rule.id">
                       <td>{{ rule.index }}</td>
                       <td>{{ rule.nodeLabel }}</td>
                       <td>{{ rule.eventLabel }}</td>
