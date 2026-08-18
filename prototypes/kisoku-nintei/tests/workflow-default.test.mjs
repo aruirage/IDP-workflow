@@ -150,6 +150,15 @@ test('centers the workflow setup step track independently from actions', async (
   assert.match(style, /\.wf-setup-fullscreen-btn\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;[^}]*border:\s*none;/s);
 });
 
+test('shows the scene name and case ID in every workflow toolbar', async () => {
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+
+  assert.match(main, /const workflowToolbarSceneLabel = computed\(\(\) => \{/);
+  assert.match(main, /return \[sceneName, caseId\]\.filter\(Boolean\)\.join\(' '\);/);
+  assert.equal((index.match(/\{\{ workflowToolbarSceneLabel \}\}/g) || []).length, 4);
+});
+
 test('excludes custom functions from Step2 configuration checks', async () => {
   const mockData = await readFile(new URL('../scripts/mock-data.js', import.meta.url), 'utf8');
 
@@ -379,6 +388,10 @@ test('keeps draft and published workflow history separate', async () => {
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sceneConfig = await readFile(new URL('../scripts/scene-config.js', import.meta.url), 'utf8');
   const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
+  const replaceVersionForm = main.slice(
+    main.indexOf('function replaceWorkflowVersionForm(nextForm)'),
+    main.indexOf('function switchWorkflowVersionView', main.indexOf('function replaceWorkflowVersionForm(nextForm)')),
+  );
 
   assert.match(sceneConfig, /function createPublishedSnapshot\(formData\)/);
   assert.match(sceneConfig, /delete snapshot\.publishedSnapshot;/);
@@ -406,14 +419,35 @@ test('keeps draft and published workflow history separate', async () => {
   assert.match(main, /function selectScene\(id, options = \{\}\)[\s\S]*workflowVersionView\.value = 'draft';/);
   assert.match(index, /:class="\{ 'is-applied-view': workflowVersionView === 'published' \}"/);
   assert.doesNotMatch(style, /適用中の設定（閲覧のみ）/);
+  assert.doesNotMatch(style, /\.idp-workflow-module\.is-applied-view \.wf-setup-page,/);
   assert.match(index, /v-if="workflowVersionView === 'published'" class="wf-toolbar-right"[\s\S]*goToWorkflowSetupStep\(2, \{ readonlyNavigation: true \}\)[\s\S]*次へ/);
   assert.match(index, /goToWorkflowSetupStep\(3, \{ readonlyNavigation: true \}\)/);
   assert.match(index, /goToWorkflowSetupStep\(4, \{ readonlyNavigation: true \}\)/);
   assert.match(main, /if \(workflowVersionView\.value === 'published'\)[\s\S]*workflowSetupStep\.value = step;/);
-  assert.match(index, /class="wf-setup-page" :inert="workflowVersionView === 'published'"/);
-  assert.match(index, /class="idp-workspace"[\s\S]*:inert="workflowVersionView === 'published'"/);
-  assert.match(index, /class="wf-notification-step-page" :inert="workflowVersionView === 'published'"/);
-  assert.match(index, /class="wf-export-step-page" :inert="workflowVersionView === 'published'"/);
+  assert.doesNotMatch(index, /class="wf-setup-page"[^>]*:inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="wf-setup-config-stack"[\s\S]*:inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="wf-setup-config-stack"[\s\S]*'is-readonly-config': workflowVersionView === 'published'/);
+  assert.doesNotMatch(index, /class="wf-setup-step1-preview-panel"[^>]*inert/);
+  assert.doesNotMatch(index, /class="idp-workspace"[^>]*:inert="workflowVersionView === 'published'"/);
+  assert.match(index, /v-show="!inspectorPanelCollapsed && !wfCanvasMaximized && \(workflowVersionView === 'draft' \|\| selectedWorkflowNode \|\| selectedWorkflowEdge\)"/);
+  assert.doesNotMatch(index, /class="idp-panel-expand idp-panel-expand--right"/);
+  assert.doesNotMatch(index, /title="設定パネルを展開"/);
+  assert.match(index, /'is-readonly': workflowVersionView === 'published'/);
+  assert.match(index, /class="idp-inspector-body"[\s\S]*:inert="workflowVersionView === 'published'"/);
+  assert.match(style, /\.idp-inspector-body\.is-readonly[\s\S]*\.el-select__wrapper[\s\S]*background:\s*#f2f4f7;/);
+  assert.match(style, /\.idp-inspector-body\.is-readonly[\s\S]*\.el-switch[\s\S]*pointer-events:\s*none;/);
+  assert.match(index, /v-if="isWorkflowTopologyEditable" class="wf-canvas-floating-actions wf-canvas-history-actions"/);
+  assert.match(index, /v-if="isWorkflowTopologyEditable"[\s\S]*title="ノードを追加"/);
+  assert.match(index, /workflowVersionView === 'published' \? fitWorkflowToView\(\) : organizeWorkflowNodes\(\)/);
+  assert.match(replaceVersionForm, /inspectorPanelCollapsed\.value = true;[\s\S]*inspectorMode\.value = 'overview';/);
+  assert.match(main, /replaceWorkflowVersionForm\(published\);[\s\S]*workflowVersionView\.value = 'published';/);
+  assert.match(index, /class="wf-notification-step-page"[\s\S]*:inert="workflowVersionView === 'published'"/);
+  assert.match(index, /class="wf-export-step-page"[\s\S]*:inert="workflowVersionView === 'published'"/);
+  assert.equal((index.match(/'is-readonly-config': workflowVersionView === 'published'/g) || []).length, 3);
+  assert.match(style, /\.is-readonly-config[\s\S]*\.el-input__wrapper[\s\S]*background:\s*#f2f4f7;/);
+  assert.match(style, /\.is-readonly-config[\s\S]*\.el-checkbox[\s\S]*filter:\s*grayscale\(1\);/);
+  assert.match(style, /:is\(\.idp-inspector-body\.is-readonly, \.is-readonly-config\)[\s\S]*\.el-switch__core[\s\S]*background-color:\s*#d0d5dd/);
+  assert.match(style, /\.idp-inspector-body\.is-readonly[\s\S]*\.workflow-module-toggle-switch\.is-on[\s\S]*background:\s*#d0d5dd/);
 });
 
 test('records scene publish history only after successful publication', async () => {
@@ -605,17 +639,31 @@ test('uses four ordered workflow canvas view controls', async () => {
   assert.ok(toolbar.indexOf('title="縮小"') < toolbar.indexOf('title="拡大"'));
   assert.ok(toolbar.indexOf('title="拡大"') < toolbar.indexOf('title="整列して全体表示"'));
   assert.doesNotMatch(toolbar, /wf-canvas-tool-divider/);
-  assert.match(toolbar, /title="整列して全体表示"[\s\S]*@click="organizeWorkflowNodes"/);
+  assert.match(toolbar, /title="整列して全体表示"[\s\S]*@click="workflowVersionView === 'published' \? fitWorkflowToView\(\) : organizeWorkflowNodes\(\)"/);
 });
 
 test('deletes workflow nodes immediately without a confirmation dialog', async () => {
   const main = await readFile(new URL('../main.js', import.meta.url), 'utf8');
+  const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const style = await readFile(new URL('../style.css', import.meta.url), 'utf8');
   const removeHandler = main.match(/function confirmRemoveSelectedWorkflowNode\(\)[\s\S]*?\n    }\n\n    function onWfKeyDown/)?.[0] || '';
 
   assert.doesNotMatch(removeHandler, /ElMessageBox\.confirm/);
   assert.match(removeHandler, /開始ノードは削除できません/);
   assert.match(removeHandler, /removeWorkflowNode\(id\)/);
   assert.match(removeHandler, /ノードを削除しました/);
+  assert.match(index, /class="inspector-node-delete"[\s\S]*@click="confirmRemoveSelectedWorkflowNode"[\s\S]*>×<\/button>/);
+  assert.match(index, /class="inspector-ifelse-remove-link"[\s\S]*@click="removeDecisionCase[\s\S]*>×<\/button>/);
+  assert.match(index, /class="inspector-ifelse-trash"[\s\S]*@click="removeDecisionCondition[\s\S]*>×<\/button>/);
+  assert.doesNotMatch(index, /class="inspector-ifelse-remove-link"[\s\S]*Remove[\s\S]*<\/button>/);
+  assert.match(style, /\.idp-inspector-badge\s*\{[^}]*background:\s*var\(--wf-node-accent[^}]*color:\s*#fff;/s);
+  for (const selector of ['wf-node-action', 'inspector-node-delete', 'inspector-ifelse-remove-link', 'inspector-ifelse-trash']) {
+    const rule = style.match(new RegExp(`(?:^|\\n)\\.${selector}\\s*\\{([^}]*)\\}`, 'm'))?.[1] || '';
+    assert.match(rule, /width:\s*28px/);
+    assert.match(rule, /height:\s*28px/);
+    assert.match(rule, /color:\s*#f04438/);
+    assert.match(rule, /font-size:\s*17px/);
+  }
 });
 
 test('deletes edges from a red midpoint control without inline insertion', async () => {

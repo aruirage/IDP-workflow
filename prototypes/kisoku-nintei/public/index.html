@@ -313,7 +313,7 @@
             <div class="wf-toolbar-left">
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-sep">/</span>
-              <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-scene">{{ currentScene?.name || sceneSetupDraft.name }}</span>
+              <span v-if="currentScene || sceneSetupDraft.name" class="wf-toolbar-scene">{{ workflowToolbarSceneLabel }}</span>
               <span
                 v-if="currentScene || sceneSetupDraft.name"
                 class="wf-publish-badge"
@@ -339,10 +339,14 @@
             </div>
           </div>
 
-          <div class="wf-setup-page" :inert="workflowVersionView === 'published'">
+          <div class="wf-setup-page">
             <div class="wf-setup-page-body">
               <div class="wf-setup-step1-shell">
-                <div class="wf-setup-config-stack">
+                <div
+                  class="wf-setup-config-stack"
+                  :class="{ 'is-readonly-config': workflowVersionView === 'published' }"
+                  :inert="workflowVersionView === 'published'"
+                >
                 <section class="wf-setup-step1-section">
               <div class="wf-setup-basic-grid">
                 <div class="wf-setup-scene-meta">
@@ -712,7 +716,7 @@
             <div class="wf-toolbar-left">
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
-              <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
+              <span v-if="currentScene" class="wf-toolbar-scene">{{ workflowToolbarSceneLabel }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
               <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
                 <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
@@ -739,7 +743,6 @@
             class="idp-workspace"
             :class="{ 'inspector-collapsed': inspectorPanelCollapsed, 'inspector-resizing': inspectorResizing, 'canvas-maximized': wfCanvasMaximized, 'inspector-expanded': inspectorExpanded }"
             :style="inspectorWorkspaceStyle"
-            :inert="workflowVersionView === 'published'"
           >
             <main class="idp-canvas-wrap">
               <div
@@ -1088,7 +1091,7 @@
                 </div>
               </div>
 
-              <div class="wf-canvas-floating-actions wf-canvas-history-actions" aria-label="履歴操作" @mousedown.stop @click.stop>
+              <div v-if="isWorkflowTopologyEditable" class="wf-canvas-floating-actions wf-canvas-history-actions" aria-label="履歴操作" @mousedown.stop @click.stop>
                 <div class="wf-canvas-toolbar wf-canvas-toolbar--bottom">
                   <button
                     type="button"
@@ -1160,6 +1163,7 @@
               <div class="wf-canvas-floating-actions wf-canvas-view-actions" aria-label="表示操作" @mousedown.stop @click.stop>
                 <div class="wf-canvas-toolbar wf-canvas-toolbar--bottom">
                   <button
+                    v-if="isWorkflowTopologyEditable"
                     type="button"
                     class="wf-canvas-tool-btn"
                     :class="{ 'is-active': wfNodePicker.visible || wfNodePlacement.active }"
@@ -1179,7 +1183,7 @@
                     type="button"
                     class="wf-canvas-tool-btn"
                     title="整列して全体表示"
-                    @click="organizeWorkflowNodes"
+                    @click="workflowVersionView === 'published' ? fitWorkflowToView() : organizeWorkflowNodes()"
                   >
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.8 6V2.8H6M10 2.8h3.2V6M13.2 10v3.2H10M6 13.2H2.8V10" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
@@ -1216,17 +1220,11 @@
               </div>
             </main>
 
-            <button
-              v-if="inspectorPanelCollapsed && !wfCanvasMaximized"
-              type="button"
-              class="idp-panel-expand idp-panel-expand--right"
-              title="設定パネルを展開"
-              @click="toggleInspectorPanel"
+            <aside
+              v-show="!inspectorPanelCollapsed && !wfCanvasMaximized && (workflowVersionView === 'draft' || selectedWorkflowNode || selectedWorkflowEdge)"
+              class="idp-inspector"
+              :class="{ 'is-editor-surface': inspectorExpanded }"
             >
-              <span class="idp-panel-expand-icon">‹</span>
-              <span class="idp-panel-expand-label">設定</span>
-            </button>
-            <aside v-show="!inspectorPanelCollapsed && !wfCanvasMaximized" class="idp-inspector" :class="{ 'is-editor-surface': inspectorExpanded }">
               <div v-if="inspectorExpanded" class="idp-editor-surface-head">
                 <button type="button" class="idp-editor-back" @click="collapseInspectorEditor">
                   <span aria-hidden="true">←</span>
@@ -1271,12 +1269,14 @@
                     <button type="button" class="wf-node-info-btn" aria-label="説明" @click.stop>i</button>
                   </el-tooltip>
                 </div>
-                <el-button
+                <button
                   v-if="inspectorMode === 'node' && selectedWorkflowNode && isWorkflowTopologyEditable && selectedWorkflowNode.type !== 'start' && !inspectorExpanded"
-                  type="danger"
-                  link
+                  type="button"
+                  class="inspector-node-delete"
+                  title="ノードを削除"
+                  aria-label="ノードを削除"
                   @click="confirmRemoveSelectedWorkflowNode"
-                >削除</el-button>
+                >×</button>
                 <button
                   v-if="!inspectorExpanded"
                   type="button"
@@ -1294,8 +1294,9 @@
               ></div>
               <div
                 class="idp-inspector-body"
-                :class="{ 'is-editor-surface-body': inspectorExpanded }"
+                :class="{ 'is-editor-surface-body': inspectorExpanded, 'is-readonly': workflowVersionView === 'published' }"
                 :style="inspectorModuleAccentStyle"
+                :inert="workflowVersionView === 'published'"
               >
                 <div :class="inspectorExpanded ? 'idp-editor-surface-scroll' : ''">
                   <div :class="inspectorExpanded ? 'idp-editor-surface-inner' : ''">
@@ -1349,11 +1350,10 @@
                         <button
                           type="button"
                           class="inspector-ifelse-remove-link"
+                          title="分岐を削除"
+                          aria-label="分岐を削除"
                           @click="removeDecisionCase(selectedWorkflowNode, decisionCase.id)"
-                        >
-                          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5.5 2h5l.5 1H13v1H3V3h1.5l.5-1zM4 5h8l-.7 7.1a1 1 0 0 1-1 .9H5.7a1 1 0 0 1-1-.9L4 5z" fill="currentColor"/></svg>
-                          Remove
-                        </button>
+                        >×</button>
                       </div>
                       <div
                         class="inspector-ifelse-condition-group"
@@ -1464,10 +1464,9 @@
                               type="button"
                               class="inspector-ifelse-trash"
                               title="条件を削除"
+                              aria-label="条件を削除"
                               @click="removeDecisionCondition(selectedWorkflowNode, decisionCase.id, condition.id)"
-                            >
-                              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5.5 2h5l.5 1H13v1H3V3h1.5l.5-1zM4 5h8l-.7 7.1a1 1 0 0 1-1 .9H5.7a1 1 0 0 1-1-.9L4 5z" fill="currentColor"/></svg>
-                            </button>
+                            >×</button>
                           </div>
                           <p v-if="!decisionCase.conditions.length" class="inspector-ifelse-empty-hint">
                             条件がありません。下のボタンから追加してください。
@@ -1893,7 +1892,7 @@
             <div class="wf-toolbar-left">
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
-              <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
+              <span v-if="currentScene" class="wf-toolbar-scene">{{ workflowToolbarSceneLabel }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
               <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
                 <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
@@ -1911,7 +1910,11 @@
             </div>
           </div>
 
-          <div class="wf-notification-step-page" :inert="workflowVersionView === 'published'">
+          <div
+            class="wf-notification-step-page"
+            :class="{ 'is-readonly-config': workflowVersionView === 'published' }"
+            :inert="workflowVersionView === 'published'"
+          >
             <section class="workflow-notification-builder">
               <h3 class="workflow-notification-section-title">通知ルール追加</h3>
               <div class="workflow-notification-builder-grid">
@@ -2104,7 +2107,7 @@
             <div class="wf-toolbar-left">
               <span class="wf-toolbar-page">{{ modulePageMeta.title }}</span>
               <span class="wf-toolbar-sep">/</span>
-              <span v-if="currentScene" class="wf-toolbar-scene">{{ currentScene.name }}</span>
+              <span v-if="currentScene" class="wf-toolbar-scene">{{ workflowToolbarSceneLabel }}</span>
               <span class="wf-publish-badge" :class="'is-' + scenePublishStatusKey">{{ scenePublishBadge }}</span>
               <el-tooltip content="Step2の設定チェック完了後、ステータスが「公開可能」に更新され、公開できます。" placement="bottom">
                 <span class="wf-publish-help" aria-label="公開ステータスについて">i</span>
@@ -2121,7 +2124,11 @@
             </div>
           </div>
 
-          <div class="wf-export-step-page" :inert="workflowVersionView === 'published'">
+          <div
+            class="wf-export-step-page"
+            :class="{ 'is-readonly-config': workflowVersionView === 'published' }"
+            :inert="workflowVersionView === 'published'"
+          >
             <div class="export-config export-config--step">
               <div class="export-config-body">
                 <aside class="export-config-sidebar">

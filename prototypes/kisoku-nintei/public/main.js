@@ -1832,7 +1832,8 @@ const appOptions = {
       if (scene) loadSceneSetupDraftFromData(form, scene.id, scene.name);
       selectedWorkflowNodeId.value = null;
       selectedWorkflowEdgeKey.value = null;
-      inspectorMode.value = 'scene';
+      inspectorPanelCollapsed.value = true;
+      inspectorMode.value = 'overview';
       resetWorkflowEditTracking('バージョン表示を切替');
       nextTick(() => {
         if (workflowSetupStep.value === 2) fitWorkflowToView();
@@ -2674,6 +2675,11 @@ const appOptions = {
     const sceneSetupPageTitle = '業務シーン・案件集約';
     const sceneSetupSceneIdDisplay = computed(() =>
       (sceneSetupDraft.sceneId ? sceneSetupDraft.sceneId : '保存後に自動採番されます'));
+    const workflowToolbarSceneLabel = computed(() => {
+      const sceneName = currentScene.value?.name || sceneSetupDraft.name || form.scene.name || '';
+      const caseId = currentScene.value?.id || sceneSetupDraft.sceneId || currentSceneId.value || '';
+      return [sceneName, caseId].filter(Boolean).join(' ');
+    });
     const sceneSetupDocTypeOptions = computed(() =>
       sceneSetupDraft.documents.map((d) => ({
         value: d.type,
@@ -10083,6 +10089,7 @@ const appOptions = {
       selectedNodeReuseReviewVisible,
       sceneSetupPageTitle,
       sceneSetupSceneIdDisplay,
+      workflowToolbarSceneLabel,
       scenePublishBadge,
       scenePublishStatusKey,
       sceneSetupDocTypeOptions,
