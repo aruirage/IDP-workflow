@@ -932,9 +932,7 @@
           <section class="manual-subsection" id="upload-operation">
             <h3>画面操作</h3>
             <div class="operation-step">
-              <p><span class="step-code">1</span><span class="step-text"><strong>集約経路</strong> — サイドバーの <span class="ui-text">新規アップロード</span> を開き、<span class="ui-text">業務シーン</span> を選択します。<span class="ui-text">ファイル選択</span>、<span class="ui-text">フォルダ選択</span>、<span class="ui-text">ZIP 選択</span>、またはドラッグ＆ドロップで資料を追加します（JPG / PNG / TIF / PDF、各 50MB まで）。</span></p>
-              <p class="operation-substep"><span class="step-code">1.1</span><span class="step-text"><span class="ui-text">アップロード済ファイル</span> 一覧で取込結果を確認します。<span class="ui-text">一括削除</span> は選択した行のみ削除します。</span></p>
-              <p class="operation-substep"><span class="step-code">1.2</span><span class="step-text"><span class="ui-text">分類・案件集約を実行</span> は、一覧内のすべての合格ファイルを対象に実行されます。選択した一部ファイルだけを対象にする操作ではありません。</span></p>
+              <p><span class="step-code">1</span><span class="step-text"><strong>集約経路</strong> — サイドバーの <span class="ui-text">新規アップロード</span> を開き、<span class="ui-text">業務シーン</span> を選択します。<span class="ui-text">ファイル選択</span>、<span class="ui-text">フォルダ選択</span>、<span class="ui-text">ZIP 選択</span>、またはドラッグ＆ドロップで資料を追加します（JPG / PNG / TIF / PDF、各 50MB まで）。<span class="ui-text">アップロード済ファイル</span> 一覧で取込結果を確認し、<span class="ui-text">分類・案件集約を実行</span> で一覧内のすべての合格ファイルを一括処理します（<span class="ui-text">一括削除</span> は選択行のみ、集約は一部選択では実行されません）。</span></p>
               <figure class="screenshot-figure" data-shot="operator-upload-module">
                 <div class="shot-wrap">
                   <a class="shot-link" href="assets/operator-upload-main.png?v=8" data-lightbox="manual-shots" aria-label="新規アップロード画面を拡大表示">
@@ -945,14 +943,11 @@
             </div>
 
             <div class="operation-step">
-              <p><span class="step-code">2</span><span class="step-text">分類・案件集約が完了すると、<span class="ui-text">案件一覧</span> へ遷移します。自動で案件にまとまったファイルは <span class="ui-text">集約済み案件</span> に表示され、自動集約できなかったファイルは <span class="ui-text">未集約ファイル</span> に残ります。</span></p>
-              <p class="operation-substep"><span class="step-code">2.1</span><span class="step-text">未集約ファイルは、再度集約を実行するか、案件一覧で手動紐付けを行います。</span></p>
+              <p><span class="step-code">2</span><span class="step-text">分類・案件集約が完了すると、<span class="ui-text">案件一覧</span> へ遷移します。自動で案件にまとまったファイルは <span class="ui-text">集約済み案件</span> に表示され、自動集約できなかったファイルは <span class="ui-text">未集約ファイル</span> に残ります。未集約ファイルは再度集約を実行するか、案件一覧で手動紐付けを行います。</span></p>
             </div>
 
             <div class="operation-step">
-              <p><span class="step-code">3</span><span class="step-text"><strong>直付け経路（補件）</strong> — <span class="ui-text">案件一覧</span> · <span class="ui-text">集約済み案件</span> で、案件ステータスが <span class="ui-text">補件</span> の行の <span class="ui-text">補件</span> をクリックします（補件アップロード API も同じ経路。案件番号は必須）。</span></p>
-              <p class="operation-substep"><span class="step-code">3.1</span><span class="step-text"><span class="ui-text">書類追加アップロード</span> ダイアログは対象案件 ID に固定され、<span class="ui-text">業務シーン</span> の選択欄は表示されません。</span></p>
-              <p class="operation-substep"><span class="step-code">3.2</span><span class="step-text">ファイルを追加し <span class="ui-text">アップロード確定</span> すると、当該案件へ直接書き込まれます。形式・50MB 上限・解像度チェックは集約経路と同じです。</span></p>
+              <p><span class="step-code">3</span><span class="step-text"><strong>直付け経路（補件）</strong> — <span class="ui-text">案件一覧</span> · <span class="ui-text">集約済み案件</span> で、案件ステータスが <span class="ui-text">補件</span> の行の <span class="ui-text">補件</span> をクリックします（補件アップロード API も同じ経路。案件番号は必須）。<span class="ui-text">書類追加アップロード</span> ダイアログは対象案件 ID に固定され、<span class="ui-text">業務シーン</span> の選択欄は表示されません。ファイルを追加して <span class="ui-text">アップロード確定</span> すると当該案件へ直接書き込まれます（形式・50MB 上限・解像度チェックは集約経路と同じ）。</span></p>
               <figure class="screenshot-figure" data-shot="operator-upload-supplement">
                 <div class="shot-wrap">
                   <a class="shot-link" href="assets/operator-upload-supplement-flow.png?v=8" data-lightbox="manual-shots" aria-label="案件一覧から補件アップロードを拡大表示">
@@ -1091,50 +1086,22 @@
           </div>
 
           <div class="operation-step">
-            <p><span class="step-code">2</span><span class="step-text"><span class="ui-text">OCR 抽出確認</span> — 帳票画像と抽出結果を対照しながら修正します。</span></p>
-            <div class="operation-substep">
-              <span class="step-code">2.1</span>
-              <span class="step-text">一覧の <span class="ui-text">対応</span> から実行画面を開きます。左に帳票プレビュー、右に <span class="ui-text">テキスト読取</span> / <span class="ui-text">テーブル情報読取</span> タブがあります。要確認フィールド数は帳票タブのバッジと右上の <span class="ui-text">要確認</span> 件数で確認できます。</span>
-            </div>
+            <p><span class="step-code">2</span><span class="step-text"><span class="ui-text">OCR 抽出確認</span>：一覧の <span class="ui-text">対応</span> から実行画面を開き、左の帳票プレビューと右の <span class="ui-text">テキスト読取</span> / <span class="ui-text">テーブル情報読取</span> で抽出値を確認・修正します。<span class="ui-text">項目位置を非表示</span> を ON にすると切り出し画像と帳票上の対応領域が連動します。マスタ照合フィールドでは <span class="ui-text">類似度検索</span> 候補から正規値を選べます。確認後、フッターの <span class="ui-text">OCR 抽出完了</span> で後続ノードへ進みます。</span></p>
             <figure class="screenshot-figure">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/operator-task-ocr-entry-flow.png?v=8" data-lightbox="manual-shots" aria-label="マイタスク一覧から OCR 抽出確認画面への遷移を拡大表示">
                   <img src="assets/operator-task-ocr-entry-flow.png?v=8" alt="マイタスク一覧から OCR 抽出確認画面">
                 </a>
               </div>
+              <figcaption>Step2：一覧から OCR 抽出確認画面への遷移。</figcaption>
             </figure>
-            <div class="operation-substep">
-              <span class="step-code">2.2</span>
-              <span class="step-text"><span class="ui-text">テキスト読取</span> タブで各フィールドの切り出し画像と入力値を確認します。<span class="ui-text">項目位置を非表示</span> を ON にすると、右側にフィールド切り出し画像が表示され、入力欄をクリックすると左の帳票上で対応領域がハイライトされます（左右連動）。<span class="ui-text">エラー箇所のみ表示</span>・<span class="ui-text">一括確認</span> で要確認項目を絞り込めます。</span>
-            </div>
             <figure class="screenshot-figure" data-shot="operator-task-ocr">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/operator-task-ocr-position-marked.png?v=8" data-lightbox="manual-shots" aria-label="項目位置を非表示にした OCR 抽出確認画面を拡大表示">
                   <img src="assets/operator-task-ocr-position-marked.png?v=8" alt="項目位置を非表示にした OCR 抽出確認画面">
                 </a>
               </div>
-            </figure>
-            <div class="operation-substep">
-              <span class="step-code">2.3</span>
-              <span class="step-text"><span class="ui-text">テーブル情報読取</span> タブで明細行（例：振込先指定口座）を確認・修正します。行単位で <span class="ui-text">確認待ち</span> 状態を解消します。</span>
-            </div>
-            <figure class="screenshot-figure">
-              <div class="shot-wrap">
-                <a class="shot-link" href="assets/operator-task-ocr-table-marked.png?v=8" data-lightbox="manual-shots" aria-label="テーブル情報読取タブを拡大表示">
-                  <img src="assets/operator-task-ocr-table-marked.png?v=8" alt="OCR 抽出確認のテーブル情報読取タブ">
-                </a>
-              </div>
-            </figure>
-            <div class="operation-substep">
-              <span class="step-code">2.4</span>
-              <span class="step-text">マスタ照合フィールドでは、完全一致しない場合に <span class="ui-text">類似度検索</span> 候補が表示されます。候補を選んで正規値に置き換えます。</span>
-            </div>
-            <figure class="screenshot-figure">
-              <div class="shot-wrap">
-                <a class="shot-link" href="assets/operator-task-ocr-master-marked.png?v=8" data-lightbox="manual-shots" aria-label="マスタ照合の類似度検索結果を拡大表示">
-                  <img src="assets/operator-task-ocr-master-marked.png?v=8" alt="マスタ照合の類似度検索結果">
-                </a>
-              </div>
+              <figcaption>Step2：<span class="ui-text">テキスト読取</span> と <span class="ui-text">テーブル情報読取</span>、マスタ照合候補の確認。</figcaption>
             </figure>
             <div class="notice info">
               <strong>人工確認ノードとの連動（OCR / AI 検証共通）</strong>
@@ -1154,57 +1121,26 @@
           </div>
 
           <div class="operation-step">
-            <p><span class="step-code">4</span><span class="step-text"><span class="ui-text">AI 検証確認</span> — <span class="ui-text">AI 検証要約結果</span> タブに、当該案件で実行された検証ルールがすべて表示されます。各ルール右側の状態ボタンで AI 判定を確認します。</span></p>
-            <div class="operation-substep">
-              <span class="step-code">4.1</span>
-              <span class="step-text">状態ボタンの見方：<strong>緑色の <span class="ui-text">通過済</span></strong> は AI が通過と判定したルール（参照のみ）。<strong>青色の <span class="ui-text">確認待ち</span></strong> は人工確認が必要なルールです。右上の <span class="ui-text">未確認</span> 件数と <span class="ui-text">一括確認</span> で、確認待ちルールを絞り込めます。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">4.2</span>
-              <span class="step-text"><span class="ui-text">完備性</span> モジュールでは、必要書類・必須フィールドに関する実行済みルールを確認します。<span class="ui-text">欠損帳票</span>（必要書類の不足）と <span class="ui-text">欠損フィールド</span>（必須項目の未抽出）が該当します。帳票名・フィールド名をクリックすると該当帳票タブへ移動できます。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">4.3</span>
-              <span class="step-text"><span class="ui-text">データ検証</span> では、ルール式・検証フィールドの値・ AI 判定結果を確認します。青色の <span class="ui-text">確認待ち</span> ルールは内容を確認し、問題なければ <span class="ui-text">確認済み</span> に更新します。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">4.4</span>
-              <span class="step-text"><span class="ui-text">印鑑・署名検証</span> では、対象帳票・検出対象・照合先フィールドを確認します。帳票名リンクから該当帳票のプレビューへ遷移できます。青色ルールは同様に <span class="ui-text">確認済み</span> へ更新します。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">4.5</span>
-              <span class="step-text">帳票タブから個別帳票のプレビューを開きながら、要約タブのルール結果と照合することもできます。すべての確認待ちルールを処理したら、フッターの <span class="ui-text">AI 検証完了</span> で後続ノードへ進みます。</span>
-            </div>
+            <p><span class="step-code">4</span><span class="step-text"><span class="ui-text">AI 検証確認</span>：<span class="ui-text">AI 検証要約結果</span> タブで実行済み検証ルールを確認します。緑の <span class="ui-text">通過済</span> は参照のみ、青の <span class="ui-text">確認待ち</span> は人工確認対象です。<span class="ui-text">完備性</span>・<span class="ui-text">データ検証</span>・<span class="ui-text">印鑑・署名検証</span> ごとに判定理由と対象帳票を確認し、問題なければ <span class="ui-text">確認済み</span> に更新します。すべて処理したら <span class="ui-text">AI 検証完了</span> で後続ノードへ進みます。</span></p>
             <figure class="screenshot-figure" data-shot="operator-task-ai-verify">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/operator-task-ai-verify-flow.png?v=8" data-lightbox="manual-shots" aria-label="AI 検証確認画面を拡大表示">
                   <img src="assets/operator-task-ai-verify-flow.png?v=8" alt="AI 検証確認の完備性・データ検証・印鑑署名検証">
                 </a>
               </div>
+              <figcaption>Step4：<span class="ui-text">AI 検証要約結果</span> と各モジュールの確認待ちルール。</figcaption>
             </figure>
           </div>
 
           <div class="operation-step">
-            <p><span class="step-code">5</span><span class="step-text"><span class="ui-text">エクスポート</span> — ワークフロー完了後の出力タスクです。業務シーン設定の出力項目に沿って、処理結果を確認し、必要な形式で出力します。</span></p>
-            <div class="operation-substep">
-              <span class="step-code">5.1</span>
-              <span class="step-text"><span class="ui-text">出力形式</span> で CSV / JSON / EXCEL を切り替えます。選択した形式に応じて、左側の <span class="ui-text">エクスポート対象</span> ツリーと右側のプレビュー内容が表示されます。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">5.2</span>
-              <span class="step-text">左側ツリーで <span class="ui-text">標準フィールド</span>、帳票タイプ別の <span class="ui-text">OCR抽出</span>、各出力ファイルを選択し、右側でフィールド名と OCR 抽出値を確認します。</span>
-            </div>
-            <div class="operation-substep">
-              <span class="step-code">5.3</span>
-              <span class="step-text"><span class="ui-text">処理結果をエクスポート</span> で選択形式の結果ファイルを出力します。必要に応じて <span class="ui-text">前処理済み ZIP</span> をダウンロードし、確認後に <span class="ui-text">エクスポート完了</span> をクリックします。</span>
-            </div>
+            <p><span class="step-code">5</span><span class="step-text"><span class="ui-text">エクスポート</span>：<span class="ui-text">出力形式</span>（CSV / JSON / EXCEL）を選び、左の <span class="ui-text">エクスポート対象</span> ツリーと右のプレビューで出力内容を確認します。<span class="ui-text">処理結果をエクスポート</span> で結果ファイルを出力し、必要に応じて <span class="ui-text">前処理済み ZIP</span> を取得したうえで <span class="ui-text">エクスポート完了</span> をクリックします。</span></p>
             <figure class="screenshot-figure" data-shot="operator-task-export">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/operator-task-export-confirm.png?v=8" data-lightbox="manual-shots" aria-label="マイタスク エクスポート確認画面を拡大表示">
                   <img src="assets/operator-task-export-confirm.png?v=8" alt="マイタスク エクスポート確認画面">
                 </a>
               </div>
-              <figcaption><span class="ui-text">エクスポート</span> 画面で出力形式、対象ファイル、フィールド値を確認し、結果ファイルを出力します。</figcaption>
+              <figcaption>Step5：出力形式・対象ファイル・フィールド値の確認とエクスポート。</figcaption>
             </figure>
           </div>
           </section>
