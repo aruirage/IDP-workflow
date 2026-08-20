@@ -179,12 +179,12 @@
             <thead><tr><th>ロール</th><th>主な役割</th></tr></thead>
             <tbody>
               <tr><td><span class="ui-text">admin</span></td><td>システム設定、ルール設定、ユーザー・権限管理を行う管理者。</td></tr>
-              <tr><td><span class="ui-text">操作員</span></td><td>資料アップロード、案件確認、<span class="ui-text">マイタスク</span> 処理を行う業務担当者。</td></tr>
-              <tr><td><span class="ui-text">操作管理者</span></td><td>操作員と同等の業務操作に加え、案件担当者の変更や業務進捗の管理を行う管理者。</td></tr>
-              <tr><td><span class="ui-text">案件担当者</span></td><td>ログインロールではなく、案件に割り当てられる担当ユーザー。首条の人工確認タスクがロールから自動確立された後、案件フィールドとして保持されます。操作管理者は <span class="ui-text">案件一覧</span> で改派できます。</td></tr>
+              <tr><td><span class="ui-text">操作員</span></td><td>資料アップロード、案件確認、<span class="ui-text">マイタスク</span> <span class="ui-text">対応</span>、<span class="ui-text">処理中止</span>。</td></tr>
+              <tr><td><span class="ui-text">操作管理者</span></td><td>操作員に加え、<span class="ui-text">割当</span>（案件担当者・タスク改派）が可能。</td></tr>
+              <tr><td><span class="ui-text">案件担当者</span></td><td>案件に割り当てられる担当ユーザー（ログインロールではない）。<span class="ui-text">案件一覧</span> で操作管理者が改派。</td></tr>
             </tbody>
           </table>
-          <p><span class="ui-text">マイタスク</span> は、ワークフローの人工確認ノードやエクスポートから起票された作業の入口です。誰が処理するかは Step2 キャンバス上のノード設定（割当ロールまたは <span class="ui-text">担当者</span>）で決まり、該当ユーザーだけが一覧に表示されます。Step3 通知設定はタスク割当とは無関係で、イベント条件に一致したときに誰へ通知を送るかだけを定義します。</p>
+          <p><span class="ui-text">マイタスク</span> は人工確認・エクスポートノードから起票され、Step2 の割当設定に基づき該当ユーザーに表示されます。Step3 通知設定は割当とは無関係です。</p>
         </section>
 
         <section class="section-card" id="overview-modules">
@@ -622,7 +622,7 @@
                 </tr>
                 <tr>
                   <td><span class="ui-text">前処理</span></td>
-                  <td>OCR 前に画像を回転・補正・整列し、読取精度を安定させる。</td>
+                  <td>OCR 前に画像を回転・補正・整列し、読取精度を安定させる。本期では前処理結果を人工確認タスクとして起票しません。</td>
                   <td><span class="code-text">preprocessStatus</span>（通知）、<span class="code-text">preprocessResult</span>（条件）</td>
                 </tr>
                 <tr>
@@ -642,7 +642,7 @@
                 </tr>
                 <tr>
                   <td><span class="ui-text">IF/ELSE</span></td>
-                  <td>上流ノードの処理結果で分岐し、主フローか人工確認かを決める。</td>
+                  <td>OCR 抽出や AI 検証など、人工確認対象となる上流ノードの処理結果で分岐し、主フローか人工確認かを決める。</td>
                   <td>なし</td>
                 </tr>
                 <tr>
@@ -664,7 +664,7 @@
             </table>
 
             <h5>処理結果と分岐の読み方</h5>
-            <p>各処理ノードは <strong>処理状態</strong>（<span class="code-text">*Status</span>：実行進捗・異常）と <strong>処理結果</strong>（<span class="code-text">*Result</span>：業務上通過か要確認か）を出力します。IF/ELSE では通常 <span class="code-text">*Result</span> のみを参照します。Step3 通知では <span class="code-text">*Status</span> と <span class="code-text">*Result</span> の両方をトリガーに選べます。</p>
+            <p>各処理ノードは <strong>処理状態</strong>（<span class="code-text">*Status</span>：実行進捗・異常）と <strong>処理結果</strong>（<span class="code-text">*Result</span>：業務上通過か要確認か）を出力します。IF/ELSE では通常 <span class="code-text">*Result</span> のみを参照します。Step3 通知では <span class="code-text">*Status</span> と <span class="code-text">*Result</span> の両方をトリガーに選べます。前処理の人工確認タスク化は本期対象外です。</p>
             <table class="info-table">
               <thead><tr><th>変数</th><th>取り得る値</th><th>意味</th></tr></thead>
               <tbody>
@@ -906,7 +906,7 @@
 
           <section class="manual-subsection" id="upload-function">
             <h3>機能説明</h3>
-            <p><strong>権限：</strong>本機能は <span class="ui-text">操作員</span>、<span class="ui-text">操作管理者</span>、または該当メニュー権限を持つユーザーが利用します。</p>
+            <p><strong>権限：</strong>本機能は <span class="ui-text">admin</span>、<span class="ui-text">操作員</span>、<span class="ui-text">操作管理者</span>、または該当メニュー権限を持つユーザーが利用します。</p>
             <p><strong>利用シーン：</strong>新しい保険金請求案件を開始する場合に使用します。請求書、診断書、診療明細書などをまとめてアップロードし、公開済みの <span class="ui-text">業務シーン</span> に基づいて帳票分類と案件集約を行います。</p>
             <p><strong>処理ロジック：</strong><span class="ui-text">分類・案件集約を実行</span> をクリックすると、アップロード済みの合格ファイルを対象に、帳票分類と案件集約が順に実行されます。帳票タイプ設定の分類説明と、業務シーン設定の案件集約条件が参照されます。</p>
             <p><strong>3 つの資料追加経路：</strong>新規案件の開始は <span class="ui-text">新規アップロード</span>（新規集約経路）。既存案件への補件は、<span class="ui-text">案件一覧</span> からの直付けと、<span class="ui-text">新規アップロード</span> からの集約の 2 通りがあります。</p>
@@ -950,6 +950,14 @@
 
             <div class="operation-step">
               <p><span class="step-code">2</span><span class="step-text">分類・案件集約が完了すると、<span class="ui-text">案件一覧</span> の <span class="ui-text">未集約ファイル</span> タブへ遷移します。自動で案件にまとまったファイルは <span class="ui-text">集約済み案件</span> タブで確認でき、自動集約できなかったファイルは <span class="ui-text">未集約ファイル</span> に残ります。未集約ファイルは <span class="ui-text">新規アップロード</span> から再度集約を実行するか、<span class="ui-text">案件一覧</span> で手動紐付けを行います。</span></p>
+              <figure class="screenshot-figure" data-shot="operator-upload-aggregation-result">
+                <div class="shot-wrap">
+                  <a class="shot-link" href="assets/case-list-unaggregated.png?v=8" data-lightbox="manual-shots" aria-label="集約完了後の未集約ファイルタブを拡大表示">
+                    <img src="assets/case-list-unaggregated.png?v=8" alt="案件一覧 未集約ファイルタブ">
+                  </a>
+                </div>
+                <figcaption>集約完了後は <span class="ui-text">未集約ファイル</span> タブが開きます。自動集約に成功したファイルは <span class="ui-text">集約済み案件</span> タブで確認してください。</figcaption>
+              </figure>
             </div>
 
             <div class="operation-step">
@@ -976,7 +984,7 @@
           <p>本モジュールでは、案件の集約状態、配下ファイル、詳細プレビュー、ワークフロー進捗、操作ダイアログを順に確認します。保険金請求では、<span class="ui-text">集約済み案件</span> で進行中案件を把握し、展開後のファイル、詳細画面、担当者割当、ファイルの案件変更、未集約ファイルの手動紐付けまでを確認します。</p>
           <section class="manual-subsection" id="case-function">
             <h3>機能説明</h3>
-            <p><strong>権限：</strong>本機能は <span class="ui-text">操作員</span>、<span class="ui-text">操作管理者</span>、または該当メニュー権限を持つユーザーが利用します。担当者割当、処理中止、案件変更などの管理操作は、権限を持つユーザーのみ実行できます。</p>
+            <p><strong>権限：</strong><span class="ui-text">admin</span>、<span class="ui-text">操作員</span>、<span class="ui-text">操作管理者</span>、または該当メニュー権限を持つユーザーが利用。<span class="ui-text">処理中止</span> は操作員も可。<span class="ui-text">割当</span>（案件担当者改派）は操作管理者・<span class="ui-text">admin</span> のみ（改派後、未完了タスク担当者も同期更新）。</p>
             <p><strong>利用シーン：</strong>アップロード後に案件へ集約された資料、または自動集約できなかった未集約ファイルを確認します。保険金請求では、案件単位で提出書類、配下ファイル、担当者、処理ステータス、ワークフロー進捗を確認します。</p>
             <p><strong>確認ロジック：</strong><span class="ui-text">集約済み案件</span> では、案件単位にまとまったファイルと進捗を確認します。<span class="ui-text">未集約ファイル</span> では、分類または案件集約に失敗したファイルを確認し、再集約または手動紐付けを行います。</p>
           </section>
@@ -1028,7 +1036,7 @@
           </div>
 
           <div class="operation-step">
-            <p><span class="step-code">5</span><span class="step-text">案件行の <span class="ui-text">割当</span> で <span class="ui-text">担当者割当</span> ダイアログを開き、担当者を指定します。<span class="ui-text">処理中止</span> では、対象案件のワークフローインスタンスを終了し、未完了タスクを無効化します（確認ダイアログで <span class="ui-text">OK</span>）。</span></p>
+            <p><span class="step-code">5</span><span class="step-text"><span class="ui-text">割当</span> で <span class="ui-text">案件担当者</span> を改派（操作管理者のみ）。<span class="ui-text">処理中止</span> でワークフローを終了し未完了タスクを無効化（操作員・操作管理者、確認ダイアログで <span class="ui-text">OK</span>）。</span></p>
             <figure class="screenshot-figure">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/case-list-case-modals-flow.png?v=8" data-lightbox="manual-shots" aria-label="担当者割当と処理中止ダイアログを拡大表示">
@@ -1065,11 +1073,11 @@
 <section class="section-card" id="operator-task-module">
           <p class="section-label">業務操作モジュール</p>
           <h2>マイタスク</h2>
-          <p>本章では、ワークフローから起票された作業を確認し、割当先のロールまたは担当者が必要な確認・修正・出力を行います。マイタスクは、人工確認とエクスポートの実行入口です。</p>
+          <p>本章では、ワークフローから起票された作業を確認し、割当先のロールまたは担当者が必要な確認・修正・出力を行います。マイタスクは、人工確認とエクスポートの実行入口です。<span class="ui-text">admin</span> は全体権限として本章の機能も利用できます。</p>
 
           <section class="manual-subsection" id="task-function">
             <h3>機能説明</h3>
-            <p><strong>権限：</strong>本機能は <span class="ui-text">操作員</span>、<span class="ui-text">操作管理者</span>、または該当タスクの担当者が利用します。タスクはワークフロー側で設定した割当条件に基づいて起票され、該当ロールまたは担当者にだけ表示されます。タスク割当や担当者変更は、操作管理者または権限を持つユーザーが実行します。</p>
+            <p><strong>権限：</strong>該当ロールまたは担当者に表示。操作員は <span class="ui-text">対応</span> のみ、<span class="ui-text">割当</span> は操作管理者・<span class="ui-text">admin</span> のみ（<span class="ui-text">案件一覧</span> の改派とは独立）。</p>
             <p><strong>処理対象：</strong>本画面では <span class="ui-text">OCR 抽出確認</span>、<span class="ui-text">AI 検証確認</span>、<span class="ui-text">エクスポート</span> の 3 種類のタスクを扱います。前処理確認タスクは本期対象外です。</p>
             <table class="info-table">
               <thead><tr><th>タスク種別</th><th>発生する場面</th><th>担当者が行うこと</th><th>完了後の動き</th></tr></thead>
@@ -1115,7 +1123,7 @@
             </figure>
             <div class="notice info">
               <strong>人工確認ノードとの連動（OCR / AI 検証共通）</strong>
-              実行画面フッターの <span class="ui-text">OCR 抽出完了</span> / <span class="ui-text">AI 検証完了</span> は、ワークフローキャンバス上の <span class="ui-text">人工確認</span> ノードの <span class="ui-text">完了</span> 出口に対応し、後続ノードへ進みます。<span class="ui-text">補件</span> は <span class="ui-text">補件</span> 出口へルーティングされ、キャンバスで設定した前段ノード（例：前処理・OCR 抽出）へ戻ります。案件は <span class="ui-text">補件</span> 状態となり、<span class="ui-text">案件一覧</span> から追加書類をアップロードします。<span class="ui-text">案件中止</span> はキャンバス上では接続せず、選択時に現在のワークフローインスタンスを終了します（案件自体は再実行可能）。<span class="ui-text">保存</span> は進捗のみ保存し、出口は確定しません。
+              実行画面フッターの <span class="ui-text">OCR 抽出完了</span> / <span class="ui-text">AI 検証完了</span> は、ワークフローキャンバス上の <span class="ui-text">人工確認</span> ノードの <span class="ui-text">完了</span> 出口に対応し、後続ノードへ進みます。前処理の人工確認タスクは本期対象外です。<span class="ui-text">補件</span> は <span class="ui-text">補件</span> 出口へルーティングされ、キャンバスで設定した前段ノード（例：OCR 抽出）へ戻ります。案件は <span class="ui-text">補件</span> 状態となり、<span class="ui-text">案件一覧</span> から追加書類をアップロードします。<span class="ui-text">案件中止</span> はキャンバス上では接続せず、選択時に現在のワークフローインスタンスを終了します（案件自体は再実行可能）。<span class="ui-text">保存</span> は進捗のみ保存し、出口は確定しません。
             </div>
           </div>
 
@@ -1144,7 +1152,7 @@
           </div>
 
           <div class="operation-step">
-            <p><span class="step-code">5</span><span class="step-text">操作管理者は一覧の <span class="ui-text">割当</span> で <span class="ui-text">タスク割当</span> ダイアログを開き、担当者を変更できます（<span class="ui-text">案件一覧</span> の案件担当者変更とは独立）。</span></p>
+            <p><span class="step-code">5</span><span class="step-text"><span class="ui-text">割当</span> でタスク担当者を変更（操作管理者のみ）。</span></p>
             <figure class="screenshot-figure">
               <div class="shot-wrap">
                 <a class="shot-link" href="assets/operator-task-assign-flow.png?v=8" data-lightbox="manual-shots" aria-label="タスク割当ダイアログを拡大表示">
