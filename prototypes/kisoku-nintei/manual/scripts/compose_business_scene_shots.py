@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -13,10 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 MANIFEST = Path(__file__).with_name("business-scene-shots.json")
 
-PAD = 24
-GAP = 28
-CAPTION_GAP = 8
-CAPTION_H = 22
+OUTPUT_SCALE = max(1, int(os.environ.get("OUTPUT_SCALE", "1")))
+PAD = 24 * OUTPUT_SCALE
+GAP = 28 * OUTPUT_SCALE
+CAPTION_GAP = 8 * OUTPUT_SCALE
+CAPTION_H = 22 * OUTPUT_SCALE
 BG = (255, 255, 255, 255)
 HIGHLIGHT = (229, 57, 53, 255)
 ARROW = (25, 118, 210, 255)
@@ -30,6 +32,7 @@ def load_rgba(path: Path) -> Image.Image:
 
 
 def font(size: int = 18, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    size = max(1, round(size * OUTPUT_SCALE))
     candidates = [
         "/Library/Fonts/Arial Unicode.ttf",
         "/System/Library/Fonts/PingFang.ttc",
@@ -55,6 +58,8 @@ def crop_box(img: Image.Image, box: list[float] | None) -> Image.Image:
 def fit_width(img: Image.Image, width: int) -> Image.Image:
     if img.width == width:
         return img
+    if img.width < width:
+        return img
     ratio = width / img.width
     height = max(1, round(img.height * ratio))
     return img.resize((width, height), Image.Resampling.LANCZOS)
@@ -63,9 +68,20 @@ def fit_width(img: Image.Image, width: int) -> Image.Image:
 def fit_height(img: Image.Image, height: int) -> Image.Image:
     if img.height == height:
         return img
+    if img.height < height:
+        return img
     ratio = height / img.height
     width = max(1, round(img.width * ratio))
     return img.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def scale_panel(img: Image.Image) -> Image.Image:
+    if OUTPUT_SCALE == 1:
+        return img
+    return img.resize(
+        (img.width * OUTPUT_SCALE, img.height * OUTPUT_SCALE),
+        Image.Resampling.LANCZOS,
+    )
 
 
 def load_panel(source: str, crop: list[float] | None = None) -> Image.Image:
@@ -81,34 +97,36 @@ def box_px(panel: dict, img: Image.Image) -> tuple[int, int, int, int]:
 
 def draw_label(draw: ImageDraw.ImageDraw, x: int, y: int, text: str) -> None:
     f = font(16, bold=True)
-    pad_x, pad_y = 8, 4
+    pad_x, pad_y = 8 * OUTPUT_SCALE, 4 * OUTPUT_SCALE
     bbox = draw.textbbox((0, 0), text, font=f)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     draw.rounded_rectangle(
         (x, y, x + tw + pad_x * 2, y + th + pad_y * 2),
-        radius=10,
+        radius=10 * OUTPUT_SCALE,
         fill=LABEL_BG,
     )
-    draw.text((x + pad_x, y + pad_y - 1), text, fill=LABEL_FG, font=f)
+    draw.text((x + pad_x, y + pad_y - OUTPUT_SCALE), text, fill=LABEL_FG, font=f)
 
 
 def draw_highlight(draw: ImageDraw.ImageDraw, rect: tuple[int, int, int, int], label: str | None = None) -> None:
     x0, y0, x1, y1 = rect
-    draw.rectangle(rect, outline=HIGHLIGHT, width=3)
+    line_w = max(1, 3 * OUTPUT_SCALE)
+    draw.rectangle(rect, outline=HIGHLIGHT, width=line_w)
     if label:
-        draw_label(draw, x0 + 6, max(6, y0 - 28), label)
+        draw_label(draw, x0 + 6 * OUTPUT_SCALE, max(6 * OUTPUT_SCALE, y0 - 28 * OUTPUT_SCALE), label)
 
 
 def draw_arrow(draw: ImageDraw.ImageDraw, start: tuple[int, int], end: tuple[int, int]) -> None:
     x0, y0 = start
     x1, y1 = end
-    draw.line((x0, y0, x1, y1), fill=ARROW, width=3)
+    line_w = max(1, 3 * OUTPUT_SCALE)
+    draw.line((x0, y0, x1, y1), fill=ARROW, width=line_w)
     angle = math.atan2(y1 - y0, x1 - x0)
-    size = 10
+    size = 10 * OUTPUT_SCALE
     for da in (2.6, -2.6):
         ax = x1 - size * math.cos(angle - da)
         ay = y1 - size * math.sin(angle - da)
-        draw.line((x1, y1, ax, ay), fill=ARROW, width=3)
+        draw.line((x1, y1, ax, ay), fill=ARROW, width=line_w)
 
 
 def panel_anchor(
@@ -155,7 +173,7 @@ def apply_cell_decorations(
 ) -> None:
     x, y, img = pos
     if cell.get("label"):
-        draw_label(draw, x + 8, y + 8, cell["label"])
+        draw_label(draw, x + 8 * OUTPUT_SCALE, y + 8 * OUTPUT_SCALE, cell["label"])
     for hi in cell.get("highlights", []):
         rect = box_px({"box": hi["box"]}, img)
         draw_highlight(draw, (x + rect[0], y + rect[1], x + rect[2], y + rect[3]), hi.get("label"))
@@ -171,7 +189,8 @@ def compose_grid(recipe: dict) -> Image.Image:
     for cell in cells:
         img = load_panel(cell["source"], cell.get("crop"))
         if col_width_fixed:
-            img = fit_width(img, col_width_fixed)
+            img = fit_width(img, col_width_fixed * OUTPUT_SCALE)
+        img = scale_panel(img)
         col = cell.get("col", 0)
         col_widths[col] = max(col_widths.get(col, 0), img.width)
         row = cell.get("row", 0)
@@ -222,9 +241,9 @@ def compose_grid(recipe: dict) -> Image.Image:
 
 def compose_stack(recipe: dict) -> Image.Image:
     cells = recipe["cells"]
-    imgs = [load_panel(c["source"], c.get("crop")) for c in cells]
+    imgs = [scale_panel(load_panel(c["source"], c.get("crop"))) for c in cells]
     if recipe.get("width"):
-        imgs = [fit_width(im, recipe["width"]) for im in imgs]
+        imgs = [fit_width(im, recipe["width"] * OUTPUT_SCALE) for im in imgs]
     content_w = max(im.width for im in imgs)
     extra = sum(CAPTION_H for c in cells if c.get("caption"))
     canvas_h = PAD * 2 + sum(im.height for im in imgs) + GAP * (len(imgs) - 1) + extra
@@ -255,10 +274,10 @@ def compose_stack(recipe: dict) -> Image.Image:
 
 
 def compose_side_by_side(recipe: dict) -> Image.Image:
-    left = load_panel(recipe["left"]["source"], recipe["left"].get("crop"))
-    right = load_panel(recipe["right"]["source"], recipe["right"].get("crop"))
+    left = scale_panel(load_panel(recipe["left"]["source"], recipe["left"].get("crop")))
+    right = scale_panel(load_panel(recipe["right"]["source"], recipe["right"].get("crop")))
     if recipe.get("height"):
-        height = recipe["height"]
+        height = recipe["height"] * OUTPUT_SCALE
         left = fit_height(left, height)
         right = fit_height(right, height)
     canvas_w = PAD * 2 + left.width + GAP + right.width
@@ -287,9 +306,9 @@ def compose_side_by_side(recipe: dict) -> Image.Image:
 
 
 def compose_single(recipe: dict) -> Image.Image:
-    img = load_panel(recipe["source"], recipe.get("crop"))
+    img = scale_panel(load_panel(recipe["source"], recipe.get("crop")))
     if recipe.get("width"):
-        img = fit_width(img, recipe["width"])
+        img = fit_width(img, recipe["width"] * OUTPUT_SCALE)
     canvas = Image.new("RGBA", (img.width + PAD * 2, img.height + PAD * 2), BG)
     draw = ImageDraw.Draw(canvas)
     x, y = PAD, PAD
@@ -313,15 +332,18 @@ def run_recipe(recipe: dict) -> Path:
     else:
         raise ValueError(f"Unknown layout: {layout}")
     dest = ASSETS / recipe["output"]
-    out.save(dest, optimize=True)
+    out.save(dest, format="PNG", compress_level=3, optimize=False)
     return dest
 
 
 def main() -> None:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if OUTPUT_SCALE != 1:
+        print(f"OUTPUT_SCALE={OUTPUT_SCALE}")
     for recipe in data["recipes"]:
         path = run_recipe(recipe)
-        print(f"Wrote {path.name} ({path.stat().st_size // 1024} KB)")
+        im = Image.open(path)
+        print(f"Wrote {path.name} {im.size[0]}x{im.size[1]} ({path.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":

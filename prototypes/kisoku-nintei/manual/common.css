@@ -963,7 +963,7 @@ a.toc-child:hover,
 .lightbox-panel {
   position: relative;
   z-index: 1;
-  width: min(92vw, 1100px);
+  width: min(96vw, 1400px);
   max-height: 92vh;
   background: #111827;
   border-radius: 12px;
@@ -971,10 +971,10 @@ a.toc-child:hover,
 }
 .lightbox-figure { margin: 0; text-align: center; overflow: auto; max-height: calc(92vh - 120px); }
 .lightbox-figure img {
-  max-width: 100%;
+  width: auto;
+  max-width: none;
   height: auto;
-  transform-origin: center center;
-  transition: transform 0.15s ease;
+  transform: none;
 }
 .lightbox-figure figcaption { color: #e5e7eb; margin-top: 10px; font-size: 13px; }
 .lightbox-close {
