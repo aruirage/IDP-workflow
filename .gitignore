@@ -1,6 +1,7 @@
 .DS_Store
 .cursor/
 prototypes/kisoku-nintei/PRD-idp-workflow-kisoku.md
+prototypes/kisoku-nintei/manual/
 node_modules/
 *.pdf
 *.pptx
@@ -8,3 +9,6 @@ node_modules/
 *.mov
 *.mp4
 *.zip
+
+# Local Netlify folder
+.netlify
