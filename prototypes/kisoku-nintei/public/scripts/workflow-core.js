@@ -1846,7 +1846,6 @@ const NOTIFY_CHANNELS = [
 ];
 
 const NOTIFY_RECIPIENT_OPTIONS = [
-  { value: 'case_owner', label: '担当者' },
   { value: 'operator', label: '操作員' },
   { value: 'operation_admin', label: '操作管理者' },
 ];

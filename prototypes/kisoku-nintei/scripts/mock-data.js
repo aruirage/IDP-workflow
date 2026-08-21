@@ -232,7 +232,6 @@ function normalizeSheetExportMode(mode) {
   return OUTPUT_SHEET_EXPORT_MODE_LEGACY[mode] || mode;
 }
 const HITL_ROLE_OPTIONS = [
-  { value: 'case_owner', label: '担当者', hint: '案件に割り当てられた担当者へタスクを割り当て' },
   { value: 'operator', label: '操作員', hint: '通常の確認・修正作業を担当' },
   { value: 'operation_admin', label: '操作管理者', hint: '運用管理・例外確認を担当' },
 ];
